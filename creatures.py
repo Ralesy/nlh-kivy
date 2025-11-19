@@ -209,6 +209,108 @@ class Player(Creature):
         self.enemies_defeated = 0
         self.battles_fought = 0
 
+    # ===== Equipment management with inventory integration =====
+    def equip_weapon(self, weapon: Weapon) -> bool:
+        """Equip weapon and update inventory.
+
+        If the weapon is present in the player's inventory, remove one copy
+        from inventory when equipping. The previously equipped weapon is
+        returned to the inventory (if there is space). If there isn't room
+        to store the previous weapon, the equip is cancelled.
+        Returns True when equip succeeded, False otherwise.
+        """
+        if weapon is None:
+            return False
+
+        # do nothing if same weapon
+        if self.weapon and self.weapon.id == weapon.id:
+            return True
+
+        # Check if previous weapon can be stored (if any)
+        if self.weapon:
+            if not self.inventory.has_space_for(1):
+                return False
+
+        # Remove new weapon from inventory if it exists there
+        try:
+            in_inv_qty = self.inventory.qty(weapon.id)
+        except Exception:
+            in_inv_qty = 0
+
+        if in_inv_qty > 0:
+            self.inventory.remove(weapon.id, 1)
+
+        # Move previous weapon to inventory
+        if self.weapon:
+            prev = self.weapon
+            prev.on_unequip(self)
+            # add previous back to inventory (we checked space)
+            self.inventory.add(prev, 1)
+
+        # Equip new
+        self.weapon = weapon
+        weapon.on_equip(self)
+        return True
+
+    def unequip_weapon(self) -> bool:
+        """Unequip weapon and return it to inventory if possible.
+
+        Returns True if unequipped and added to inventory, False if inventory
+        is full and weapon remains equipped.
+        """
+        if not self.weapon:
+            return True
+        prev = self.weapon
+        # try to add to inventory
+        if self.inventory.has_space_for(1):
+            prev.on_unequip(self)
+            self.inventory.add(prev, 1)
+            self.weapon = None
+            return True
+        # cannot unequip because no space
+        return False
+
+    def equip_armor(self, armor: Armor) -> bool:
+        """Equip armor and update inventory similar to weapons."""
+        if armor is None:
+            return False
+
+        if self.armor and self.armor.id == armor.id:
+            return True
+
+        if self.armor:
+            if not self.inventory.has_space_for(1):
+                return False
+
+        try:
+            in_inv_qty = self.inventory.qty(armor.id)
+        except Exception:
+            in_inv_qty = 0
+
+        if in_inv_qty > 0:
+            self.inventory.remove(armor.id, 1)
+
+        if self.armor:
+            prev = self.armor
+            prev.on_unequip(self)
+            self.inventory.add(prev, 1)
+
+        self.armor = armor
+        armor.on_equip(self)
+        return True
+
+    def unequip_armor(self) -> bool:
+        """Unequip armor and return it to inventory if possible."""
+        if not self.armor:
+            return True
+        prev = self.armor
+        if self.inventory.has_space_for(1):
+            prev.on_unequip(self)
+            self.inventory.add(prev, 1)
+            self.armor = None
+            return True
+        return False
+
     def add_experience(self, exp: int) -> List[str]:
         """Получение опыта и увеличение уровня."""
         msgs = []

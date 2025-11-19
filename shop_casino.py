@@ -61,6 +61,12 @@ class Shop:
         if not item:
             return "Невозможно продать."
 
+        # Prevent selling an item that is currently equipped
+        if player.weapon and player.weapon.id == item_id:
+            return "Нельзя продавать экипированное оружие. Снимите сначала."
+        if player.armor and player.armor.id == item_id:
+            return "Нельзя продавать экипированную броню. Снимите сначала."
+
         if player.inventory.qty(item_id) < qty:
             return "У вас нет столько предметов."
 
