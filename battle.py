@@ -201,10 +201,25 @@ class Battlefield:
         for e in self.alive_enemies():
             if not self.player.is_alive:
                 break
-            dmg = e.damage
-            taken = self.player.take_damage(dmg)
-            self.player.total_damage_taken += taken
-            logs.append(f"{e.name} наносит {taken} урона вам.")
+            
+            # Выбираем цель: игрок или компаньон (30% шанс атаковать компаньона, если есть живые)
+            target = None
+            alive_companions = [c for c in self.player.companions if c.is_alive]
+            
+            if alive_companions and random.random() < 0.3:
+                # Атакуем случайного компаньона
+                target = random.choice(alive_companions)
+                dmg = e.damage
+                taken = target.take_damage(dmg)
+                logs.append(f"{e.name} наносит {taken} урона {target.name}.")
+                if not target.is_alive:
+                    logs.append(f"  💀 {target.name} выбыл из боя!")
+            else:
+                # Атакуем игрока
+                dmg = e.damage
+                taken = self.player.take_damage(dmg)
+                self.player.total_damage_taken += taken
+                logs.append(f"{e.name} наносит {taken} урона вам.")
         return logs
 
     def attempt_escape(self) -> Tuple[bool, List[str]]:

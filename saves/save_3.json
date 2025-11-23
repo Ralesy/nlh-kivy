@@ -1,0 +1,97 @@
+{
+  "player": {
+    "name": "Герой",
+    "level": 1,
+    "base_health": 140,
+    "base_damage": 12,
+    "base_coins": 80,
+    "health": 6,
+    "coins": 223,
+    "weapon_id": "w_fist",
+    "armor_id": "a_leather",
+    "type": "player",
+    "cls": "warrior",
+    "inventory": {
+      "items": {
+        "p_small": [
+          {
+            "type": "Potion",
+            "id": "p_small",
+            "name": "Малое зелье",
+            "price": 10,
+            "rarity": "Common",
+            "description": "",
+            "heal_amount": 25
+          },
+          2
+        ],
+        "w_short": [
+          {
+            "type": "Weapon",
+            "id": "w_short",
+            "name": "Короткий меч +",
+            "price": 25,
+            "rarity": "Common",
+            "description": "",
+            "damage_bonus": 4
+          },
+          1
+        ],
+        "a_chain": [
+          {
+            "type": "Armor",
+            "id": "a_chain",
+            "name": "Кольчуга",
+            "price": 60,
+            "rarity": "Uncommon",
+            "description": "",
+            "defense": 5
+          },
+          1
+        ],
+        "p_med": [
+          {
+            "type": "Potion",
+            "id": "p_med",
+            "name": "Среднее зелье",
+            "price": 30,
+            "rarity": "Uncommon",
+            "description": "",
+            "heal_amount": 70
+          },
+          1
+        ]
+      },
+      "capacity": 40
+    },
+    "experience": 78,
+    "companions": [
+      {
+        "name": "Lyra",
+        "level": 1,
+        "base_health": 33,
+        "base_damage": 2,
+        "base_coins": 35,
+        "health": 33,
+        "coins": 35,
+        "weapon_id": null,
+        "armor_id": null,
+        "role": "healer",
+        "type": "companion"
+      }
+    ],
+    "session_stats": {
+      "name": "Герой",
+      "class": "Воин",
+      "level": 1,
+      "experience": 78,
+      "coins": 223,
+      "total_damage_dealt": 168,
+      "total_damage_taken": 204,
+      "enemies_defeated": 4,
+      "battles_fought": 2,
+      "inventory_items": 5
+    }
+  },
+  "version": "1.0"
+}

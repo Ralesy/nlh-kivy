@@ -11,9 +11,18 @@ Mini RPG - Главная точка входа
 - Системой квестов и таверной
 - Магазином и казино
 - Несколькими локациями с событиями
+- Kivy UI для Windows и Android
 """
 
-from game import main
+import sys
 
-if __name__ == "__main__":
-    main()
+# Проверяем, запущен ли с флагом --console для консольного режима
+if '--console' in sys.argv:
+    from game import main
+    if __name__ == "__main__":
+        main()
+else:
+    # Запускаем Kivy UI
+    from ui_app import RPGApp
+    if __name__ == "__main__":
+        RPGApp().run()

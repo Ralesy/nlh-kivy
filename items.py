@@ -255,60 +255,60 @@ class ItemDatabase:
                    description="Стартовое оружие")
         )
         cls.register(
-            Weapon("w_short", "Короткий меч +", 40,
+            Weapon("w_short", "Короткий меч +", 25,
                    damage_bonus=4, rarity="Common")
         )
         cls.register(
-            Weapon("w_sword", "Одноручный меч", 120,
+            Weapon("w_sword", "Одноручный меч", 80,
                    damage_bonus=9, rarity="Uncommon")
         )
         cls.register(
-            Weapon("w_staff", "Посох мага", 150,
+            Weapon("w_staff", "Посох мага", 120,
                    damage_bonus=11, rarity="Rare")
         )
         cls.register(
-            Weapon("w_axe", "Топор", 200, damage_bonus=14, rarity="Rare")
+            Weapon("w_axe", "Топор", 150, damage_bonus=14, rarity="Rare")
         )
         cls.register(
-            Weapon("w_great_sword", "Огромный меч", 400,
+            Weapon("w_great_sword", "Огромный меч", 300,
                    damage_bonus=22, rarity="Epic")
         )
         cls.register(
-            Weapon("w_legend", "Меч Легенд", 1200,
+            Weapon("w_legend", "Меч Легенд", 800,
                    damage_bonus=40, rarity="Legendary")
         )
 
         # Броня
         cls.register(
-            Armor("a_leather", "Кожаная броня", 30, defense=2, rarity="Common")
+            Armor("a_leather", "Кожаная броня", 20, defense=2, rarity="Common")
         )
         cls.register(
-            Armor("a_chain", "Кольчуга", 100, defense=5, rarity="Uncommon")
+            Armor("a_chain", "Кольчуга", 60, defense=5, rarity="Uncommon")
         )
         cls.register(
-            Armor("a_plate", "Латы", 260, defense=9, rarity="Rare")
+            Armor("a_plate", "Латы", 150, defense=9, rarity="Rare")
         )
         cls.register(
-            Armor("a_epic", "Боевые доспехи", 500, defense=15, rarity="Epic")
+            Armor("a_epic", "Боевые доспехи", 300, defense=15, rarity="Epic")
         )
         cls.register(
-            Armor("a_legend", "Доспех героя", 1200,
+            Armor("a_legend", "Доспех героя", 800,
                   defense=30, rarity="Legendary")
         )
 
-        # Зелья
+        # Зелья (сбалансированы по эффективности)
         cls.register(
-            Potion("p_small", "Малое зелье", 15,
+            Potion("p_small", "Малое зелье", 10,
                    heal_amount=25, rarity="Common")
         )
         cls.register(
-            Potion("p_med", "Среднее зелье", 50,
+            Potion("p_med", "Среднее зелье", 30,
                    heal_amount=70, rarity="Uncommon")
         )
         cls.register(
-            Potion("p_large", "Большое зелье", 130,
+            Potion("p_large", "Большое зелье", 80,
                    heal_amount=180, rarity="Rare")
         )
         cls.register(
-            Potion("p_mega", "Мега-зелье", 300, heal_amount=350, rarity="Epic")
+            Potion("p_mega", "Мега-зелье", 200, heal_amount=350, rarity="Epic")
         )

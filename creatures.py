@@ -140,9 +140,9 @@ class Companion(Creature):
     """Нанятый спутник."""
 
     ROLES = {
-        "tank": {"hp": 150, "dmg": 9, "coins": 40, "name": "Танк"},
-        "archer": {"hp": 110, "dmg": 12, "coins": 40, "name": "Лучник"},
-        "healer": {"hp": 100, "dmg": 6, "coins": 50, "name": "Целитель"}
+        "tank": {"hp": 50, "dmg": 3, "coins": 30, "name": "Танк"},  # Ослаблено в 3 раза
+        "archer": {"hp": 37, "dmg": 4, "coins": 30, "name": "Лучник"},  # Ослаблено в 3 раза
+        "healer": {"hp": 33, "dmg": 2, "coins": 35, "name": "Целитель"}  # Ослаблено в 3 раза
     }
 
     def __init__(

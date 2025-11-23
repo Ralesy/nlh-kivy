@@ -1,0 +1,64 @@
+{
+  "player": {
+    "name": "Saver",
+    "level": 1,
+    "base_health": 140,
+    "base_damage": 12,
+    "base_coins": 80,
+    "health": 140,
+    "coins": 80,
+    "weapon_id": "w_fist",
+    "armor_id": "a_leather",
+    "type": "player",
+    "cls": "warrior",
+    "inventory": {
+      "items": {
+        "p_small": [
+          {
+            "type": "Potion",
+            "id": "p_small",
+            "name": "Малое зелье",
+            "price": 15,
+            "rarity": "Common",
+            "description": "",
+            "heal_amount": 25
+          },
+          2
+        ]
+      },
+      "capacity": 40
+    },
+    "experience": 0,
+    "companions": [],
+    "session_stats": {
+      "name": "Saver",
+      "class": "Воин",
+      "level": 1,
+      "experience": 0,
+      "coins": 80,
+      "total_damage_dealt": 0,
+      "total_damage_taken": 0,
+      "enemies_defeated": 0,
+      "battles_fought": 0,
+      "inventory_items": 2
+    }
+  },
+  "version": "1.0",
+  "game_state": {
+    "temp_locations": {
+      "gorge": "q_missing_traveler"
+    },
+    "active_quests": {
+      "q_missing_traveler": {
+        "city": "Rivertown",
+        "progress": {
+          "Бандит": 1
+        },
+        "complete": true,
+        "claimed": false,
+        "active": true,
+        "location": "gorge"
+      }
+    }
+  }
+}
