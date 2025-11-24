@@ -1,0 +1,76 @@
+{
+  "player": {
+    "name": "Герой",
+    "level": 1,
+    "base_health": 100,
+    "base_damage": 16,
+    "base_coins": 60,
+    "health": 50,
+    "coins": 132,
+    "weapon_id": "w_short",
+    "armor_id": "a_leather",
+    "type": "player",
+    "cls": "mage",
+    "inventory": {
+      "items": {
+        "p_small": [
+          {
+            "type": "Potion",
+            "id": "p_small",
+            "base_name": "Малое зелье",
+            "base_price": 10,
+            "price": 10,
+            "description": "",
+            "heal_amount": 25,
+            "is_unique": false
+          },
+          5
+        ],
+        "a_leather": [
+          {
+            "type": "Armor",
+            "id": "a_leather",
+            "base_name": "Кожаная броня",
+            "base_price": 20,
+            "material": "leather",
+            "condition": "normal",
+            "description": "",
+            "is_unique": false,
+            "base_defense": 2
+          },
+          1
+        ],
+        "w_fist": [
+          {
+            "type": "Weapon",
+            "id": "w_fist",
+            "base_name": "Кулаки",
+            "base_price": 0,
+            "material": "rag",
+            "condition": "normal",
+            "description": "Стартовое оружие",
+            "is_unique": false,
+            "base_damage": 2
+          },
+          1
+        ]
+      },
+      "capacity": 40
+    },
+    "experience": 31,
+    "companions": [],
+    "session_stats": {
+      "name": "Герой",
+      "class": "Маг",
+      "level": 1,
+      "experience": 31,
+      "coins": 132,
+      "total_damage_dealt": 72,
+      "total_damage_taken": 50,
+      "enemies_defeated": 2,
+      "battles_fought": 1,
+      "inventory_items": 7
+    }
+  },
+  "version": "1.0"
+}

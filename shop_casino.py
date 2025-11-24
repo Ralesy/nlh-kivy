@@ -8,7 +8,7 @@ Shop & Casino: магазин и казино.
 import random
 from typing import Dict, Optional, Tuple
 from creatures import Player
-from items import ItemDatabase
+from items import ItemDatabase, Weapon, Armor
 
 
 class Shop:
@@ -61,14 +61,26 @@ class Shop:
         if not item:
             return "Невозможно продать."
 
-        # Prevent selling an item that is currently equipped
-        if player.weapon and player.weapon.id == item_id:
-            return "Нельзя продавать экипированное оружие. Снимите сначала."
-        if player.armor and player.armor.id == item_id:
-            return "Нельзя продавать экипированную броню. Снимите сначала."
-
-        if player.inventory.qty(item_id) < qty:
+        # Проверяем есть ли в инвентаре достаточное количество
+        in_inventory = player.inventory.qty(item_id)
+        if in_inventory < qty:
             return "У вас нет столько предметов."
+
+        # Предотвращаем продажу последнего экземпляра, если он экипирован.
+        # Учтём общее количество предметов у игрока (в инвентаре + экипировка).
+        equip_count = 0
+        if player.weapon and player.weapon.id == item_id:
+            equip_count += 1
+        if player.armor and player.armor.id == item_id:
+            equip_count += 1
+
+        total_owned = in_inventory + equip_count
+
+        # Блокируем только если пытаются продать ВСЕ имеющиеся копии,
+        # и при этом хоть одна копия сейчас экипирована.
+        if qty >= total_owned and equip_count > 0:
+            item_type = "оружие" if isinstance(item, Weapon) else "броня"
+            return f"Нельзя продавать последнее экипированное {item_type}. Снимите сначала."
 
         price = (item.price * qty) // 2
         player.inventory.remove(item_id, qty)

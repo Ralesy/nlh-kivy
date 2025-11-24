@@ -27,6 +27,10 @@ from creatures import Player
 from items import ItemDatabase, Weapon, Armor, Potion
 from save_system import save_game, load_game, get_save_list
 from battle import Battlefield, EnemyGenerator, EventSystem
+from locations import LocationManager
+from npcs import NPCManager, QuestState, GeneratedQuest
+from enemies import EnemyDatabase
+from npcs import QuestType
 
 
 class MainMenuScreen(Screen):
@@ -149,8 +153,9 @@ class LoadGameScreen(Screen):
         if player:
             game = Game()
             game.player = player
-            game.day = player.level * 5
-            
+            # day will use default if not in old save format
+            game.day = getattr(player, 'day', player.level * 5)
+
             app = App.get_running_app()
             app.game = game
             app.game_screen.game = game
@@ -252,6 +257,17 @@ class CharacterCreationScreen(Screen):
         btn_archer.bind(on_press=lambda x: self.select_class('archer', btn_archer))
         class_layout.add_widget(btn_archer)
         self.class_buttons['archer'] = btn_archer
+
+        btn_test = Button(
+            text='🧪 ТЕСТ (1000 HP/1000 DMG)',
+            size_hint_y=None,
+            height=dp(60),
+            font_size=dp(22),
+            background_color=(1.0, 0.5, 0.0, 1)
+        )
+        btn_test.bind(on_press=lambda x: self.select_class('test', btn_test))
+        class_layout.add_widget(btn_test)
+        self.class_buttons['test'] = btn_test
         
         layout.add_widget(class_layout)
         
@@ -286,15 +302,44 @@ class CharacterCreationScreen(Screen):
     
     def create_character(self, instance):
         name = self.name_input.text.strip() or "Герой"
-        ItemDatabase.initialize()
-        game = Game()
-        game.player = Player(name, self.selected_class)
         
-        # Начальные ресурсы (сбалансировано)
-        game.player.coins += 50  # Уменьшено для баланса
-        game.player.inventory.add(ItemDatabase.get("w_short"), 1)
-        game.player.inventory.add(ItemDatabase.get("a_leather"), 1)  # Более дешевая броня
-        game.player.inventory.add(ItemDatabase.get("p_small"), 3)  # Больше зелий, но слабее
+        # Инициализируем базу данных
+        ItemDatabase.initialize()
+        
+        # Проверяем что предметы загружены
+        if not ItemDatabase.get("w_iron_sword"):
+            popup = Popup(
+                title='Ошибка',
+                content=Label(
+                    text='Ошибка загрузки базы данных '
+                         'предметов!'
+                ),
+                size_hint=(0.6, 0.3)
+            )
+            popup.open()
+            return
+        
+        game = Game()
+        if self.selected_class == 'test':
+            from creatures import TestPlayer
+            game.player = TestPlayer(name)
+        else:
+            game.player = Player(name, self.selected_class)
+        
+        # Начальные ресурсы
+        game.player.coins += 100
+        
+        w = ItemDatabase.get("w_iron_sword")
+        if w:
+            game.player.inventory.add(w, 1)
+        
+        a = ItemDatabase.get("a_leather_armor")
+        if a:
+            game.player.inventory.add(a, 1)
+        
+        p = ItemDatabase.get("p_small")
+        if p:
+            game.player.inventory.add(p, 3)
         
         app = App.get_running_app()
         app.game = game
@@ -302,13 +347,24 @@ class CharacterCreationScreen(Screen):
         app.game_screen.update_game_state()
         
         # Показываем приветственное сообщение
+        weapon_name = (
+            game.player.weapon.name
+            if game.player.weapon
+            else 'Кулаки'
+        )
+        armor_name = (
+            game.player.armor.name
+            if game.player.armor
+            else 'Нет'
+        )
         welcome_text = (
             f"Добро пожаловать, {name}!\n\n"
             f"Вы начинаете с:\n"
             f"💰 {game.player.coins} монет\n"
-            f"⚔️ {game.player.weapon.name if game.player.weapon else 'Кулаки'}\n"
-            f"🛡️ {game.player.armor.name if game.player.armor else 'Нет'}\n\n"
-            f"💡 Подсказка: Посетите таверну для квестов,\n"
+            f"⚔️ {weapon_name}\n"
+            f"🛡️ {armor_name}\n\n"
+            f"💡 Подсказка: Посетите таверну "
+            f"для квестов,\n"
             f"магазин для покупки предметов,\n"
             f"и исследуйте локации на карте!"
         )
@@ -336,21 +392,27 @@ class MapWidget(BoxLayout):
     
     LOCATION_INFO = {
         'forest': {
-            'name': '🌲 Лес',
+            'name': '🌲 Лес Криволесье',
             'desc': 'Легкие враги\nСобытия',
             'difficulty': 'Легко',
             'color': (0.2, 0.5, 0.2, 1)
         },
-        'cave': {
-            'name': '⛏️ Пещера',
-            'desc': 'Средние враги\nСокровища',
+        'swamp': {
+            'name': '🏞️ Болота Гниющие Топи',
+            'desc': 'Средние враги\nТопи',
             'difficulty': 'Средне',
+            'color': (0.3, 0.4, 0.6, 1)
+        },
+        'mines': {
+            'name': '⛏️ Шахты Подскальные Гроты',
+            'desc': 'Сложные враги\nСокровища',
+            'difficulty': 'Сложно',
             'color': (0.4, 0.3, 0.2, 1)
         },
-        'ruins': {
-            'name': '🏛️ Руины',
-            'desc': 'Сложные враги\nЛегенды',
-            'difficulty': 'Сложно',
+        'mountains': {
+            'name': '⛰️ Горы Хребет Драконов',
+            'desc': 'Очень сложные враги\nДраконы',
+            'difficulty': 'Очень сложно',
             'color': (0.5, 0.4, 0.3, 1)
         }
     }
@@ -381,7 +443,7 @@ class MapWidget(BoxLayout):
         # Кнопки локаций с улучшенным дизайном
         locations_layout = BoxLayout(orientation='vertical', spacing=dp(8))
         
-        for loc_id in ['forest', 'cave', 'ruins']:
+        for loc_id in ['forest', 'swamp', 'mines', 'mountains']:
             info = self.LOCATION_INFO[loc_id]
             loc_box = BoxLayout(orientation='vertical', spacing=dp(3), size_hint_y=None, height=dp(90))
             
@@ -502,6 +564,26 @@ class GameScreen(Screen):
         btn_status.bind(on_press=self.on_status)
         menu_layout.add_widget(btn_status)
         
+        btn_locations = Button(
+            text='🗺️ Локации',
+            size_hint_y=None,
+            height=dp(55),
+            font_size=dp(21),
+            background_color=(0.7, 0.3, 0.5, 1)
+        )
+        btn_locations.bind(on_press=self.on_locations)
+        menu_layout.add_widget(btn_locations)
+        
+        btn_quests = Button(
+            text='📋 Активные квесты',
+            size_hint_y=None,
+            height=dp(55),
+            font_size=dp(21),
+            background_color=(0.6, 0.5, 0.2, 1)
+        )
+        btn_quests.bind(on_press=self.on_active_quests)
+        menu_layout.add_widget(btn_quests)
+        
         btn_save = Button(
             text='💾 Сохранить',
             size_hint_y=None,
@@ -529,12 +611,14 @@ class GameScreen(Screen):
             f"HP: {p.health}/{p.max_health} | DMG: {p.damage} | DEF: {p.defense}"
         )
     
-    def enter_location(self, loc):
+    def enter_location(self, loc_id):
         """Вход в локацию."""
         if not self.game or not self.game.player:
             popup = Popup(
                 title='Ошибка',
-                content=Label(text='Игра не инициализирована!'),
+                content=Label(
+                    text='Игра не инициализирована!'
+                ),
                 size_hint=(0.6, 0.3)
             )
             popup.open()
@@ -543,7 +627,9 @@ class GameScreen(Screen):
         if not self.game.player.is_alive:
             popup = Popup(
                 title='Ошибка',
-                content=Label(text='Вы не можете идти - вы мертвы!'),
+                content=Label(
+                    text='Вы не можете идти - вы мертвы!'
+                ),
                 size_hint=(0.6, 0.3)
             )
             popup.open()
@@ -552,30 +638,73 @@ class GameScreen(Screen):
         self.game.day += 1
         self.game.player.battles_fought += 1
         
-        # Событие
-        evt = None
-        if loc == "forest":
-            evt = EventSystem.roll_forest(self.game.player)
-        elif loc == "cave":
-            evt = EventSystem.roll_cave(self.game.player)
+        # Получить локацию
+        location_manager = LocationManager()
+        location = location_manager.get_location(loc_id)
         
-        if evt:
-            self.game.history.append(evt)
+        if not location:
+            popup = Popup(
+                title='Ошибка',
+                content=Label(
+                    text='Локация не найдена!'
+                ),
+                size_hint=(0.6, 0.3)
+            )
+            popup.open()
+            return
+
+        if location.is_locked:
+            condition_text = location.unlock_condition or "Эта локация пока недоступна."
+            popup = Popup(
+                title=f'🔒 {location.name}',
+                content=Label(
+                    text=f"Требования для разблокировки:\n{condition_text}",
+                    text_size=(None, None),
+                    halign='center',
+                    valign='middle',
+                    font_size=dp(18)
+                ),
+                size_hint=(0.7, 0.4)
+            )
+            popup.open()
+            return
         
-        # Генерация врагов
-        if loc == "forest":
-            count = random.randint(1, 2)
-        elif loc == "cave":
-            count = random.randint(1, 3)
-        else:  # ruins
-            count = random.randint(2, 3)
+        # Генерация врагов для локации
+        enemies = (
+            EnemyGenerator.generate_for_location(
+                loc_id,
+                self.game.player.level,
+                random.randint(1, 3)
+            )
+        )
         
-        enemies = EnemyGenerator.generate(loc, self.game.player.level, count)
-        self.battlefield = Battlefield(self.game.player, enemies)
+        if not enemies:
+            # Если нет врагов - это ошибка в данных
+            # Создаем обычных волков как fallback
+            from creatures import Creature
+            enemies = [
+                Creature(
+                    "Враг",
+                    30,
+                    8,
+                    20,
+                    level=self.game.player.level
+                )
+                for _ in range(random.randint(1, 2))
+            ]
+        
+        self.battlefield = Battlefield(
+            self.game.player,
+            enemies
+        )
+        self.current_location = location
         
         # Переход на экран боя
         app = App.get_running_app()
-        app.battle_screen.start_battle(self.battlefield, evt)
+        app.battle_screen.start_battle(
+            self.battlefield,
+            location.name
+        )
         self.manager.current = 'battle'
     
     def on_tavern(self, instance):
@@ -613,6 +742,24 @@ class GameScreen(Screen):
         app.status_screen.update_status()
         self.manager.current = 'status'
     
+    def on_locations(self, instance):
+        """Открыть экран выбора локаций."""
+        if not self.game or not self.game.player:
+            return
+        app = App.get_running_app()
+        if app.location_select_screen:
+            app.location_select_screen.update_locations()
+            self.manager.current = 'location_select'
+    
+    def on_active_quests(self, instance):
+        """Открыть экран активных квестов."""
+        if not self.game or not self.game.player:
+            return
+        app = App.get_running_app()
+        if app.active_quests_screen:
+            app.active_quests_screen.update_quests()
+            self.manager.current = 'active_quests'
+    
     def on_save(self, instance):
         if not self.game or not self.game.player:
             return
@@ -644,7 +791,27 @@ class GameScreen(Screen):
         
         def save_confirm(instance):
             name = name_input.text.strip() or f"save_{self.game.day}"
-            if save_game(self.game.player, name):
+
+            # Get NPC data - fallback to app.npc_manager if tavern not init
+            app = App.get_running_app()
+            npc_manager = self.manager.get_screen('tavern').npc_manager
+            if not npc_manager:
+                npc_manager = app.npc_manager
+            npcs_data = ({npc_id: npc.to_dict()
+                         for npc_id, npc in npc_manager.npcs.items()}
+                         if npc_manager else {})
+
+            data = {
+                'player': self.game.player.to_dict(),
+                'day': self.game.day,
+                'npcs': npcs_data,
+            }
+
+            # Save the data
+            import json
+            try:
+                with open(f'saves/{name}.json', 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
                 popup.dismiss()
                 popup2 = Popup(
                     title='✅ Успех',
@@ -655,12 +822,12 @@ class GameScreen(Screen):
                     size_hint=(0.6, 0.3)
                 )
                 popup2.open()
-            else:
+            except Exception as e:
                 popup.dismiss()
                 popup2 = Popup(
                     title='❌ Ошибка',
                     content=Label(
-                        text='Ошибка сохранения',
+                        text=f'Ошибка сохранения: {e}',
                         font_size=dp(18)
                     ),
                     size_hint=(0.6, 0.3)
@@ -894,7 +1061,7 @@ class BattleScreen(Screen):
         self.is_processing_turn = True
         self.update_battle_display()
         
-        result = self.battlefield.player_attack(enemy_index)
+        result, killed = self.battlefield.player_attack()
         self.add_log(result)
         self.update_battle_display()
         
@@ -1006,32 +1173,65 @@ class BattleScreen(Screen):
         if self.battlefield.player.is_alive:
             self.add_log("\n🎉 Вы победили!")
             
-            # Восстанавливаем здоровье компаньонов после боя
-            for companion in self.battlefield.player.companions:
+            # Восстанавливаем здоровье компаньонов
+            for companion in (
+                self.battlefield.player.companions
+            ):
                 companion.health = companion.max_health
                 if not companion.is_alive:
-                    self.add_log(f"💚 {companion.name} восстановлен после боя!")
+                    self.add_log(
+                        f"💚 {companion.name} "
+                        f"восстановлен после боя!"
+                    )
             
-            # Регистрация убийств
-            if app.game:
-                for e in self.battlefield.enemies:
-                    if not e.is_alive:
-                        for q in app.game.tavern.available_quests.values():
-                            q.register_kill(e.name)
-                
-                app.game.wins_in_row += 1
-                app.game.shop.refresh()
-                for q in app.game.tavern.available_quests.values():
-                    if not q.complete:
-                        q.register_win()
+            # Генерируем результат боя с добычей
+            from battle import BattleResult, LootDrop
             
-            Clock.schedule_once(lambda dt: self.return_to_game(True), 2.0)
+            # Подсчитываем добычу
+            total_gold = 0
+            total_xp = 0
+            loot_drops = []
+            
+            for enemy in self.battlefield.enemies:
+                if not enemy.is_alive:
+                    total_gold += enemy.base_coins
+                    total_xp += enemy.base_xp
+                    
+                    loot = enemy.generate_loot()
+                    if loot:
+                        for item_id, quantity in loot:
+                            loot_drops.append(LootDrop(item_id, quantity))
+            
+            battle_result = BattleResult(
+                victory=True,
+                loot=loot_drops,
+                gold_earned=total_gold,
+                xp_earned=total_xp
+            )
+            
+            # Показываем окно добычи
+            Clock.schedule_once(
+                lambda dt: self._show_loot_window(
+                    battle_result
+                ),
+                2.0
+            )
         else:
             self.add_log("\n💀 Вы были повержены...")
             if app.game:
-                app.game.wins_in_row = 0
-                # Показываем экран смерти
-                Clock.schedule_once(lambda dt: self.show_death_screen(), 2.0)
+                Clock.schedule_once(
+                    lambda dt: self.show_death_screen(),
+                    2.0
+                )
+    
+    def _show_loot_window(self, battle_result):
+        """Показать окно добычи."""
+        app = App.get_running_app()
+        if app.loot_window_screen:
+            app.loot_window_screen.show_loot(
+                battle_result
+            )
+            self.manager.current = 'loot_window'
     
     def show_death_screen(self):
         """Показ экрана смерти."""
@@ -1101,13 +1301,6 @@ class TavernScreen(Screen):
         super().__init__(**kwargs)
         layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
         
-        # Фон таверны
-        with layout.canvas.before:
-            Color(0.25, 0.2, 0.15, 1)  # Коричневый фон (как в таверне)
-            self.bg_rect = Rectangle()
-            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
-                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
-        
         title = Label(
             text='🏰 ТАВЕРНА',
             font_size=dp(40),
@@ -1118,29 +1311,43 @@ class TavernScreen(Screen):
         layout.add_widget(title)
         
         # Вкладки с улучшенным дизайном
-        tab_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(55), spacing=dp(5))
-        btn_quests = Button(
-            text='📜 Квесты',
-            size_hint_x=0.5,
-            background_color=(0.4, 0.6, 0.3, 1),
-            font_size=dp(20)
+        tab_layout = BoxLayout(
+            orientation='horizontal',
+            size_hint_y=None,
+            height=dp(55),
+            spacing=dp(5)
         )
-        btn_quests.bind(on_press=lambda x: self.show_quests())
-        tab_layout.add_widget(btn_quests)
+        
+        btn_npcs = Button(
+            text='🧙 NPC',
+            size_hint_x=0.5,
+            background_color=(0.5, 0.4, 0.3, 1),
+            font_size=dp(18)
+        )
+        btn_npcs.bind(on_press=lambda x: self.show_npcs())
+        tab_layout.add_widget(btn_npcs)
         
         btn_companions = Button(
             text='🤝 Спутники',
             size_hint_x=0.5,
             background_color=(0.3, 0.5, 0.7, 1),
-            font_size=dp(20)
+            font_size=dp(18)
         )
-        btn_companions.bind(on_press=lambda x: self.show_companions())
+        btn_companions.bind(
+            on_press=lambda x: self.show_companions()
+        )
         tab_layout.add_widget(btn_companions)
         layout.add_widget(tab_layout)
         
         scroll = ScrollView()
-        self.content_layout = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_y=None)
-        self.content_layout.bind(minimum_height=self.content_layout.setter('height'))
+        self.content_layout = BoxLayout(
+            orientation='vertical',
+            spacing=dp(10),
+            size_hint_y=None
+        )
+        self.content_layout.bind(
+            minimum_height=self.content_layout.setter('height')
+        )
         scroll.add_widget(self.content_layout)
         layout.add_widget(scroll)
         
@@ -1155,98 +1362,87 @@ class TavernScreen(Screen):
         layout.add_widget(btn_back)
         
         self.add_widget(layout)
-        self.current_tab = 'quests'
+        self.current_tab = 'npcs'
+        self.npc_manager = None
     
     def update_tavern(self):
-        self.show_quests()
+        if not self.npc_manager:
+            app = App.get_running_app()
+            self.npc_manager = app.npc_manager
+        self.show_npcs()
     
-    def show_quests(self):
-        self.current_tab = 'quests'
+    def show_npcs(self):
+        """Показать список NPC в таверне."""
+        self.current_tab = 'npcs'
         self.content_layout.clear_widgets()
-        
+
         app = App.get_running_app()
         if not app.game:
             return
+
+        npcs = list(self.npc_manager.npcs.values())
         
-        for q in app.game.tavern.available_quests.values():
-            status = q.progress_display()
-            claimed = " ✅ [ПОЛУЧЕНО]" if q.claimed else ""
-            complete = " ✅ ЗАВЕРШЕН" if q.complete and not q.claimed else ""
-            
-            quest_box = BoxLayout(orientation='vertical', spacing=dp(8), size_hint_y=None, height=dp(130), padding=dp(8))
-            
-            # Фон квеста
-            with quest_box.canvas.before:
-                Color(0.3, 0.3, 0.35, 1)
-                quest_bg = Rectangle()
-                quest_box.bind(pos=lambda instance, value: setattr(quest_bg, 'pos', instance.pos),
-                              size=lambda instance, value: setattr(quest_bg, 'size', instance.size))
-            
-            # Заголовок квеста
-            quest_title = Label(
-                text=f"📜 {q.desc}",
+        for npc in npcs:
+            npc_box = BoxLayout(
+                orientation='vertical',
+                spacing=dp(5),
+                size_hint_y=None,
+                height=dp(120),
+                padding=dp(10)
+            )
+
+            # Имя и роль NPC
+            npc_title = Label(
+                text=f"🧙 {npc.__class__.__name__}",
                 font_size=dp(18),
                 size_hint_y=None,
                 height=dp(35),
                 text_size=(None, None),
-                halign='left',
-                valign='top',
-                color=(0.9, 0.9, 0.3, 1),
+                halign='center',
+                valign='middle',
+                color=(0.9, 0.7, 0.3, 1),
                 bold=True
             )
-            quest_box.add_widget(quest_title)
-            
-            # Прогресс
-            total_goal = sum(q.goal.values())
-            total_progress = sum(q.progress.values())
-            progress_percent = (total_progress / total_goal * 100) if total_goal > 0 else 0
-            
-            progress_label = Label(
-                text=f"Прогресс: {total_progress}/{total_goal} ({int(progress_percent)}%){complete}{claimed}",
-                font_size=dp(16),
+            npc_box.add_widget(npc_title)
+
+            # Описание
+            desc_label = Label(
+                text="📋 Нажмите для диалога",
+                font_size=dp(14),
                 size_hint_y=None,
                 height=dp(30),
                 text_size=(None, None),
-                halign='left',
-                valign='top',
+                halign='center',
+                valign='middle',
                 color=(0.8, 0.8, 0.8, 1)
             )
-            quest_box.add_widget(progress_label)
+            npc_box.add_widget(desc_label)
+
+            # Кнопка диалога
+            btn_talk = Button(
+                text='💬 Разговор',
+                size_hint_y=None,
+                height=dp(45),
+                background_color=(0.4, 0.6, 0.8, 1),
+                font_size=dp(16)
+            )
+            btn_talk.bind(
+                on_press=lambda b, n=npc.id: self.talk_to_npc(n)
+            )
+            npc_box.add_widget(btn_talk)
             
-            # Прогресс-бар (визуальный)
-            progress_bar_bg = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(20))
-            progress_bar_bg.canvas.before.clear()
-            with progress_bar_bg.canvas.before:
-                Color(0.2, 0.2, 0.2, 1)
-                bar_bg = Rectangle()
-                progress_bar_bg.bind(pos=lambda instance, value: setattr(bar_bg, 'pos', instance.pos),
-                                    size=lambda instance, value: setattr(bar_bg, 'size', instance.size))
-            
-            progress_bar = BoxLayout(size_hint_x=progress_percent/100 if progress_percent > 0 else 0.01)
-            progress_bar.canvas.before.clear()
-            with progress_bar.canvas.before:
-                Color(0.2, 0.7, 0.3, 1)
-                bar_fill = Rectangle()
-                progress_bar.bind(pos=lambda instance, value: setattr(bar_fill, 'pos', instance.pos),
-                                 size=lambda instance, value: setattr(bar_fill, 'size', instance.size))
-            progress_bar_bg.add_widget(progress_bar)
-            quest_box.add_widget(progress_bar_bg)
-            
-            # Кнопка получения награды
-            if q.complete and not q.claimed:
-                btn_claim = Button(
-                    text='🎁 Получить награду',
-                    size_hint_y=None,
-                    height=dp(45),
-                    background_color=(0.2, 0.7, 0.3, 1),
-                    font_size=dp(18)
-                )
-                btn_claim.bind(on_press=lambda x, quest=q: self.claim_quest(quest))
-                quest_box.add_widget(btn_claim)
-            
-            self.content_layout.add_widget(quest_box)
+            self.content_layout.add_widget(npc_box)
+    
+    def talk_to_npc(self, npc_id):
+        """Открыть диалог с NPC."""
+        npc = self.npc_manager.get_npc(npc_id)
+        app = App.get_running_app()
+        if app.npc_dialogue_screen:
+            app.npc_dialogue_screen.show_npc_dialogue(npc)
+            self.manager.current = 'npc_dialogue'
     
     def show_companions(self):
+        """Показать спутников (старая система)."""
         self.current_tab = 'companions'
         self.content_layout.clear_widgets()
         
@@ -1254,7 +1450,20 @@ class TavernScreen(Screen):
         if not app.game:
             return
         
-        companions = app.game.tavern.COMPANIONS
+        try:
+            companions = app.game.tavern.COMPANIONS
+        except (AttributeError, TypeError):
+            empty_label = Label(
+                text="Система спутников недоступна",
+                font_size=dp(18),
+                text_size=(None, None),
+                halign='center',
+                valign='center',
+                color=(0.8, 0.8, 0.8, 1)
+            )
+            self.content_layout.add_widget(empty_label)
+            return
+        
         for i, (name, role) in enumerate(companions, 1):
             roles_desc = {
                 "tank": "Танк (высокая защита)",
@@ -1264,12 +1473,22 @@ class TavernScreen(Screen):
             
             # Получаем цену из ROLES
             from creatures import Companion
-            role_data = Companion.ROLES.get(role, {"coins": 30})
+            role_data = Companion.ROLES.get(
+                role, {"coins": 30}
+            )
             price = role_data["coins"]
             
-            comp_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60))
+            comp_layout = BoxLayout(
+                orientation='horizontal',
+                size_hint_y=None,
+                height=dp(60)
+            )
             comp_label = Label(
-                text=f"{i}) {name} — {roles_desc.get(role, role)} (цена: {price} монет)",
+                text=(
+                    f"{i}) {name} — "
+                    f"{roles_desc.get(role, role)} "
+                    f"(цена: {price} монет)"
+                ),
                 font_size=dp(18),
                 size_hint_x=0.7
             )
@@ -1289,8 +1508,17 @@ class TavernScreen(Screen):
         app = App.get_running_app()
         if not app.game:
             return
-        
+
         result = quest.claim(app.game.player)
+
+        # Уведомляем NPC о завершении квеста
+        if hasattr(quest, 'npc_id') and quest.npc_id:
+            npc_manager = NPCManager()
+            npc = npc_manager.get_npc(quest.npc_id)
+            if npc and npc.current_quest == quest:
+                npc.current_quest = None
+                npc.completed_quests_count += 1
+
         popup = Popup(
             title='🎁 Награда получена!',
             content=Label(
@@ -1763,6 +1991,12 @@ class InventoryScreen(Screen):
                 btn_unequip.bind(on_press=lambda x, it=item: self.unequip_item(it))
                 btn_layout.add_widget(btn_unequip)
             
+            # Проверяем если это зелье
+            if isinstance(item, Potion):
+                btn_use = Button(text='Пить', size_hint_x=0.5)
+                btn_use.bind(on_press=lambda x, it=item: self.use_potion(it))
+                btn_layout.add_widget(btn_use)
+            
             item_layout.add_widget(btn_layout)
             self.items_layout.add_widget(item_layout)
     
@@ -1801,6 +2035,31 @@ class InventoryScreen(Screen):
                     size_hint=(0.6, 0.3)
                 )
                 popup.open()
+        
+        self.update_inventory()
+    
+    def use_potion(self, item):
+        """Пить зелье."""
+        app = App.get_running_app()
+        if not app.game or not isinstance(item, Potion):
+            return
+        
+        player = app.game.player
+        heal_amount = item.heal_amount
+        actual_heal = player.heal(heal_amount)
+        
+        # Удаляем зелье из инвентаря
+        player.inventory.remove(item.id, 1)
+        
+        popup = Popup(
+            title='✅ Использовано',
+            content=Label(
+                text=f"Вы выпили {item.display_name()}\n"
+                     f"Восстановлено {actual_heal} HP"
+            ),
+            size_hint=(0.6, 0.4)
+        )
+        popup.open()
         
         self.update_inventory()
     
@@ -1982,7 +2241,7 @@ class BattleInventoryScreen(Screen):
             return
         
         # Используем зелье
-        result = self.battlefield.use_item(item.id)
+        result = self.battlefield.player.use_item(item.id, self.battlefield)
         
         # Обновляем инвентарь
         self.update_inventory(self.battlefield)
@@ -2225,6 +2484,820 @@ class StatusScreen(Screen):
         self.manager.current = 'game'
 
 
+class LocationSelectScreen(Screen):
+    """Экран выбора локации с информацией."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.current_location = None
+        self.location_manager = None
+        self.game = None
+        
+        main_layout = BoxLayout(
+            orientation='vertical',
+            padding=dp(15),
+            spacing=dp(12)
+        )
+        
+        # Фон
+        with main_layout.canvas.before:
+            Color(0.15, 0.2, 0.25, 1)
+            self.bg_rect = Rectangle()
+            main_layout.bind(
+                size=lambda i, v: setattr(
+                    self.bg_rect, 'size', i.size
+                ),
+                pos=lambda i, v: setattr(
+                    self.bg_rect, 'pos', i.pos
+                )
+            )
+        
+        # Заголовок
+        title_label = Label(
+            text='🗺️ ВЫБОР ЛОКАЦИИ',
+            font_size=dp(24),
+            size_hint_y=None,
+            height=dp(50),
+            color=(0.9, 0.7, 0.1, 1),
+            bold=True
+        )
+        main_layout.add_widget(title_label)
+        
+        # Список локаций в ScrollView
+        scroll = ScrollView(size_hint=(1, 0.7))
+        self.locations_layout = GridLayout(
+            cols=1,
+            spacing=dp(10),
+            size_hint_y=None,
+            padding=dp(10)
+        )
+        self.locations_layout.bind(
+            minimum_height=self.locations_layout.setter(
+                'height'
+            )
+        )
+        scroll.add_widget(self.locations_layout)
+        main_layout.add_widget(scroll)
+        
+        # Кнопки внизу
+        btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None)
+        btn_layout.height = dp(50)
+        
+        btn_back = Button(
+            text='← Назад',
+            size_hint_x=0.5,
+            background_color=(0.4, 0.4, 0.4, 1)
+        )
+        btn_back.bind(on_press=self.on_back)
+        btn_layout.add_widget(btn_back)
+        
+        btn_stats = Button(
+            text='📊 Статус',
+            size_hint_x=0.5,
+            background_color=(0.5, 0.5, 0.7, 1)
+        )
+        btn_stats.bind(on_press=self.on_status)
+        btn_layout.add_widget(btn_stats)
+        
+        main_layout.add_widget(btn_layout)
+        self.add_widget(main_layout)
+    
+    def update_locations(self):
+        """Обновление списка локаций."""
+        app = App.get_running_app()
+        self.game = app.game
+        self.location_manager = LocationManager()
+        
+        self.locations_layout.clear_widgets()
+        
+        for loc_id, location in (
+            self.location_manager.locations.items()
+        ):
+            # Кнопка локации
+            btn_text = self._get_location_text(location)
+            btn = Button(
+                text=btn_text,
+                size_hint_y=None,
+                height=dp(80),
+                font_size=dp(15),
+                background_color=(
+                    (0.2, 0.5, 0.3, 1) if not location.is_locked
+                    else (0.5, 0.2, 0.2, 1)
+                )
+            )
+            
+            if not location.is_locked:
+                btn.bind(
+                    on_press=lambda b, lid=loc_id:
+                    self.on_select_location(lid)
+                )
+            else:
+                btn.bind(
+                    on_press=lambda b, loc=location:
+                    self.on_locked_location(loc)
+                )
+
+            self.locations_layout.add_widget(btn)
+    
+    def _get_location_text(self, location):
+        """Получить текст кнопки локации."""
+        lock_icon = '🔐' if location.is_locked else '🔓'
+        difficulty = {
+            'forest': '⭐ Лёгкая',
+            'swamp': '⭐⭐ Средняя',
+            'mines': '⭐⭐⭐ Сложная',
+            'mountains': '⭐⭐⭐⭐ Очень сложная',
+            'ancient': '⭐⭐⭐⭐⭐ Экстрем'
+        }.get(location.id, 'Неизвестная')
+        
+        text = f"{lock_icon} {location.name}\n{difficulty}"
+        
+        if location.is_locked and location.unlock_condition:
+            text += f"\n⚠️ {location.unlock_condition}"
+        else:
+            text += f"\n✅ Враги: {len(location.enemy_types)}"
+        
+        return text
+    
+    def on_select_location(self, loc_id):
+        """Выбор локации для входа."""
+        app = App.get_running_app()
+        app.game_screen.enter_location(loc_id)
+        self.manager.current = 'battle'
+    
+    def on_back(self, instance):
+        """Возврат в главное меню игры."""
+        app = App.get_running_app()
+        if app.game_screen:
+            app.game_screen.update_game_state()
+        self.manager.current = 'game'
+    
+    def on_status(self, instance):
+        """Открыть статус."""
+        self.manager.current = 'status'
+
+    def on_locked_location(self, location):
+        """Показать требования для разблокировки локации."""
+        if not location.unlock_condition:
+            condition_text = "Эта локация пока недоступна."
+        else:
+            condition_text = f"Требования для разблокировки:\n{location.unlock_condition}"
+
+        popup = Popup(
+            title=f'🔒 {location.name}',
+            content=Label(
+                text=condition_text,
+                text_size=(None, None),
+                halign='center',
+                valign='middle',
+                font_size=dp(18)
+            ),
+            size_hint=(0.7, 0.4)
+        )
+        popup.open()
+
+
+class NPCDialogueScreen(Screen):
+    """Экран диалога с NPC."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.current_npc = None
+        self.current_quest = None
+        
+        main_layout = BoxLayout(
+            orientation='vertical',
+            padding=dp(15),
+            spacing=dp(12)
+        )
+        
+        # Фон
+        with main_layout.canvas.before:
+            Color(0.15, 0.2, 0.25, 1)
+            self.bg_rect = Rectangle()
+            main_layout.bind(
+                size=lambda i, v: setattr(
+                    self.bg_rect, 'size', i.size
+                ),
+                pos=lambda i, v: setattr(
+                    self.bg_rect, 'pos', i.pos
+                )
+            )
+        
+        # Заголовок
+        self.npc_name = Label(
+            text='',
+            font_size=dp(24),
+            size_hint_y=None,
+            height=dp(50),
+            color=(0.9, 0.7, 0.1, 1),
+            bold=True
+        )
+        main_layout.add_widget(self.npc_name)
+        
+        # Текст диалога
+        scroll = ScrollView()
+        self.dialogue_text = Label(
+            text='',
+            size_hint_y=None,
+            text_size=(None, None),
+            halign='left',
+            valign='top',
+            font_size=dp(16),
+            color=(0.9, 0.9, 0.9, 1)
+        )
+        self.dialogue_text.bind(
+            texture_size=self.dialogue_text.setter('size')
+        )
+        scroll.add_widget(self.dialogue_text)
+        main_layout.add_widget(scroll)
+        
+        # Кнопки
+        btn_layout = BoxLayout(
+            spacing=dp(10),
+            size_hint_y=None
+        )
+        btn_layout.height = dp(150)
+
+        self.btn_accept_quest = Button(
+            text='✅ Принять квест',
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.2, 0.6, 0.2, 1)
+        )
+        self.btn_accept_quest.bind(
+            on_press=self.on_accept_quest
+        )
+        btn_layout.add_widget(self.btn_accept_quest)
+
+        self.btn_claim_reward = Button(
+            text='🎁 Получить награду',
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.8, 0.6, 0.2, 1)
+        )
+        self.btn_claim_reward.bind(
+            on_press=self.on_claim_reward
+        )
+        btn_layout.add_widget(self.btn_claim_reward)
+
+        self.btn_reject_quest = Button(
+            text='❌ Отклонить',
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.6, 0.2, 0.2, 1)
+        )
+        self.btn_reject_quest.bind(
+            on_press=self.on_reject_quest
+        )
+        btn_layout.add_widget(self.btn_reject_quest)
+
+        btn_back = Button(
+            text='← Вернуться',
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.4, 0.4, 0.4, 1)
+        )
+        btn_back.bind(on_press=self.on_back)
+        btn_layout.add_widget(btn_back)
+
+        # Initially disable buttons
+        self.btn_accept_quest.disabled = True
+        self.btn_claim_reward.disabled = True
+        self.btn_reject_quest.disabled = True
+
+        main_layout.add_widget(btn_layout)
+        self.add_widget(main_layout)
+    
+    def show_npc_dialogue(self, npc):
+        """Показать диалог NPC."""
+        self.current_npc = npc
+        self.npc_name.text = f"🧙 {npc.__class__.__name__}"
+
+        # Получаем текст диалога
+        dialogue = npc.get_introduction()
+
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        
+        # Проверяем, есть ли активный квест у этого NPC у игрока
+        has_active_quest_from_npc = False
+        if player:
+            for quest in player.accepted_quests:
+                if quest.npc_id == npc.id:
+                    has_active_quest_from_npc = True
+                    break
+
+        # Проверяем, есть ли квест у NPC
+        if npc.is_quest_active():
+            quest = npc.current_quest
+            if quest.state == QuestState.ACTIVE:
+                if quest.is_complete():
+                    dialogue += (
+                        f"\n\n🎉 КВЕСТ ВЫПОЛНЕН!\n"
+                        f"Награда: {quest.reward_gold} монет, "
+                        f"{quest.reward_xp} XP\n"
+                    )
+                    self.current_quest = quest
+                    self.btn_claim_reward.disabled = False
+                    self.btn_accept_quest.disabled = True
+                    self.btn_reject_quest.disabled = True
+                else:
+                    dialogue += (
+                        f"\n\n📜 АКТИВНЫЙ КВЕСТ:\n"
+                        f"Тип: {quest.quest_type.value}\n"
+                        f"{quest.progress_display()}\n"
+                        f"Награда: {quest.reward_gold} монет, "
+                        f"{quest.reward_xp} XP\n"
+                    )
+                    self.current_quest = None
+                    self.btn_claim_reward.disabled = True
+                    self.btn_accept_quest.disabled = True
+                    self.btn_reject_quest.disabled = True
+            elif quest.state == QuestState.NOT_TAKEN:
+                dialogue += (
+                    f"\n\n📜 ПРЕДЛОЖЕНИЕ:\n"
+                    f"Тип: {quest.quest_type.value}\n"
+                )
+
+                if quest.quest_type == QuestType.KILL_ENEMIES:
+                    dialogue += f"Задание: Убить {quest.required_count} {quest.target}\n"
+                elif quest.quest_type == QuestType.COLLECT_ITEM:
+                    dialogue += f"Задание: Найти {quest.required_count} {quest.target}\n"
+
+                dialogue += (
+                    f"Награда: {quest.reward_gold} монет, "
+                    f"{quest.reward_xp} XP\n"
+                )
+
+                self.current_quest = quest
+                self.btn_claim_reward.disabled = True
+                self.btn_accept_quest.disabled = False
+                self.btn_reject_quest.disabled = False
+        else:
+            # Проверяем есть ли активный квест от этого NPC
+            if has_active_quest_from_npc:
+                dialogue += (
+                    f"\n\n📋 У вас уже есть активный квест "
+                    f"от этого NPC.\n"
+                    f"Завершите его, чтобы взять новый!\n"
+                )
+                self.current_quest = None
+                self.btn_claim_reward.disabled = True
+                self.btn_accept_quest.disabled = True
+                self.btn_reject_quest.disabled = True
+            else:
+                # Генерируем новый квест и предлагаем его NPC
+                quest = npc.generate_quest()
+                npc.offer_quest(quest)  # Устанавливаем квест у NPC
+
+                dialogue += (
+                    f"\n\n📜 ПРЕДЛОЖЕНИЕ:\n"
+                    f"Тип: {quest.quest_type.value}\n"
+                )
+
+                if quest.quest_type == QuestType.KILL_ENEMIES:
+                    dialogue += f"Задание: Убить {quest.required_count} {quest.target}\n"
+                elif quest.quest_type == QuestType.COLLECT_ITEM:
+                    dialogue += f"Задание: Найти {quest.required_count} {quest.target}\n"
+
+                dialogue += (
+                    f"Награда: {quest.reward_gold} монет, "
+                    f"{quest.reward_xp} XP\n"
+                )
+
+                self.current_quest = quest
+                self.btn_claim_reward.disabled = True
+                self.btn_accept_quest.disabled = False
+                self.btn_reject_quest.disabled = False
+
+        self.dialogue_text.text = dialogue
+    
+    def on_accept_quest(self, instance):
+        """Принять квест."""
+        app = App.get_running_app()
+        if not app.game or not app.game.player or not self.current_quest:
+            return
+
+        # Принимаем квест у NPC
+        self.current_npc.accept_quest()
+        app.game.player.accepted_quests.append(self.current_quest)
+
+        npc_class_name = self.current_npc.__class__.__name__
+        popup = Popup(
+            title='✅ Квест принят!',
+            content=Label(
+                text=f"Вы приняли квест от {npc_class_name}"
+            ),
+            size_hint=(0.6, 0.3)
+        )
+        popup.open()
+
+        self.on_back(instance)
+
+    def on_reject_quest(self, instance):
+        """Отклонить квест."""
+        if self.current_quest:
+            # Отклоняем квест у NPC
+            self.current_npc.reject_quest()
+
+        popup = Popup(
+            title='❌ Квест отклонен',
+            content=Label(
+                text='Может быть в другой раз.',
+                font_size=dp(18)
+            ),
+            size_hint=(0.6, 0.3)
+        )
+        popup.open()
+
+        Clock.schedule_once(
+            lambda dt: (
+                popup.dismiss(),
+                setattr(self.manager, 'current', 'tavern')
+            ),
+            1.5
+        )
+
+    def on_claim_reward(self, instance):
+        """Получить награду за квест."""
+        if not self.current_quest or not self.current_quest.is_complete():
+            return
+
+        app = App.get_running_app()
+        if not app.game or not app.game.player:
+            return
+        # Дать награду
+        player = app.game.player
+        player.coins += self.current_quest.reward_gold
+        level_up_msgs = player.add_experience(
+            self.current_quest.reward_xp
+        )
+
+        # Удалить квест из списка принятых
+        if self.current_quest in player.accepted_quests:
+            player.accepted_quests.remove(self.current_quest)
+
+        # Очистить квест у NPC
+        self.current_npc.current_quest = None
+        self.current_quest = None
+
+        popup = Popup(
+            title='🎁 Награда получена!',
+            content=Label(
+                text='Квест выполнен! Вы получили награду.',
+                font_size=dp(18)
+            ),
+            size_hint=(0.6, 0.3)
+        )
+        popup.open()
+
+        Clock.schedule_once(
+            lambda dt: (
+                popup.dismiss(),
+                setattr(self.manager, 'current', 'tavern')
+            ),
+            1.5
+        )
+
+    def on_back(self, instance):
+        """Вернуться в таверну."""
+        self.manager.current = 'tavern'
+
+
+class LootWindowScreen(Screen):
+    """Окно добычи после боя."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.battle_result = None
+        
+        main_layout = BoxLayout(
+            orientation='vertical',
+            padding=dp(15),
+            spacing=dp(12)
+        )
+        
+        # Фон
+        with main_layout.canvas.before:
+            Color(0.15, 0.2, 0.25, 1)
+            self.bg_rect = Rectangle()
+            main_layout.bind(
+                size=lambda i, v: setattr(
+                    self.bg_rect, 'size', i.size
+                ),
+                pos=lambda i, v: setattr(
+                    self.bg_rect, 'pos', i.pos
+                )
+            )
+        
+        # Заголовок
+        title_layout = BoxLayout(size_hint_y=None, spacing=dp(20))
+        title_layout.height = dp(60)
+        
+        title = Label(
+            text='⚔️ ПОБЕДА! 🏆',
+            font_size=dp(28),
+            color=(0.9, 0.7, 0.1, 1),
+            bold=True
+        )
+        title_layout.add_widget(title)
+        main_layout.add_widget(title_layout)
+        
+        # Статистика боя
+        stats_layout = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(10)
+        )
+        stats_layout.height = dp(80)
+        
+        self.stats_label = Label(
+            text='',
+            size_hint_y=None,
+            height=dp(70),
+            text_size=(None, None),
+            halign='center',
+            valign='center',
+            font_size=dp(16)
+        )
+        stats_layout.add_widget(self.stats_label)
+        main_layout.add_widget(stats_layout)
+        
+        # Предметы добычи
+        loot_title = Label(
+            text='📦 ДОБЫЧА:',
+            size_hint_y=None,
+            height=dp(40),
+            font_size=dp(20),
+            color=(0.7, 0.9, 0.7, 1),
+            bold=True
+        )
+        main_layout.add_widget(loot_title)
+        
+        scroll = ScrollView(size_hint=(1, 0.4))
+        self.loot_layout = GridLayout(
+            cols=1,
+            spacing=dp(8),
+            size_hint_y=None,
+            padding=dp(10)
+        )
+        self.loot_layout.bind(
+            minimum_height=self.loot_layout.setter('height')
+        )
+        scroll.add_widget(self.loot_layout)
+        main_layout.add_widget(scroll)
+        
+        # Кнопка продолжения
+        btn_layout = BoxLayout(
+            spacing=dp(10),
+            size_hint_y=None
+        )
+        btn_layout.height = dp(50)
+        
+        btn_continue = Button(
+            text='➜ Продолжить',
+            background_color=(0.2, 0.5, 0.3, 1)
+        )
+        btn_continue.bind(on_press=self.on_continue)
+        btn_layout.add_widget(btn_continue)
+        
+        main_layout.add_widget(btn_layout)
+        self.add_widget(main_layout)
+    
+    def show_loot(self, battle_result):
+        """Показать добычу."""
+        self.battle_result = battle_result
+        app = App.get_running_app()
+        
+        # Статистика
+        self.stats_label.text = (
+            f"💰 Получено: {battle_result.gold_earned} монет\n"
+            f"✨ Опыт: {battle_result.xp_earned} XP"
+        )
+        
+        # Предметы
+        self.loot_layout.clear_widgets()
+        
+        for loot in battle_result.loot:
+            loot_label = Label(
+                text=self._format_loot_item(loot),
+                size_hint_y=None,
+                height=dp(40),
+                text_size=(None, None),
+                halign='center',
+                valign='center',
+                font_size=dp(14),
+                color=(0.9, 0.9, 0.5, 1)
+            )
+            self.loot_layout.add_widget(loot_label)
+    
+    def _format_loot_item(self, loot_drop):
+        """Форматировать предмет добычи."""
+        item = loot_drop.item
+        if not item:
+            return "— Никакого предмета"
+        
+        text = f"📦 {item.name}"
+        if hasattr(item, 'material'):
+            text += f" ({item.material})"
+        if hasattr(item, 'condition'):
+            text += f" [{item.condition}]"
+        
+        return text
+    
+    def on_continue(self, instance):
+        """Продолжить игру."""
+        app = App.get_running_app()
+        
+        # Добавить добычу в инвентарь
+        if self.battle_result:
+            player = app.game.player
+            for loot in self.battle_result.loot:
+                if loot.item:
+                    player.inventory.add(loot.item, 1)
+            
+            player.coins += self.battle_result.gold_earned
+            # Add experience and trigger level-ups
+            player.add_experience(self.battle_result.xp_earned)
+        
+        app.game_screen.update_game_state()
+        self.manager.current = 'game'
+
+
+class ActiveQuestsScreen(Screen):
+    """Экран активных квестов."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        main_layout = BoxLayout(
+            orientation='vertical',
+            padding=dp(15),
+            spacing=dp(12)
+        )
+        
+        # Фон
+        with main_layout.canvas.before:
+            Color(0.15, 0.2, 0.25, 1)
+            self.bg_rect = Rectangle()
+            main_layout.bind(
+                size=lambda i, v: setattr(
+                    self.bg_rect, 'size', i.size
+                ),
+                pos=lambda i, v: setattr(
+                    self.bg_rect, 'pos', i.pos
+                )
+            )
+        
+        # Заголовок
+        title_label = Label(
+            text='📋 АКТИВНЫЕ КВЕСТЫ',
+            font_size=dp(28),
+            size_hint_y=None,
+            height=dp(60),
+            color=(0.9, 0.7, 0.1, 1),
+            bold=True
+        )
+        main_layout.add_widget(title_label)
+        
+        # Список квестов
+        scroll = ScrollView()
+        self.quests_layout = BoxLayout(
+            orientation='vertical',
+            spacing=dp(10),
+            size_hint_y=None,
+            padding=dp(10)
+        )
+        self.quests_layout.bind(
+            minimum_height=self.quests_layout.setter('height')
+        )
+        scroll.add_widget(self.quests_layout)
+        main_layout.add_widget(scroll)
+        
+        # Кнопка назад
+        btn_back = Button(
+            text='← Назад',
+            size_hint_y=None,
+            height=dp(55),
+            font_size=dp(22),
+            background_color=(0.5, 0.5, 0.5, 1)
+        )
+        btn_back.bind(on_press=self.on_back)
+        main_layout.add_widget(btn_back)
+        
+        self.add_widget(main_layout)
+    
+    def update_quests(self):
+        """Обновить список активных квестов."""
+        app = App.get_running_app()
+        if not app.game or not app.game.player:
+            return
+        
+        self.quests_layout.clear_widgets()
+        
+        player = app.game.player
+        if not player.accepted_quests:
+            empty_label = Label(
+                text="Нет активных квестов.\n"
+                     "Поговорите с NPC в таверне!",
+                font_size=dp(18),
+                text_size=(None, None),
+                halign='center',
+                valign='center',
+                color=(0.8, 0.8, 0.8, 1)
+            )
+            self.quests_layout.add_widget(empty_label)
+            return
+        
+        for quest in player.accepted_quests:
+            quest_box = BoxLayout(
+                orientation='vertical',
+                spacing=dp(8),
+                size_hint_y=None,
+                height=dp(130),
+                padding=dp(10)
+            )
+            
+            # Фон квеста
+            with quest_box.canvas.before:
+                Color(0.3, 0.3, 0.35, 1)
+                quest_bg = Rectangle()
+                quest_box.bind(
+                    pos=lambda i, v: setattr(
+                        quest_bg, 'pos', i.pos
+                    ),
+                    size=lambda i, v: setattr(
+                        quest_bg, 'size', i.size
+                    )
+                )
+            
+            # Заголовок квеста
+            quest_title = Label(
+                text=f"📜 {quest.title.upper()}",
+                font_size=dp(16),
+                size_hint_y=None,
+                height=dp(30),
+                text_size=(None, None),
+                halign='left',
+                valign='top',
+                color=(0.9, 0.9, 0.3, 1),
+                bold=True
+            )
+            quest_box.add_widget(quest_title)
+            
+            # Описание
+            quest_desc = Label(
+                text=quest.description,
+                font_size=dp(13),
+                size_hint_y=None,
+                height=dp(30),
+                text_size=(None, None),
+                halign='left',
+                valign='top',
+                color=(0.8, 0.8, 0.8, 1)
+            )
+            quest_box.add_widget(quest_desc)
+            
+            # Прогресс
+            progress_label = Label(
+                text=quest.progress_display(),
+                font_size=dp(13),
+                size_hint_y=None,
+                height=dp(25),
+                text_size=(None, None),
+                halign='left',
+                valign='center',
+                color=(0.7, 0.9, 0.7, 1)
+            )
+            quest_box.add_widget(progress_label)
+            
+            # Награда
+            reward_text = (
+                f"💰 {quest.reward_gold} монет | "
+                f"✨ {quest.reward_xp} XP"
+            )
+            reward_label = Label(
+                text=reward_text,
+                font_size=dp(12),
+                size_hint_y=None,
+                height=dp(20),
+                text_size=(None, None),
+                halign='left',
+                valign='center',
+                color=(0.9, 0.7, 0.3, 1)
+            )
+            quest_box.add_widget(reward_label)
+            
+            self.quests_layout.add_widget(quest_box)
+    
+    def on_back(self, instance):
+        app = App.get_running_app()
+        if app.game:
+            app.game_screen.update_game_state()
+        self.manager.current = 'game'
+
+
 class RPGApp(App):
     """Главное приложение."""
     
@@ -2273,8 +3346,31 @@ class RPGApp(App):
         sm.add_widget(status_screen)
         self.status_screen = status_screen
         
-        self.game = None
+        location_select_screen = LocationSelectScreen(
+            name='location_select'
+        )
+        sm.add_widget(location_select_screen)
+        self.location_select_screen = location_select_screen
         
+        npc_dialogue_screen = NPCDialogueScreen(
+            name='npc_dialogue'
+        )
+        sm.add_widget(npc_dialogue_screen)
+        self.npc_dialogue_screen = npc_dialogue_screen
+        
+        loot_window_screen = LootWindowScreen(name='loot_window')
+        sm.add_widget(loot_window_screen)
+        self.loot_window_screen = loot_window_screen
+        
+        active_quests_screen = ActiveQuestsScreen(
+            name='active_quests'
+        )
+        sm.add_widget(active_quests_screen)
+        self.active_quests_screen = active_quests_screen
+
+        self.npc_manager = NPCManager()
+        self.game = None
+
         return sm
 
 

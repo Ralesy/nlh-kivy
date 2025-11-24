@@ -1,0 +1,85 @@
+{
+  "player": {
+    "name": "Герой",
+    "level": 2,
+    "base_health": 140,
+    "base_damage": 12,
+    "base_coins": 80,
+    "health": 135,
+    "coins": 80,
+    "weapon_id": "w_short",
+    "armor_id": "a_plate",
+    "type": "player",
+    "cls": "warrior",
+    "inventory": {
+      "items": {
+        "p_small": [
+          {
+            "type": "Potion",
+            "id": "p_small",
+            "name": "Малое зелье",
+            "price": 10,
+            "rarity": "Common",
+            "description": "",
+            "heal_amount": 25
+          },
+          5
+        ],
+        "a_leather": [
+          {
+            "type": "Armor",
+            "id": "a_leather",
+            "name": "Кожаная броня",
+            "price": 20,
+            "rarity": "Common",
+            "description": "",
+            "defense": 2
+          },
+          2
+        ],
+        "w_fist": [
+          {
+            "type": "Weapon",
+            "id": "w_fist",
+            "name": "Кулаки",
+            "price": 0,
+            "rarity": "Common",
+            "description": "Стартовое оружие",
+            "damage_bonus": 2
+          },
+          1
+        ]
+      },
+      "capacity": 40
+    },
+    "experience": 27,
+    "companions": [
+      {
+        "name": "Thorg",
+        "level": 1,
+        "base_health": 50,
+        "base_damage": 3,
+        "base_coins": 30,
+        "health": 50,
+        "coins": 30,
+        "weapon_id": null,
+        "armor_id": null,
+        "role": "tank",
+        "type": "companion"
+      }
+    ],
+    "session_stats": {
+      "name": "Герой",
+      "class": "Воин",
+      "level": 2,
+      "experience": 27,
+      "coins": 80,
+      "total_damage_dealt": 260,
+      "total_damage_taken": 134,
+      "enemies_defeated": 7,
+      "battles_fought": 5,
+      "inventory_items": 8
+    }
+  },
+  "version": "1.0"
+}

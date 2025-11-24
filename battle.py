@@ -3,157 +3,163 @@
 
 """
 Battle system: боевая система, враги и события.
+Полностью переработана для новой системы врагов и дропа.
 """
 
 import random
 from typing import List, Tuple, Optional
 from creatures import Creature, Player
-from utils import clamp, rnd_choice_weighted, rarity_weighted_choice
+from utils import clamp
 from items import ItemDatabase
+from enemies import EnemyDatabase
+
+
+class LootDrop:
+    """Предмет из дропа."""
+
+    def __init__(self, item_id: str, quantity: int = 1):
+        self.item_id = item_id
+        self.quantity = quantity
+        self.item = ItemDatabase.get(item_id)
+
+    def display(self) -> str:
+        """Отображение предмета."""
+        if self.item is None:
+            return f"{self.item_id} x{self.quantity}"
+        return f"{self.item.display_name()} x{self.quantity}"
+
+
+class BattleResult:
+    """Результат боя."""
+
+    def __init__(
+        self,
+        victory: bool,
+        loot: List[LootDrop],
+        gold_earned: int,
+        xp_earned: int
+    ):
+        self.victory = victory
+        self.loot = loot
+        self.gold_earned = gold_earned
+        self.xp_earned = xp_earned
 
 
 class EnemyGenerator:
-    """Генератор врагов."""
-
-    POOLS = {
-        "forest": [
-            {"id": "goblin", "name": "Лесной гоблин",
-             "hp": 30, "dmg": 8, "coins": 12},
-            {"id": "wolf", "name": "Волк",
-             "hp": 25, "dmg": 10, "coins": 8},
-            {"id": "bandit", "name": "Бандит",
-             "hp": 34, "dmg": 11, "coins": 14},
-            {"id": "bear", "name": "Бурый медведь",
-             "hp": 55, "dmg": 16, "coins": 30},
-            {"id": "spider", "name": "Паук-гигант",
-             "hp": 22, "dmg": 12, "coins": 10},
-            {"id": "orc", "name": "Орк", "hp": 45,
-             "dmg": 13, "coins": 20}
-        ],
-        "cave": [
-            {"id": "bat", "name": "Летучая мышь",
-             "hp": 15, "dmg": 5, "coins": 2},
-            {"id": "troll", "name": "Тролль",
-             "hp": 75, "dmg": 14, "coins": 25},
-            {"id": "skeleton", "name": "Скелет",
-             "hp": 28, "dmg": 9, "coins": 6},
-            {"id": "golem", "name": "Голем",
-             "hp": 90, "dmg": 12, "coins": 40}
-        ],
-        "ruins": [
-            {"id": "ghost", "name": "Привидение",
-             "hp": 35, "dmg": 14, "coins": 18},
-            {"id": "knight", "name": "Призрачный рыцарь",
-             "hp": 70, "dmg": 18, "coins": 50},
-            {"id": "mage", "name": "Минотавр",
-             "hp": 60, "dmg": 16, "coins": 35}
-        ]
-    }
+    """Генератор врагов на основе новой системы."""
 
     @staticmethod
-    def generate(
-        location: str,
+    def generate_for_location(
+        location_id: str,
         player_level: int,
-        num: int = 1
+        count: int = 1
     ) -> List[Creature]:
-        """Генерирование врагов для локации."""
-        pool = EnemyGenerator.POOLS.get(
-            location, EnemyGenerator.POOLS["forest"]
-        )
+        """Генерировать врагов для конкретной локации."""
         enemies = []
-        for _ in range(num):
-            b = random.choice(pool)
-            lvl = clamp(
-                player_level + random.randint(-1, 1),
+        location_enemies = EnemyDatabase.get_by_location(location_id)
+
+        if not location_enemies:
+            return enemies
+
+        for _ in range(count):
+            enemy_template = random.choice(location_enemies)
+            level = clamp(
+                player_level + random.randint(-1, 2),
                 1,
-                player_level + 2
+                player_level + 3
             )
-            e = Creature(
-                b["name"], b["hp"], b["dmg"], b["coins"], level=lvl
+
+            # Создаём врага из шаблона
+            enemy = Creature(
+                enemy_template.name,
+                enemy_template.base_health,
+                enemy_template.base_damage,
+                enemy_template.base_coins,
+                level=level
             )
-            enemies.append(e)
+
+            # Сохраняем шаблон для дропа
+            enemy._template = enemy_template
+
+            enemies.append(enemy)
+
         return enemies
+
+    @staticmethod
+    def generate_boss(boss_id: str) -> Optional[Creature]:
+        """Генерировать босса."""
+        enemy_template = EnemyDatabase.get(boss_id)
+        if enemy_template is None:
+            return None
+
+        enemy = Creature(
+            enemy_template.name,
+            enemy_template.base_health,
+            enemy_template.base_damage,
+            enemy_template.base_coins,
+            level=10
+        )
+        enemy._template = enemy_template
+        return enemy
 
 
 class EventSystem:
     """Система событий в локациях."""
 
     FOREST_EVENTS = [
-        ("found_chest", 0.12),
-        ("ambush", 0.10),
-        ("healing_spring", 0.08),
-        ("cursed_area", 0.05),
-        ("nothing", 0.65)
+        ("found_potion", 0.15),
+        ("ambush", 0.12),
+        ("nothing", 0.73)
     ]
 
-    CAVE_EVENTS = [
-        ("found_treasure", 0.10),
-        ("trap", 0.15),
-        ("scholar", 0.08),
-        ("nothing", 0.67)
+    SWAMP_EVENTS = [
+        ("found_item", 0.10),
+        ("poison_gas", 0.10),
+        ("nothing", 0.80)
+    ]
+
+    MINES_EVENTS = [
+        ("found_ore", 0.12),
+        ("cave_in", 0.10),
+        ("nothing", 0.78)
     ]
 
     @staticmethod
-    def roll_forest(player: Player) -> Optional[str]:
-        """Событие в лесу."""
-        choice = rnd_choice_weighted(EventSystem.FOREST_EVENTS)
+    def roll_event(location_id: str,
+                   player: Player) -> Optional[str]:
+        """Рассчитать событие в локации."""
+        if location_id == "forest":
+            events = EventSystem.FOREST_EVENTS
+        elif location_id == "swamp":
+            events = EventSystem.SWAMP_EVENTS
+        elif location_id == "mines":
+            events = EventSystem.MINES_EVENTS
+        else:
+            return None
 
-        if choice == "found_chest":
-            rar = rarity_weighted_choice()
-            candidates = [
-                it for it in ItemDatabase.ITEMS.values()
-                if it.rarity == rar
-            ]
-            if not candidates:
-                item = random.choice(list(ItemDatabase.ITEMS.values()))
-            else:
-                item = random.choice(candidates)
+        # Взвешенный выбор события
+        choice = random.choices(
+            [e[0] for e in events],
+            weights=[e[1] for e in events],
+            k=1
+        )[0]
 
+        if choice == "found_potion":
+            potion = ItemDatabase.get("p_small")
             if player.inventory.has_space_for(1):
-                player.inventory.add(item, 1)
-                return (f"Вы нашли сундук и получили "
-                        f"{item.display_name()}!")
-            else:
-                return "Вы нашли сундук, но инвентарь полон."
+                player.inventory.add(potion, 1)
+                return f"Вы нашли зелье! +{potion.display_name()}"
+            return "Вы нашли зелье, но инвентарь полон."
 
-        if choice == "ambush":
-            enemies = EnemyGenerator.generate(
-                "forest", player.level, num=1
-            )
-            return f"Засада! Появился {enemies[0].name}."
-
-        if choice == "healing_spring":
-            healed = player.heal(int(player.max_health * 0.2))
-            return (f"Вы нашли целебный источник и восстановили "
-                    f"{healed} HP.")
-
-        if choice == "cursed_area":
-            damage = int(player.max_health * 0.15)
-            player.take_damage(damage)
-            return f"Проклятая область! Вы получили {damage} урона!"
-
-        return None
-
-    @staticmethod
-    def roll_cave(player: Player) -> Optional[str]:
-        """Событие в пещере."""
-        choice = rnd_choice_weighted(EventSystem.CAVE_EVENTS)
-
-        if choice == "found_treasure":
-            coins = random.randint(50, 150)
-            player.coins += coins
-            return f"Вы нашли клад! +{coins} монет."
-
-        if choice == "trap":
+        if choice == "poison_gas":
             damage = random.randint(10, 30)
             player.take_damage(damage)
-            return f"Вы попали в ловушку! Получили {damage} урона."
+            return f"Ядовитый газ! Вы получили {damage} урона."
 
-        if choice == "scholar":
-            exp = random.randint(50, 100)
-            msgs = player.add_experience(exp)
-            return (f"Вы встретили учёного. Получили опыт: "
-                    f"{', '.join(msgs)}")
+        if choice == "cave_in":
+            damage = random.randint(15, 40)
+            player.take_damage(damage)
+            return f"Обрушение! Вы получили {damage} урона."
 
         return None
 
@@ -171,70 +177,86 @@ class Battlefield:
         return [e for e in self.enemies if e.is_alive]
 
     def is_over(self) -> bool:
-        """Боевая сцена закончена."""
-        return (not self.player.is_alive) or (
-            len(self.alive_enemies()) == 0
-        )
+        """Закончилась ли битва."""
+        return not self.player.is_alive or not self.alive_enemies()
 
-    def player_attack(self, targ_index: int) -> str:
+    def player_attack(self) -> Tuple[str, bool]:
         """Атака игрока."""
         enemies = self.alive_enemies()
-        if targ_index < 0 or targ_index >= len(enemies):
-            return "Неверная цель."
-        target = enemies[targ_index]
-        dealt, raw = self.player.attack(target)
-        s = f"Вы нанесли {dealt} урона ({raw} базовый) по {target.name}."
-        if not target.is_alive:
-            self.player.coins += target.base_coins
-            lvlexp = target.max_health // 2
-            msgs = self.player.add_experience(lvlexp)
-            s += (f" {target.name} повержен! +{target.base_coins} монет, "
-                  f"+{lvlexp} опыта.")
-            self.player.enemies_defeated += 1
-            for m in msgs:
-                s += " " + m
-        return s
+        if not enemies:
+            return "Нет врагов!", False
+
+        target = random.choice(enemies)
+        damage = self.player.damage + random.randint(-3, 5)
+        damage = max(1, damage)
+        dealt = target.take_damage(damage)
+
+        log = f"Вы наносите {dealt} урона по {target.name}."
+        killed = not target.is_alive
+
+        if killed:
+            log += f" 💥 {target.name} повержен!"
+            self.player.update_quest_progress(target.name)
+
+        return log, killed
 
     def enemy_turn(self) -> List[str]:
-        """Ход врагов."""
+        """Ход всех врагов."""
         logs = []
-        for e in self.alive_enemies():
-            if not self.player.is_alive:
-                break
-            
-            # Выбираем цель: игрок или компаньон (30% шанс атаковать компаньона, если есть живые)
-            target = None
-            alive_companions = [c for c in self.player.companions if c.is_alive]
-            
-            if alive_companions and random.random() < 0.3:
-                # Атакуем случайного компаньона
-                target = random.choice(alive_companions)
-                dmg = e.damage
-                taken = target.take_damage(dmg)
-                logs.append(f"{e.name} наносит {taken} урона {target.name}.")
-                if not target.is_alive:
-                    logs.append(f"  💀 {target.name} выбыл из боя!")
-            else:
-                # Атакуем игрока
-                dmg = e.damage
-                taken = self.player.take_damage(dmg)
-                self.player.total_damage_taken += taken
-                logs.append(f"{e.name} наносит {taken} урона вам.")
+        for enemy in self.alive_enemies():
+            if self.player.is_alive:
+                damage = enemy.damage + random.randint(-2, 3)
+                damage = max(1, damage)
+                dealt = self.player.take_damage(damage)
+                logs.append(f"{enemy.name} наносит {dealt} урона!")
+
+                if not self.player.is_alive:
+                    logs.append("💀 Вы были повержены!")
+
         return logs
 
     def attempt_escape(self) -> Tuple[bool, List[str]]:
         """Попытка бегства."""
-        chance = 0.30
         logs = []
-        if random.random() < chance:
-            logs.append("Удачный побег!")
+        if random.random() < 0.3:
+            logs.append("Вы успешно сбежали!")
             return True, logs
         else:
-            logs.append("Попытка побега провалена! "
-                        "Враги наносят ответную атаку.")
-            logs.extend(self.enemy_turn())
+            logs.append("Враги преследуют вас!")
+            # Враги наносят урон убегающему персонажу
+            for enemy in self.alive_enemies():
+                damage = enemy.damage // 2
+                dealt = self.player.take_damage(damage)
+                logs.append(f"{enemy.name} наносит {dealt} урона!")
             return False, logs
 
-    def use_item(self, item_id: str) -> str:
-        """Использование предмета в бою."""
-        return self.player.use_item(item_id, battlefield=self)
+    def generate_battle_loot(self) -> BattleResult:
+        """Генерировать лут с побеждённых врагов."""
+        loot_items = []
+        total_gold = 0
+        total_xp = 0
+
+        for enemy in self.enemies:
+            if not enemy.is_alive:
+                continue
+
+            # Золото и XP
+            total_gold += enemy.coins
+            template = getattr(enemy, '_template', None)
+            if template:
+                total_xp += template.xp_reward
+            else:
+                total_xp += enemy.level * 30
+
+            # Дроп предметов
+            if template:
+                drops = template.generate_loot()
+                for item_id, qty in drops:
+                    loot_items.append(LootDrop(item_id, qty))
+
+        return BattleResult(
+            victory=True,
+            loot=loot_items,
+            gold_earned=total_gold,
+            xp_earned=total_xp
+        )
