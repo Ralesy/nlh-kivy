@@ -314,3 +314,47 @@ class EnemyDatabase:
             ],
             is_boss=True
         ))
+
+        # === ПЕЩЕРА ДРЕВНИХ (враги локации) ===
+
+        # Враги пещеры - ссылки на боссов
+        cls.register(Enemy(
+            "enemy_ancient_cave_berserker", "Безумный мародёр", "boss",
+            base_health=200, base_damage=20, base_coins=500,
+            xp_reward=1000,
+            loot_table=[
+                ("a_berserker_plate", 1.0)
+            ],
+            is_boss=True
+        ))
+
+        cls.register(Enemy(
+            "enemy_ancient_cave_bog_master", "Хозяин Болота", "boss",
+            base_health=220, base_damage=18, base_coins=600,
+            xp_reward=1100,
+            loot_table=[
+                ("a_bog_mail", 1.0)
+            ],
+            is_boss=True
+        ))
+
+        cls.register(Enemy(
+            "enemy_ancient_cave_mine_king", "Король Шахт", "boss",
+            base_health=250, base_damage=24, base_coins=700,
+            xp_reward=1200,
+            loot_table=[
+                ("w_mining_king_pickaxe", 1.0)
+            ],
+            is_boss=True
+        ))
+
+        cls.register(Enemy(
+            "enemy_ancient_cave_dragon_lord", "Повелитель Драконов",
+            "boss",
+            base_health=300, base_damage=28, base_coins=1000,
+            xp_reward=1500,
+            loot_table=[
+                ("a_dragon_lord_plate", 1.0)
+            ],
+            is_boss=True
+        ))

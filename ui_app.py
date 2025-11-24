@@ -414,6 +414,12 @@ class MapWidget(BoxLayout):
             'desc': 'Очень сложные враги\nДраконы',
             'difficulty': 'Очень сложно',
             'color': (0.5, 0.4, 0.3, 1)
+        },
+        'ancient_cave': {
+            'name': '🏰 Пещера Древних',
+            'desc': 'Уникальные враги\nДревние артефакты',
+            'difficulty': 'Легендарно',
+            'color': (0.6, 0.4, 0.2, 1)
         }
     }
     
@@ -443,7 +449,7 @@ class MapWidget(BoxLayout):
         # Кнопки локаций с улучшенным дизайном
         locations_layout = BoxLayout(orientation='vertical', spacing=dp(8))
         
-        for loc_id in ['forest', 'swamp', 'mines', 'mountains']:
+        for loc_id in ['forest', 'swamp', 'mines', 'mountains', 'ancient_cave']:
             info = self.LOCATION_INFO[loc_id]
             loc_box = BoxLayout(orientation='vertical', spacing=dp(3), size_hint_y=None, height=dp(90))
             
@@ -564,16 +570,6 @@ class GameScreen(Screen):
         btn_status.bind(on_press=self.on_status)
         menu_layout.add_widget(btn_status)
         
-        btn_locations = Button(
-            text='🗺️ Локации',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(21),
-            background_color=(0.7, 0.3, 0.5, 1)
-        )
-        btn_locations.bind(on_press=self.on_locations)
-        menu_layout.add_widget(btn_locations)
-        
         btn_quests = Button(
             text='📋 Активные квесты',
             size_hint_y=None,
@@ -635,9 +631,6 @@ class GameScreen(Screen):
             popup.open()
             return
         
-        self.game.day += 1
-        self.game.player.battles_fought += 1
-        
         # Получить локацию
         location_manager = LocationManager()
         location = location_manager.get_location(loc_id)
@@ -654,11 +647,17 @@ class GameScreen(Screen):
             return
 
         if location.is_locked:
-            condition_text = location.unlock_condition or "Эта локация пока недоступна."
+            condition_text = (
+                location.unlock_condition or
+                "Эта локация пока недоступна."
+            )
             popup = Popup(
                 title=f'🔒 {location.name}',
                 content=Label(
-                    text=f"Требования для разблокировки:\n{condition_text}",
+                    text=(
+                        f"Требования для разблокировки:\n"
+                        f"{condition_text}"
+                    ),
                     text_size=(None, None),
                     halign='center',
                     valign='middle',
@@ -669,7 +668,17 @@ class GameScreen(Screen):
             popup.open()
             return
         
-        # Генерация врагов для локации
+        # Специальная обработка для Пещеры Древних
+        if loc_id == "ancient_cave":
+            app = App.get_running_app()
+            app.ancient_cave_boss_screen.update_bosses()
+            self.manager.current = 'ancient_cave_boss'
+            return
+        
+        # Обычная генерация врагов для прочих локаций
+        self.game.day += 1
+        self.game.player.battles_fought += 1
+        
         enemies = (
             EnemyGenerator.generate_for_location(
                 loc_id,
@@ -2657,6 +2666,230 @@ class LocationSelectScreen(Screen):
         popup.open()
 
 
+class AncientCaveBossSelectScreen(Screen):
+    """Экран выбора босса в Пещере Древних."""
+    
+    # Данные о боссах
+    BOSS_DATA = {
+        1: {
+            'name': 'Безумный мародёр',
+            'desc': 'Легенда лесных разбойников',
+            'difficulty': 'Легко',
+            'color': (0.3, 0.5, 0.3, 1),
+            'unlock_text': 'Доступен сразу'
+        },
+        2: {
+            'name': 'Хозяин Болота',
+            'desc': 'Властелин топей и трясин',
+            'difficulty': 'Средне',
+            'color': (0.3, 0.4, 0.6, 1),
+            'unlock_text': 'Требуется открытие Болот'
+        },
+        3: {
+            'name': 'Король Шахт',
+            'desc': 'Повелитель подземелья',
+            'difficulty': 'Сложно',
+            'color': (0.4, 0.3, 0.2, 1),
+            'unlock_text': 'Требуется открытие Шахт'
+        },
+        4: {
+            'name': 'Повелитель Драконов',
+            'desc': 'Властелин небес и огня',
+            'difficulty': 'Очень сложно',
+            'color': (0.5, 0.4, 0.3, 1),
+            'unlock_text': 'Требуется открытие Гор'
+        }
+    }
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.location_manager = None
+        self.game = None
+        
+        main_layout = BoxLayout(
+            orientation='vertical',
+            padding=dp(15),
+            spacing=dp(12)
+        )
+        
+        # Фон
+        with main_layout.canvas.before:
+            Color(0.15, 0.2, 0.25, 1)
+            self.bg_rect = Rectangle()
+            main_layout.bind(
+                size=lambda i, v: setattr(
+                    self.bg_rect, 'size', i.size
+                ),
+                pos=lambda i, v: setattr(
+                    self.bg_rect, 'pos', i.pos
+                )
+            )
+        
+        # Заголовок
+        title_label = Label(
+            text='🏰 ПЕЩЕРА ДРЕВНИХ - ВЫБОР БОССА',
+            font_size=dp(22),
+            size_hint_y=None,
+            height=dp(50),
+            color=(0.9, 0.7, 0.1, 1),
+            bold=True
+        )
+        main_layout.add_widget(title_label)
+        
+        # Список боссов в ScrollView
+        scroll = ScrollView(size_hint=(1, 0.7))
+        self.bosses_layout = GridLayout(
+            cols=1,
+            spacing=dp(10),
+            size_hint_y=None,
+            padding=dp(10)
+        )
+        self.bosses_layout.bind(
+            minimum_height=self.bosses_layout.setter(
+                'height'
+            )
+        )
+        scroll.add_widget(self.bosses_layout)
+        main_layout.add_widget(scroll)
+        
+        # Кнопки внизу
+        btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None)
+        btn_layout.height = dp(50)
+        
+        btn_back = Button(
+            text='← Назад',
+            size_hint_x=1,
+            background_color=(0.4, 0.4, 0.4, 1)
+        )
+        btn_back.bind(on_press=self.on_back)
+        btn_layout.add_widget(btn_back)
+        
+        main_layout.add_widget(btn_layout)
+        self.add_widget(main_layout)
+    
+    def update_bosses(self):
+        """Обновление списка боссов."""
+        app = App.get_running_app()
+        self.game = app.game
+        self.location_manager = LocationManager()
+        
+        self.bosses_layout.clear_widgets()
+        
+        for boss_id in [1, 2, 3, 4]:
+            boss_info = self.BOSS_DATA[boss_id]
+            is_unlocked = (
+                self.location_manager.is_boss_unlocked(boss_id)
+            )
+            
+            if is_unlocked:
+                btn_text = (
+                    f"{boss_info['name']}\n"
+                    f"{boss_info['desc']}\n"
+                    f"Сложность: {boss_info['difficulty']}"
+                )
+                btn = Button(
+                    text=btn_text,
+                    size_hint_y=None,
+                    height=dp(100),
+                    font_size=dp(16),
+                    background_color=boss_info['color']
+                )
+                btn.bind(
+                    on_press=lambda x, bid=boss_id: (
+                        self.on_boss_select(bid)
+                    )
+                )
+            else:
+                btn_text = (
+                    f"🔒 {boss_info['name']}\n"
+                    f"{boss_info['unlock_text']}"
+                )
+                btn = Button(
+                    text=btn_text,
+                    size_hint_y=None,
+                    height=dp(100),
+                    font_size=dp(16),
+                    background_color=(0.5, 0.2, 0.2, 1)
+                )
+                btn.bind(on_press=lambda x, bi=boss_info: (
+                    self.on_locked_boss(bi)
+                ))
+            
+            self.bosses_layout.add_widget(btn)
+    
+    def on_boss_select(self, boss_id):
+        """Выбрать босса для боя."""
+        from battle import EnemyGenerator
+        
+        if not self.game or not self.game.player:
+            return
+        
+        # Определяем врага по ID босса
+        boss_enemy_ids = {
+            1: "enemy_ancient_cave_berserker",
+            2: "enemy_ancient_cave_bog_master",
+            3: "enemy_ancient_cave_mine_king",
+            4: "enemy_ancient_cave_dragon_lord"
+        }
+        
+        boss_enemy_id = boss_enemy_ids[boss_id]
+        
+        # Генерируем босса
+        boss = EnemyGenerator.generate_boss(boss_enemy_id)
+        
+        if not boss:
+            popup = Popup(
+                title='Ошибка',
+                content=Label(text='Не удалось создать босса!'),
+                size_hint=(0.6, 0.3)
+            )
+            popup.open()
+            return
+        
+        # Создаём поле боя
+        from battle import Battlefield
+        self.game.day += 1
+        self.game.player.battles_fought += 1
+        
+        battlefield = Battlefield(self.game.player, [boss])
+        
+        # Переходим на экран боя
+        app = App.get_running_app()
+        boss_names = {
+            1: "Безумный мародёр",
+            2: "Хозяин Болота",
+            3: "Король Шахт",
+            4: "Повелитель Драконов"
+        }
+        app.battle_screen.start_battle(
+            battlefield,
+            f"🏰 {boss_names[boss_id]}"
+        )
+        self.manager.current = 'battle'
+    
+    def on_locked_boss(self, boss_info):
+        """Показать требования для разблокировки босса."""
+        popup = Popup(
+            title=f'🔒 {boss_info["name"]}',
+            content=Label(
+                text=boss_info['unlock_text'],
+                text_size=(None, None),
+                halign='center',
+                valign='middle',
+                font_size=dp(18)
+            ),
+            size_hint=(0.7, 0.4)
+        )
+        popup.open()
+    
+    def on_back(self, instance):
+        """Возврат в главное меню игры."""
+        app = App.get_running_app()
+        if app.game_screen:
+            app.game_screen.update_game_state()
+        self.manager.current = 'game'
+
+
 class NPCDialogueScreen(Screen):
     """Экран диалога с NPC."""
     
@@ -3351,6 +3584,12 @@ class RPGApp(App):
         )
         sm.add_widget(location_select_screen)
         self.location_select_screen = location_select_screen
+        
+        ancient_cave_boss_screen = AncientCaveBossSelectScreen(
+            name='ancient_cave_boss'
+        )
+        sm.add_widget(ancient_cave_boss_screen)
+        self.ancient_cave_boss_screen = ancient_cave_boss_screen
         
         npc_dialogue_screen = NPCDialogueScreen(
             name='npc_dialogue'

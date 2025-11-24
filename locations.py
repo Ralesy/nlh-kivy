@@ -219,13 +219,17 @@ class LocationManager:
     def is_boss_unlocked(self, boss_id: int) -> bool:
         """Разблокирован ли босс."""
         if boss_id == 1:
-            return self._quest_counters["forest_quests"] >= 3
+            # Безумный мародёр - доступен сразу (как лес)
+            return True
         elif boss_id == 2:
-            return self._quest_counters["swamp_quests"] >= 4
+            # Хозяин Болота - требует открытия болота
+            return not self.locations["swamp"].is_locked
         elif boss_id == 3:
-            return self._quest_counters["mines_quests"] >= 3
+            # Король Шахт - требует открытия шахт
+            return not self.locations["mines"].is_locked
         elif boss_id == 4:
-            return self._quest_counters["mountains_quests"] >= 2
+            # Повелитель Драконов - требует открытия гор
+            return not self.locations["mountains"].is_locked
         return False
 
     def is_boss_defeated(self, boss_id: int) -> bool:
