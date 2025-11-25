@@ -503,20 +503,39 @@ class Game:
             pause(1)
 
     def on_death(self) -> None:
-        """При смерти персонажа."""
-        print_section("ВЫ МЕРТВЫ")
-        print("\nЧто дальше?")
-        print("1) Загрузить игру")
-        print("2) Начать заново")
-        print("3) Выход")
+        """При поражении в бою."""
+        print_section("ВАС ОГЛУШИЛИ")
+        print("\nВы очнулись в таверне, потеряв часть добычи...")
 
-        ch = input("\n> ").strip()
-        if ch == "1":
-            self.load_game_menu()
-        elif ch == "2":
-            self.create_character()
-        elif ch == "3":
-            self.quit_game()
+        # Потеря золота (10%)
+        gold_lost = self.player.coins // 10
+        self.player.coins -= gold_lost
+        print(f"💰 Потеряно: {gold_lost} золота.")
+
+        # Потеря предметов
+        non_quest_items = [
+            (item_id, qty)
+            for item_id, qty in self.player.inventory.list_items()
+            if not self.player.inventory.get(item_id).is_quest_item()
+        ]
+
+        if non_quest_items:
+            num_lost = random.randint(1, min(2, len(non_quest_items)))
+            for _ in range(num_lost):
+                item_id, _ = random.choice(non_quest_items)
+                item = self.player.inventory.get(item_id)
+                self.player.inventory.remove(item_id, 1)
+                print(f"🎒 Потерян предмет: {item.name}")
+                # Удаляем из списка, чтобы не потерять дважды
+                non_quest_items = [
+                    (iid, qty) for iid, qty in non_quest_items
+                    if iid != item_id
+                ]
+
+        # Восстановление здоровья
+        self.player.health = int(self.player.max_health * 0.3)
+        print("❤️ Вы восстановили часть здоровья.")
+        pause(3)
 
     def load_game_menu(self) -> None:
         """Меню загрузки."""

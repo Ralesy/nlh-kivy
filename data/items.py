@@ -85,6 +85,10 @@ class Item:
         """Расходный ли предмет."""
         return False
 
+    def is_quest_item(self) -> bool:
+        """Является ли предмет квестовым."""
+        return False
+
     def display_name(self) -> str:
         """Красивое отображение предмета."""
         unique_mark = " [УНИКАЛЬНЫЙ]" if self.is_unique else ""

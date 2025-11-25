@@ -14,10 +14,8 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
-from kivy.uix.widget import Widget
-from kivy.graphics import Color, Rectangle, Ellipse, Line
+from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
-from kivy.core.window import Window
 from kivy.metrics import dp
 import sys
 import random
@@ -25,11 +23,10 @@ import random
 from core.game import Game
 from core.creatures import Player
 from data.items import ItemDatabase, Weapon, Armor, Potion
-from systems.save_system import save_game, load_game, get_save_list
-from systems.battle import Battlefield, EnemyGenerator, EventSystem
+from systems.save_system import load_game, get_save_list
+from systems.battle import Battlefield, EnemyGenerator
 from data.locations import LocationManager
-from systems.npcs import NPCManager, QuestState, GeneratedQuest
-from data.enemies import EnemyDatabase
+from systems.npcs import NPCManager, QuestState
 from systems.npcs import QuestType
 
 
@@ -184,8 +181,10 @@ class CharacterCreationScreen(Screen):
         with layout.canvas.before:
             Color(0.12, 0.18, 0.28, 1)  # Темно-синий фон
             self.bg_rect = Rectangle()
-            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
-                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
         
         title = Label(
             text='👤 Создание персонажа',
@@ -197,7 +196,8 @@ class CharacterCreationScreen(Screen):
         layout.add_widget(title)
         
         name_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(55))
-        name_label = Label(text='Имя:', size_hint_x=0.3, font_size=dp(20), color=(0.9, 0.9, 0.9, 1))
+        name_label = Label(text='Имя:', size_hint_x=0.3, font_size=dp(20),
+                           color=(0.9, 0.9, 0.9, 1))
         name_layout.add_widget(name_label)
         self.name_input = TextInput(
             text='Герой',
@@ -297,8 +297,10 @@ class CharacterCreationScreen(Screen):
         self.selected_class = cls
         # Визуальная индикация выбора
         for btn in self.class_buttons.values():
-            btn.background_color = (btn.background_color[0] * 0.7, btn.background_color[1] * 0.7, btn.background_color[2] * 0.7, 1)
-        button.background_color = (button.background_color[0] * 1.3, button.background_color[1] * 1.3, button.background_color[2] * 1.3, 1)
+            r, g, b, a = btn.background_color
+            btn.background_color = (r * 0.7, g * 0.7, b * 0.7, a)
+        r, g, b, a = button.background_color
+        button.background_color = (r * 1.3, g * 1.3, b * 1.3, a)
     
     def create_character(self, instance):
         name = self.name_input.text.strip() or "Герой"
@@ -454,7 +456,8 @@ class MapWidget(BoxLayout):
             loc_box = BoxLayout(orientation='vertical', spacing=dp(3), size_hint_y=None, height=dp(90))
             
             btn = Button(
-                text=f"{info['name']}\n{info['desc']}\nСложность: {info['difficulty']}",
+                text=f"{info['name']}\n{info['desc']}\n"
+                     f"Сложность: {info['difficulty']}",
                 font_size=dp(18),
                 background_color=info['color'],
                 size_hint_y=None,
@@ -485,17 +488,21 @@ class GameScreen(Screen):
         with main_layout.canvas.before:
             Color(0.15, 0.2, 0.25, 1)  # Темно-серый фон
             self.bg_rect = Rectangle()
-            main_layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
-                           pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
+            main_layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
         
         # Статистика игрока с улучшенным дизайном
         stats_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(110), padding=dp(10))
         stats_box.canvas.before.clear()
         with stats_box.canvas.before:
             Color(0.2, 0.25, 0.3, 1)  # Темная панель
-            Rectangle(pos=stats_box.pos, size=stats_box.size)
-            stats_box.bind(pos=lambda instance, value: setattr(Rectangle(), 'pos', instance.pos),
-                          size=lambda instance, value: setattr(Rectangle(), 'size', instance.size))
+            rect = Rectangle(pos=stats_box.pos, size=stats_box.size)
+            stats_box.bind(
+                pos=lambda i, v: setattr(rect, 'pos', i.pos),
+                size=lambda i, v: setattr(rect, 'size', i.size)
+            )
         
         self.stats_label = Label(
             text='',
@@ -775,10 +782,13 @@ class GameScreen(Screen):
         
         from datetime import datetime
         
-        content = BoxLayout(orientation='vertical', spacing=dp(12), padding=dp(20))
+        content = BoxLayout(orientation='vertical', spacing=dp(12),
+                            padding=dp(20))
         
         info_label = Label(
-            text=f'День: {self.game.day} | Уровень: {self.game.player.level}\nМонеты: {self.game.player.coins}',
+            text=f'День: {self.game.day} | '
+                 f'Уровень: {self.game.player.level}\n'
+                 f'Монеты: {self.game.player.coins}',
             font_size=dp(16),
             text_size=(None, None),
             halign='center',
@@ -793,7 +803,8 @@ class GameScreen(Screen):
             background_color=(0.2, 0.2, 0.3, 1),
             foreground_color=(1, 1, 1, 1)
         )
-        content.add_widget(Label(text='Имя сохранения:', font_size=dp(18), color=(0.9, 0.9, 0.9, 1)))
+        content.add_widget(Label(text='Имя сохранения:', font_size=dp(18),
+                                 color=(0.9, 0.9, 0.9, 1)))
         content.add_widget(name_input)
         
         btn_layout = BoxLayout(orientation='horizontal', spacing=dp(10), size_hint_y=None, height=dp(55))
@@ -801,14 +812,15 @@ class GameScreen(Screen):
         def save_confirm(instance):
             name = name_input.text.strip() or f"save_{self.game.day}"
 
-            # Get NPC data - fallback to app.npc_manager if tavern not init
+            # Get NPC data - fallback to app.npc_manager if not init
             app = App.get_running_app()
             npc_manager = self.manager.get_screen('tavern').npc_manager
             if not npc_manager:
                 npc_manager = app.npc_manager
-            npcs_data = ({npc_id: npc.to_dict()
-                         for npc_id, npc in npc_manager.npcs.items()}
-                         if npc_manager else {})
+            npcs_data = {
+                npc_id: npc.to_dict()
+                for npc_id, npc in npc_manager.npcs.items()
+            } if npc_manager else {}
 
             data = {
                 'player': self.game.player.to_dict(),
@@ -884,8 +896,10 @@ class BattleScreen(Screen):
         with layout.canvas.before:
             Color(0.15, 0.15, 0.2, 1)  # Темно-синий фон
             self.bg_rect = Rectangle()
-            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
-                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
         
         # Сообщение о событии
         self.event_label = Label(
@@ -1001,7 +1015,10 @@ class BattleScreen(Screen):
         if p.companions:
             alive_companions = [c for c in p.companions if c.is_alive]
             if alive_companions:
-                comp_text = ", ".join([f"{c.name}({c.health}/{c.max_health})" for c in alive_companions])
+                comp_text = ", ".join(
+                    [f"{c.name}({c.health}/{c.max_health})"
+                     for c in alive_companions]
+                )
                 companions_info = f"\n🤝 Спутники: {comp_text}"
             else:
                 companions_info = "\n🤝 Спутники: Все выбыли"
@@ -1037,7 +1054,8 @@ class BattleScreen(Screen):
                 bg_color = (0.5, 0.5, 0.5, 1)  # Серый для почти мертвых
             
             btn = Button(
-                text=f"⚔️ {enemy.name}\n💚 HP: {enemy.health}/{enemy.max_health} | ⚔️ DMG: {enemy.damage}",
+                text=f"⚔️ {enemy.name}\n💚 HP: {enemy.health}/"
+                     f"{enemy.max_health} | ⚔️ DMG: {enemy.damage}",
                 size_hint_y=None,
                 height=dp(60),
                 font_size=dp(16),
@@ -1243,53 +1261,67 @@ class BattleScreen(Screen):
             self.manager.current = 'loot_window'
     
     def show_death_screen(self):
-        """Показ экрана смерти."""
+        """Обработка поражения в бою."""
         app = App.get_running_app()
-        if not app.game:
-            return
-        
-        stats = app.game.player.get_session_stats()
-        text = (
-            "ИГРА ОКОНЧЕНА - ВЫ БЫЛИ ПОВЕРЖЕНЫ!\n\n"
-            "📊 СТАТИСТИКА СЕССИИ:\n"
-            f"  Персонаж: {stats['name']} ({stats['class']})\n"
-            f"  Финальный уровень: {stats['level']}\n"
-            f"  Финальные монеты: {stats['coins']} 💰\n"
-            f"  Выданный урон: {stats['total_damage_dealt']}\n"
-            f"  Полученный урон: {stats['total_damage_taken']}\n"
-            f"  Врагов повержено: {stats['enemies_defeated']}\n"
-            f"  Битв проведено: {stats['battles_fought']}\n"
-            f"  Предметов в инвентаре: {stats['inventory_items']}\n"
+        player = app.game.player
+
+        # Потеря золота (10%)
+        gold_lost = player.coins // 10
+        player.coins -= gold_lost
+
+        # Потеря предметов
+        items_lost_messages = []
+        non_quest_items = [
+            (item_id, qty)
+            for item_id, qty in player.inventory.list_items()
+            if not player.inventory.get(item_id).is_quest_item()
+        ]
+
+        if non_quest_items:
+            num_lost = random.randint(1, min(2, len(non_quest_items)))
+            for _ in range(num_lost):
+                item_id, _ = random.choice(non_quest_items)
+                item = player.inventory.get(item_id)
+                player.inventory.remove(item_id, 1)
+                items_lost_messages.append(f"🎒 Потерян предмет: {item.name}")
+                non_quest_items = [
+                    (iid, qty) for iid, qty in non_quest_items if iid != item_id
+                ]
+
+        # Восстановление здоровья до 30% (минимум 1 HP)
+        player.health = max(1, int(player.max_health * 0.3))
+        player.is_alive = True  # Возвращаем к жизни
+
+        # Формируем сообщение для игрока
+        message = (
+            "Вас оглушили и оставили без сознания.\n"
+            "Вы очнулись в таверне, потеряв часть добычи...\n\n"
+            f"💰 Потеряно: {gold_lost} золота.\n"
         )
-        
-        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
-        content.add_widget(Label(text=text, text_size=(None, None), halign='left', valign='top'))
-        
-        btn_layout = BoxLayout(orientation='horizontal', spacing=dp(10), size_hint_y=None, height=dp(50))
-        
-        def restart(instance):
+        if items_lost_messages:
+            message += "\n".join(items_lost_messages) + "\n"
+        message += "\n❤️ Вы восстановили часть здоровья."
+
+        content = BoxLayout(orientation='vertical', spacing=dp(10),
+                            padding=dp(20))
+        content.add_widget(Label(
+            text=message, text_size=(dp(300), None),
+            halign='center', valign='middle'
+        ))
+
+        def return_to_main_menu(instance):
             popup.dismiss()
-            app.game = None
-            self.manager.current = 'main_menu'
-        
-        def exit(instance):
-            popup.dismiss()
-            sys.exit(0)
-        
-        btn_restart = Button(text='Начать заново')
-        btn_restart.bind(on_press=restart)
-        btn_layout.add_widget(btn_restart)
-        
-        btn_exit = Button(text='Выйти')
-        btn_exit.bind(on_press=exit)
-        btn_layout.add_widget(btn_exit)
-        
-        content.add_widget(btn_layout)
-        
+            app.game_screen.update_game_state()
+            self.manager.current = 'game'
+
+        btn_continue = Button(text='Продолжить', size_hint_y=None, height=dp(50))
+        btn_continue.bind(on_press=return_to_main_menu)
+        content.add_widget(btn_continue)
+
         popup = Popup(
-            title='💀 Смерть',
+            title='🤕 Вы были оглушены',
             content=content,
-            size_hint=(0.8, 0.7),
+            size_hint=(0.8, 0.6),
             auto_dismiss=False
         )
         popup.open()
@@ -1298,6 +1330,66 @@ class BattleScreen(Screen):
         """Возврат на главный экран."""
         app = App.get_running_app()
         if app.game:
+            if not victory:
+                # Применяем штрафы за поражение
+                player = app.game.player
+
+                # Потеря золота (10%)
+                gold_lost = player.coins // 10
+                player.coins -= gold_lost
+
+                # Потеря предметов
+                items_lost_messages = []
+                non_quest_items = [
+                    (item, qty)
+                    for item, qty in player.inventory.list_items()
+                    if not item.is_quest_item()
+                ]
+
+                if non_quest_items:
+                    num_lost = random.randint(1, min(2, len(non_quest_items)))
+                    for _ in range(num_lost):
+                        item, _ = random.choice(non_quest_items)
+                        player.inventory.remove(item.id, 1)
+                        items_lost_messages.append(f"🎒 Потерян предмет: {item.name}")
+                        non_quest_items = [
+                            (i, q) for i, q in non_quest_items if i != item
+                        ]
+
+                # Восстановление здоровья до 30% (минимум 1 HP)
+                player.health = max(1, int(player.max_health * 0.3))
+
+                # Показываем сообщение о поражении
+                message = (
+                    "Вас оглушили и оставили без сознания.\n"
+                    "Вы очнулись в таверне, потеряв часть добычи...\n\n"
+                    f"💰 Потеряно: {gold_lost} золота.\n"
+                )
+                if items_lost_messages:
+                    message += "\n".join(items_lost_messages) + "\n"
+                message += "\n❤️ Вы восстановили часть здоровья."
+
+                popup = Popup(
+                    title='🤕 Вы были оглушены',
+                    content=Label(
+                        text=message,
+                        text_size=(None, None),
+                        halign='center',
+                        valign='middle',
+                        font_size=dp(18)
+                    ),
+                    size_hint=(0.8, 0.6),
+                    auto_dismiss=False
+                )
+
+                def close_popup(instance):
+                    popup.dismiss()
+
+                btn_continue = Button(text='Продолжить', size_hint_y=None, height=dp(50))
+                btn_continue.bind(on_press=close_popup)
+                popup.content.add_widget(btn_continue)
+                popup.open()
+
             app.game_screen.game = app.game
             app.game_screen.update_game_state()
         self.manager.current = 'game'
@@ -1736,8 +1828,10 @@ class CasinoScreen(Screen):
         with layout.canvas.before:
             Color(0.2, 0.15, 0.25, 1)  # Темно-фиолетовый фон
             self.bg_rect = Rectangle()
-            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
-                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
         
         title = Label(
             text='🎰 КАЗИНО',
@@ -1919,8 +2013,10 @@ class InventoryScreen(Screen):
         with layout.canvas.before:
             Color(0.18, 0.22, 0.28, 1)
             self.bg_rect = Rectangle()
-            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
-                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
         
         title = Label(
             text='🎒 ИНВЕНТАРЬ',
@@ -2367,8 +2463,10 @@ class StatusScreen(Screen):
         with layout.canvas.before:
             Color(0.15, 0.2, 0.25, 1)
             self.bg_rect = Rectangle()
-            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
-                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
         
         title = Label(
             text='📊 СТАТУС',
@@ -3615,4 +3713,3 @@ class RPGApp(App):
 
 if __name__ == '__main__':
     RPGApp().run()
-
