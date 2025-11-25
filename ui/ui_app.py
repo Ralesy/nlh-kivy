@@ -1200,15 +1200,13 @@ class BattleScreen(Screen):
         if self.battlefield.player.is_alive:
             self.add_log("\n🎉 Вы победили!")
             
-            # Восстанавливаем здоровье компаньонов
-            for companion in (
-                self.battlefield.player.companions
-            ):
-                companion.health = companion.max_health
+            # Восстанавливаем здоровье компаньонов (только павших)
+            for companion in self.battlefield.player.companions:
                 if not companion.is_alive:
+                    companion.health = 1  # Восстанавливаем до 1 HP
                     self.add_log(
                         f"💚 {companion.name} "
-                        f"восстановлен после боя!"
+                        f"восстановлен после боя (1 HP)!"
                     )
             
             # Генерируем результат боя с добычей
@@ -2102,6 +2100,12 @@ class InventoryScreen(Screen):
                 btn_use.bind(on_press=lambda x, it=item: self.use_potion(it))
                 btn_layout.add_widget(btn_use)
             
+            # Для зелий - кнопка "Использовать"
+            if isinstance(item, Potion):
+                btn_use = Button(text='Использовать', size_hint_x=0.5)
+                btn_use.bind(on_press=lambda x, it=item: self.use_potion(it))
+                btn_layout.add_widget(btn_use)
+
             item_layout.add_widget(btn_layout)
             self.items_layout.add_widget(item_layout)
     
@@ -2191,7 +2195,93 @@ class InventoryScreen(Screen):
                 popup.open()
         
         self.update_inventory()
-    
+
+    def use_potion(self, potion):
+        """Использование зелья с выбором цели."""
+        app = App.get_running_app()
+        if not app.game or not app.game.player:
+            return
+
+        player = app.game.player
+
+        # Создаём popup с выбором цели
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
+
+        content.add_widget(Label(text=f"Кому дать {potion.display_name()}?", font_size=dp(18)))
+
+        # Кнопки выбора цели
+        targets_layout = BoxLayout(orientation='vertical', spacing=dp(10))
+
+        # Игрок
+        if player.is_alive and player.health < player.max_health:
+            btn_player = Button(
+                text=f"Игрок ({player.health}/{player.max_health} HP)",
+                size_hint_y=None,
+                height=dp(50)
+            )
+            btn_player.bind(on_press=lambda x: self._heal_target(potion, player))
+            targets_layout.add_widget(btn_player)
+
+        # Спутники
+        for companion in player.companions:
+            if companion.is_alive and companion.health < companion.max_health:
+                btn_comp = Button(
+                    text=f"{companion.name} ({companion.health}/{companion.max_health} HP)",
+                    size_hint_y=None,
+                    height=dp(50)
+                )
+                btn_comp.bind(on_press=lambda x, c=companion: self._heal_target(potion, c))
+                targets_layout.add_widget(btn_comp)
+
+        content.add_widget(targets_layout)
+
+        btn_cancel = Button(text='Отмена', size_hint_y=None, height=dp(50))
+        btn_cancel.bind(on_press=lambda x: popup.dismiss())
+        content.add_widget(btn_cancel)
+
+        popup = Popup(
+            title='🎁 Использование зелья',
+            content=content,
+            size_hint=(0.7, 0.6)
+        )
+        popup.open()
+
+    def _heal_target(self, potion, target):
+        """Лечение цели зельем."""
+        app = App.get_running_app()
+        if not app.game or not app.game.player:
+            return
+
+        player = app.game.player
+
+        # Используем зелье
+        healed = target.heal(potion.heal_amount)
+        player.inventory.remove(potion.id, 1)
+
+        # Закрываем popup и показываем результат
+        popup = None
+        for widget in App.get_running_app()._app_window.children:
+            if hasattr(widget, 'dismiss'):
+                popup = widget
+                break
+        if popup:
+            popup.dismiss()
+
+        # Показываем сообщение
+        result_popup = Popup(
+            title='✅ Зелье использовано',
+            content=Label(
+                text=f"{target.name} восстановил {healed} HP!\n"
+                     f"({target.health}/{target.max_health} HP)",
+                font_size=dp(18)
+            ),
+            size_hint=(0.6, 0.3)
+        )
+        result_popup.open()
+
+        # Обновляем инвентарь
+        self.update_inventory()
+
     def on_back(self, instance):
         app = App.get_running_app()
         if app.game:

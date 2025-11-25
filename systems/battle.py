@@ -204,14 +204,24 @@ class Battlefield:
         """Ход всех врагов."""
         logs = []
         for enemy in self.alive_enemies():
-            if self.player.is_alive:
-                damage = enemy.damage + random.randint(-2, 3)
-                damage = max(1, damage)
-                dealt = self.player.take_damage(damage)
-                logs.append(f"{enemy.name} наносит {dealt} урона!")
+            # Выбираем цель: игрок или живые спутники
+            possible_targets = [self.player] + [c for c in self.player.companions if c.is_alive]
+            if not possible_targets:
+                continue
 
+            target = random.choice(possible_targets)
+            damage = enemy.damage + random.randint(-2, 3)
+            damage = max(1, damage)
+            dealt = target.take_damage(damage)
+
+            if target == self.player:
+                logs.append(f"{enemy.name} наносит {dealt} урона вам!")
                 if not self.player.is_alive:
                     logs.append("💀 Вы были повержены!")
+            else:
+                logs.append(f"{enemy.name} наносит {dealt} урона {target.name}!")
+                if not target.is_alive:
+                    logs.append(f"💔 {target.name} выбывает из боя!")
 
         return logs
 
