@@ -561,23 +561,23 @@ class ItemDatabase:
 
         # === ГНОМЬЕ ОРУЖИЕ ===
         cls.register(
-            Weapon("w_dwarf_sword", "Гномий широкий меч", 900,
-                   "dwarf", 55, "normal",
+            Weapon("w_dwarf_sword", "Гномий широкий меч", 890,
+                   "dwarf", 54, "normal",
                    description="Шедевр гномьих кузнецов")
         )
         cls.register(
-            Weapon("w_dwarf_axe", "Гномий боевой топор", 850,
-                   "dwarf", 52, "normal",
+            Weapon("w_dwarf_axe", "Гномий боевой топор", 840,
+                   "dwarf", 51, "normal",
                    description="Невероятно прочный и смертоносный")
         )
         cls.register(
-            Weapon("w_dwarf_spear", "Гномье копье", 870,
-                   "dwarf", 53, "normal",
+            Weapon("w_dwarf_spear", "Гномье копье", 860,
+                   "dwarf", 52, "normal",
                    description="Короткое, но невероятно прочное")
         )
         cls.register(
-            Weapon("w_dwarf_bow", "Гномий арбалет", 820,
-                   "dwarf", 48, "normal",
+            Weapon("w_dwarf_bow", "Гномий арбалет", 810,
+                   "dwarf", 47, "normal",
                    description="Мощный механический арбалет")
         )
         cls.register(
@@ -589,7 +589,7 @@ class ItemDatabase:
         # === ДРАКОНЬЕ ОРУЖИЕ (УНИКАЛЬНОЕ) ===
         cls.register(
             Weapon("w_dragon_sword", "Клинок Драконоборца", 1200,
-                   "dragon", 58, "masterwork",
+                   "dragon", 60, "masterwork",
                    description="Выкован из драконьей кости. Уникальное изделие",
                    is_unique=True)
         )
@@ -598,7 +598,7 @@ class ItemDatabase:
         cls.register(
             Weapon("w_mad_raider_sword",
                    "Меч безумного мародёра", 850,
-                   "steel", 45, "masterwork",
+                   "steel", 35, "normal",
                    description="Уникальный меч от Безумного Мародёра. "
                                "Истошает ярость и отчаяние.",
                    is_unique=True)
@@ -606,7 +606,7 @@ class ItemDatabase:
         cls.register(
             Weapon("w_bog_master_staff",
                    "Посох Хозяина Болота", 820,
-                   "orc", 43, "masterwork",
+                   "orc", 40, "normal",
                    description="Уникальный посох от Хозяина Болота. "
                                "Пахнет грязью и тиной.",
                    is_unique=True)
@@ -614,7 +614,7 @@ class ItemDatabase:
         cls.register(
             Weapon("w_dwarf_king_hammer",
                    "Молот короля гномов", 1100,
-                   "dwarf", 52, "masterwork",
+                   "dwarf", 58, "normal",
                    description="Уникальный Молот от Короля Шахт. "
                                "Выкован из драгоценных гномьих металлов.",
                    is_unique=True)
