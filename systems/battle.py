@@ -189,9 +189,21 @@ class Battlefield:
         target = random.choice(enemies)
         damage = self.player.damage + random.randint(-3, 5)
         damage = max(1, damage)
+        
+        # Проверка на критический удар (4% шанс x2 урона)
+        is_critical = random.random() < 0.04
+        if is_critical:
+            damage *= 2
+        
         dealt = target.take_damage(damage)
 
         log = f"Вы наносите {dealt} урона по {target.name}."
+        if is_critical:
+            log = (
+                f"⚡ КРИТИЧЕСКИЙ УДАР! ⚡ Вы наносите "
+                f"{dealt} урона по {target.name}!"
+            )
+        
         killed = not target.is_alive
 
         if killed:
@@ -205,23 +217,54 @@ class Battlefield:
         logs = []
         for enemy in self.alive_enemies():
             # Выбираем цель: игрок или живые спутники
-            possible_targets = [self.player] + [c for c in self.player.companions if c.is_alive]
+            possible_targets = (
+                [self.player] +
+                [c for c in self.player.companions if c.is_alive]
+            )
             if not possible_targets:
                 continue
 
             target = random.choice(possible_targets)
             damage = enemy.damage + random.randint(-2, 3)
             damage = max(1, damage)
+            
+            # Проверка на критический удар (4% шанс x2 урона)
+            is_critical = random.random() < 0.04
+            if is_critical:
+                damage *= 2
+            
             dealt = target.take_damage(damage)
 
             if target == self.player:
-                logs.append(f"{enemy.name} наносит {dealt} урона вам!")
+                if is_critical:
+                    crit_msg = (
+                        f"⚡ {enemy.name} наносит "
+                        f"КРИТИЧЕСКИЙ УДАР! {dealt} урона вам!"
+                    )
+                    logs.append(crit_msg)
+                else:
+                    logs.append(
+                        f"{enemy.name} наносит {dealt} урона вам!"
+                    )
                 if not self.player.is_alive:
                     logs.append("💀 Вы были повержены!")
             else:
-                logs.append(f"{enemy.name} наносит {dealt} урона {target.name}!")
+                if is_critical:
+                    crit_msg = (
+                        f"⚡ {enemy.name} наносит "
+                        f"КРИТИЧЕСКИЙ УДАР по {target.name}! "
+                        f"{dealt} урона!"
+                    )
+                    logs.append(crit_msg)
+                else:
+                    logs.append(
+                        f"{enemy.name} наносит "
+                        f"{dealt} урона {target.name}!"
+                    )
                 if not target.is_alive:
-                    logs.append(f"💔 {target.name} выбывает из боя!")
+                    logs.append(
+                        f"💔 {target.name} выбывает из боя!"
+                    )
 
         return logs
 
