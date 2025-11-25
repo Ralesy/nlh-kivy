@@ -24,7 +24,10 @@ import random
 
 from game import Game
 from creatures import Player
-from items import ItemDatabase, Weapon, Armor, Potion
+from items import (
+    ItemDatabase, Weapon, Armor, Potion,
+    WEAPON_MATERIALS, ARMOR_MATERIALS
+)
 from save_system import save_game, load_game, get_save_list
 from battle import Battlefield, EnemyGenerator, EventSystem
 from locations import LocationManager
@@ -1590,6 +1593,38 @@ class TavernScreen(Screen):
             app.game_screen.update_game_state()
         self.manager.current = 'game'
 
+    def show_item_info(self, item):
+        """Показать подробную информацию о предмете (включая ability)."""
+        lines = []
+        lines.append(item.display_name())
+        lines.append(item.description or 'Без описания')
+        lines.append(f"Цена: {item.price} монет")
+
+        # Способность (если есть)
+        if hasattr(item, 'ability') and item.ability:
+            ab = item.ability
+            lines.append("")
+            lines.append(f"Способность: {ab.name} ({ab.ability_type})")
+            # Возможные параметры способности
+            if hasattr(ab, 'damage_per_hit'):
+                lines.append(f"+{ab.damage_per_hit} урона за удар")
+            if hasattr(ab, 'armor_ignore'):
+                lines.append(f"Игнорирует {int(ab.armor_ignore * 100)}% брони")
+            if hasattr(ab, 'crit_multiplier'):
+                lines.append(f"Крит. множитель: x{ab.crit_multiplier}")
+
+        popup_text = "\n".join(lines)
+        popup = Popup(
+            title='Информация о предмете',
+            content=Label(
+                text=popup_text,
+                text_size=(None, None),
+                halign='left'
+            ),
+            size_hint=(0.7, 0.5)
+        )
+        popup.open()
+
 
 class ShopScreen(Screen):
     """Экран магазина."""
@@ -1657,10 +1692,17 @@ class ShopScreen(Screen):
             )
             item_layout.add_widget(item_label)
             
-            btn_buy = Button(text='Купить', size_hint_x=0.3)
+            # Кнопки: Инфо + Купить
+            btn_layout = BoxLayout(orientation='horizontal', size_hint_x=0.3, spacing=dp(4))
+            btn_info = Button(text='Инфо', size_hint_x=0.5)
+            btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
+            btn_layout.add_widget(btn_info)
+
+            btn_buy = Button(text='Купить', size_hint_x=0.5)
             btn_buy.bind(on_press=lambda x, item_id=iid: self.buy_item(item_id))
-            item_layout.add_widget(btn_buy)
-            
+            btn_layout.add_widget(btn_buy)
+            item_layout.add_widget(btn_layout)
+
             self.content_layout.add_widget(item_layout)
     
     def show_sell(self):
@@ -1684,11 +1726,71 @@ class ShopScreen(Screen):
             )
             item_layout.add_widget(item_label)
             
-            btn_sell = Button(text='Продать', size_hint_x=0.3)
+            # Кнопки: Инфо + Продать
+            btn_layout = BoxLayout(orientation='horizontal', size_hint_x=0.3, spacing=dp(4))
+            btn_info = Button(text='Инфо', size_hint_x=0.5)
+            btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
+            btn_layout.add_widget(btn_info)
+
+            btn_sell = Button(text='Продать', size_hint_x=0.5)
             btn_sell.bind(on_press=lambda x, item_id=item.id: self.sell_item(item_id))
-            item_layout.add_widget(btn_sell)
-            
+            btn_layout.add_widget(btn_sell)
+            item_layout.add_widget(btn_layout)
+
             self.content_layout.add_widget(item_layout)
+
+    def show_item_info(self, item):
+        """Показать информацию о предмете в магазине (включая ability)."""
+        lines = []
+        lines.append(item.display_name())
+        # Типные данные
+        if isinstance(item, Weapon):
+            lines.append(f"⚔️ Урон: {item.damage_bonus}")
+            lines.append(f"Материал: {WEAPON_MATERIALS.get(item.material, 'неизвестный')}")
+            lines.append(f"Состояние: {item.condition_display}")
+        elif isinstance(item, Armor):
+            lines.append(f"🛡️ Защита: {item.defense}")
+            lines.append(f"Материал: {ARMOR_MATERIALS.get(item.material, 'неизвестная')}")
+            lines.append(f"Состояние: {item.condition_display}")
+        elif isinstance(item, Potion):
+            lines.append(f"💚 Восстанавливает: {item.heal_amount} HP")
+
+        lines.append(f"Цена: {item.price} монет")
+        if item.description:
+            lines.append("")
+            lines.append(f"📝 {item.description}")
+
+        # Способность (если есть)
+        if hasattr(item, 'ability') and item.ability:
+            ab = item.ability
+            lines.append("")
+            lines.append(f"Способность: {ab.name} ({ab.ability_type})")
+            if hasattr(ab, 'damage_per_hit'):
+                lines.append(f"+{ab.damage_per_hit} урона за удар")
+            if hasattr(ab, 'armor_ignore'):
+                lines.append(f"Игнорирует {int(ab.armor_ignore * 100)}% брони")
+            if hasattr(ab, 'crit_multiplier'):
+                lines.append(f"Крит. множитель: x{ab.crit_multiplier}")
+
+        popup_text = "\n".join(lines)
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(12))
+        scroll = ScrollView()
+        info_label = Label(
+            text=popup_text,
+            font_size=dp(16),
+            size_hint_y=None,
+            text_size=(dp(320), None),
+            halign='left',
+            valign='top'
+        )
+        info_label.bind(texture_size=info_label.setter('size'))
+        scroll.add_widget(info_label)
+        content.add_widget(scroll)
+        btn_close = Button(text='Закрыть', size_hint_y=None, height=dp(48))
+        content.add_widget(btn_close)
+        popup = Popup(title='📖 Информация о предмете', content=content, size_hint=(0.8, 0.7))
+        btn_close.bind(on_press=popup.dismiss)
+        popup.open()
     
     def buy_item(self, item_id):
         app = App.get_running_app()
@@ -2005,9 +2107,44 @@ class InventoryScreen(Screen):
                 btn_use = Button(text='Пить', size_hint_x=0.5)
                 btn_use.bind(on_press=lambda x, it=item: self.use_potion(it))
                 btn_layout.add_widget(btn_use)
+
+            # Кнопка Инфо (всегда доступна)
+            btn_info = Button(text='Инфо', size_hint_x=0.5)
+            btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
+            btn_layout.add_widget(btn_info)
             
             item_layout.add_widget(btn_layout)
             self.items_layout.add_widget(item_layout)
+
+    def show_item_info(self, item):
+        """Показать информацию о предмете в инвентаре (включая ability)."""
+        lines = []
+        lines.append(item.display_name())
+        lines.append(item.description or 'Без описания')
+        lines.append(f"Цена: {item.price} монет")
+
+        if hasattr(item, 'ability') and item.ability:
+            ab = item.ability
+            lines.append("")
+            lines.append(f"Способность: {ab.name} ({ab.ability_type})")
+            if hasattr(ab, 'damage_per_hit'):
+                lines.append(f"+{ab.damage_per_hit} урона за удар")
+            if hasattr(ab, 'armor_ignore'):
+                lines.append(f"Игнорирует {int(ab.armor_ignore * 100)}% брони")
+            if hasattr(ab, 'crit_multiplier'):
+                lines.append(f"Крит. множитель: x{ab.crit_multiplier}")
+
+        popup_text = "\n".join(lines)
+        popup = Popup(
+            title='Информация о предмете',
+            content=Label(
+                text=popup_text,
+                text_size=(None, None),
+                halign='left'
+            ),
+            size_hint=(0.7, 0.5)
+        )
+        popup.open()
     
     def equip_item(self, item):
         app = App.get_running_app()
@@ -2232,6 +2369,15 @@ class BattleInventoryScreen(Screen):
                 btn_unequip.bind(on_press=lambda x, it=item: self.unequip_item(it))
                 btn_layout.add_widget(btn_unequip)
             
+            # Кнопка Инфо
+            btn_info = Button(
+                text='Инфо',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=dp(14)
+            )
+            btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
+            btn_layout.add_widget(btn_info)
             item_layout.add_widget(btn_layout)
             self.items_layout.add_widget(item_layout)
     
@@ -2265,6 +2411,36 @@ class BattleInventoryScreen(Screen):
         
         # Возвращаемся в бой
         Clock.schedule_once(lambda dt: self.return_to_battle(), 1.0)
+
+    def show_item_info(self, item):
+        """Показать информацию о предмете (в бою)."""
+        lines = []
+        lines.append(item.display_name())
+        lines.append(item.description or 'Без описания')
+        lines.append(f"Цена: {item.price} монет")
+
+        if hasattr(item, 'ability') and item.ability:
+            ab = item.ability
+            lines.append("")
+            lines.append(f"Способность: {ab.name} ({ab.ability_type})")
+            if hasattr(ab, 'damage_per_hit'):
+                lines.append(f"+{ab.damage_per_hit} урона за удар")
+            if hasattr(ab, 'armor_ignore'):
+                lines.append(f"Игнорирует {int(ab.armor_ignore * 100)}% брони")
+            if hasattr(ab, 'crit_multiplier'):
+                lines.append(f"Крит. множитель: x{ab.crit_multiplier}")
+
+        popup_text = "\n".join(lines)
+        popup = Popup(
+            title='Информация о предмете',
+            content=Label(
+                text=popup_text,
+                text_size=(None, None),
+                halign='left'
+            ),
+            size_hint=(0.7, 0.5)
+        )
+        popup.open()
     
     def equip_item(self, item):
         """Экипировка предмета в бою."""

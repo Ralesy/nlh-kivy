@@ -82,7 +82,7 @@ class Shop:
             item_type = "оружие" if isinstance(item, Weapon) else "броня"
             return f"Нельзя продавать последнее экипированное {item_type}. Снимите сначала."
 
-        price = (item.price * qty) // 5
+        price = (item.price * qty) // 2
         player.inventory.remove(item_id, qty)
         player.coins += price
         self.stock[item_id] = self.stock.get(item_id, 0) + qty
