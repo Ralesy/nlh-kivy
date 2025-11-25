@@ -9,18 +9,18 @@ Game: главный модуль игры с интерфейсом и мене
 import random
 import sys
 from typing import Optional
-from core.creatures import Player
-from data.items import ItemDatabase
-from systems.battle import (
+from creatures import Player
+from items import ItemDatabase
+from battle import (
     Battlefield, EnemyGenerator, EventSystem, BattleResult
 )
-from systems.quests import Tavern
-from systems.shop_casino import Shop, Casino
-from systems.save_system import save_game, load_game, get_save_list
-from data.locations import LocationManager
-from systems.npcs import NPCManager, GeneratedQuest
-from data.enemies import EnemyDatabase
-from core.utils import print_header, print_section, pause
+from quests import Tavern
+from shop_casino import Shop, Casino
+from save_system import save_game, load_game, get_save_list
+from locations import LocationManager
+from npcs import NPCManager, GeneratedQuest
+from enemies import EnemyDatabase
+from utils import print_header, print_section, pause
 
 
 class Game:
@@ -34,7 +34,7 @@ class Game:
         self.npc_manager = NPCManager()
         
         # Инициализация врагов
-        from data.enemies import EnemyDatabase
+        from enemies import EnemyDatabase
         EnemyDatabase.initialize()
 
         # Инициализация магазина (обновленный сток)
@@ -505,39 +505,20 @@ class Game:
             pause(1)
 
     def on_death(self) -> None:
-        """При поражении в бою."""
-        print_section("ВАС ОГЛУШИЛИ")
-        print("\nВы очнулись в таверне, потеряв часть добычи...")
+        """При смерти персонажа."""
+        print_section("ВЫ МЕРТВЫ")
+        print("\nЧто дальше?")
+        print("1) Загрузить игру")
+        print("2) Начать заново")
+        print("3) Выход")
 
-        # Потеря золота (10%)
-        gold_lost = self.player.coins // 10
-        self.player.coins -= gold_lost
-        print(f"💰 Потеряно: {gold_lost} золота.")
-
-        # Потеря предметов
-        non_quest_items = [
-            (item_id, qty)
-            for item_id, qty in self.player.inventory.list_items()
-            if not self.player.inventory.get(item_id).is_quest_item()
-        ]
-
-        if non_quest_items:
-            num_lost = random.randint(1, min(2, len(non_quest_items)))
-            for _ in range(num_lost):
-                item_id, _ = random.choice(non_quest_items)
-                item = self.player.inventory.get(item_id)
-                self.player.inventory.remove(item_id, 1)
-                print(f"🎒 Потерян предмет: {item.name}")
-                # Удаляем из списка, чтобы не потерять дважды
-                non_quest_items = [
-                    (iid, qty) for iid, qty in non_quest_items
-                    if iid != item_id
-                ]
-
-        # Восстановление здоровья
-        self.player.health = int(self.player.max_health * 0.3)
-        print("❤️ Вы восстановили часть здоровья.")
-        pause(3)
+        ch = input("\n> ").strip()
+        if ch == "1":
+            self.load_game_menu()
+        elif ch == "2":
+            self.create_character()
+        elif ch == "3":
+            self.quit_game()
 
     def load_game_menu(self) -> None:
         """Меню загрузки."""

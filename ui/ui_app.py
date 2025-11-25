@@ -655,9 +655,12 @@ class GameScreen(Screen):
             popup.open()
             return
         
-        # Получить локацию
-        location_manager = LocationManager()
+        # Получить локацию из общего менеджера игры
+        location_manager = self.game.location_manager
         location = location_manager.get_location(loc_id)
+        # Отмечаем что локация посещена
+        if location:
+            location.visited = True
         
         if not location:
             popup = Popup(
@@ -1334,7 +1337,15 @@ class BattleScreen(Screen):
                 gold_earned=total_gold,
                 xp_earned=total_xp
             )
-            
+            # Обновляем ассортимент магазина согласно разблокированным локациям
+            app = App.get_running_app()
+            if app and getattr(app, 'game', None):
+                try:
+                    app.game.shop.refresh(app.game.location_manager)
+                except Exception:
+                    # на случай ошибок оставим поведение без падений
+                    pass
+
             # Показываем окно добычи
             Clock.schedule_once(
                 lambda dt: self._show_loot_window(
@@ -3769,6 +3780,33 @@ class LootWindowScreen(Screen):
             player.coins += self.battle_result.gold_earned
             # Add experience and trigger level-ups
             player.add_experience(self.battle_result.xp_earned)
+
+            # Обновляем прогресс локации и возможные разблокировки
+            try:
+                current_loc = getattr(app.game_screen, 'current_location', None)
+                if current_loc:
+                    app.game.location_manager.increment_quest_counter(current_loc.id)
+                    unlocked = app.game.location_manager.check_and_unlock_locations()
+                    if unlocked:
+                        # Показываем небольшой popup о разблокировке
+                        names = [app.game.location_manager.get_location(l).name for l in unlocked]
+                        popup = Popup(
+                            title='🔓 Новые локации!',
+                            content=Label(text='\n'.join(names)),
+                            size_hint=(0.6, 0.3)
+                        )
+                        popup.open()
+            except Exception:
+                pass
+
+            # Обновляем магазин по новым разблокировкам
+            try:
+                app.game.shop.refresh(app.game.location_manager)
+                # Обновляем экран магазина, чтобы данные были готовы
+                if getattr(app, 'shop_screen', None):
+                    app.shop_screen.update_shop()
+            except Exception:
+                pass
         
         app.game_screen.update_game_state()
         self.manager.current = 'game'

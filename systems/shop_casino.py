@@ -89,15 +89,124 @@ class Shop:
 
         return f"Продано {item.name} x{qty} за {price} монет."
 
-    def refresh(self) -> None:
-        """Обновление стока после боя."""
-        for iid in list(self.stock.keys()):
-            if random.random() < 0.5:
-                self.stock[iid] = max(
-                    0, self.stock.get(iid, 0) + random.randint(-2, 3)
-                )
-            if self.stock[iid] is not None:
-                self.stock[iid] = max(0, self.stock[iid])
+    def refresh(self, location_manager=None) -> None:
+        """Обновление стока после боя.
+
+        Если передан менеджер локаций (location_manager), формируем
+        новый ассортимент: 3 случайных оружия и 2 комплекта брони,
+        доступных для уже разблокированных локаций. Если
+        location_manager не передан, используется старая
+        случайная корректировка стока.
+        """
+        # Поддержка обратной совместимости: без менеджера локаций
+        # оставляем старое поведение (с небольшими изменениями).
+        def _legacy_refresh():
+            for iid in list(self.stock.keys()):
+                if random.random() < 0.5:
+                    self.stock[iid] = max(
+                        0, self.stock.get(iid, 0) + random.randint(-2, 3)
+                    )
+                if self.stock[iid] is not None:
+                    self.stock[iid] = max(0, self.stock[iid])
+
+        # Если нет внешнего менеджера — делаем легкий рефреш
+        # (вызывается из более старых мест).
+        try:
+            # Мы ожидаем объект менеджера локаций с атрибутом locations
+            # Передавать его нужно из Game: self.shop.refresh(self.location_manager)
+            location_manager  # type: ignore
+        except NameError:
+            _legacy_refresh()
+            return
+
+        # Если объект не передан явно — оставить старое поведение
+        if location_manager is None:
+            _legacy_refresh()
+            return
+
+        # Карта материалов/пулов предметов по локациям.
+        LOCATION_MATERIAL_POOLS = {
+            "forest": {
+                "weapons": ["iron", "steel"],
+                "armors": ["leather", "iron"]
+            },
+            "swamp": {
+                "weapons": ["goblin", "iron", "steel"],
+                "armors": ["leather", "iron", "orc"]
+            },
+            "mines": {
+                "weapons": ["orc", "dwarf", "steel"],
+                "armors": ["iron", "steel", "dwarf"]
+            },
+            "mountains": {
+                "weapons": ["elf", "dwarf", "dragon", "steel"],
+                "armors": ["elf", "dwarf", "dragon"]
+            },
+            "ancient_cave": {
+                "weapons": ["dragon", "elf"],
+                "armors": ["dragon", "elf"]
+            }
+        }
+
+        # Собираем разрешённые материалы по разблокированным локациям
+        allowed_weapon_materials = set()
+        allowed_armor_materials = set()
+        for loc in getattr(location_manager, "locations", {}).values():
+            if not getattr(loc, "is_locked", True):
+                pool = LOCATION_MATERIAL_POOLS.get(loc.id)
+                if pool:
+                    allowed_weapon_materials.update(pool.get("weapons", []))
+                    allowed_armor_materials.update(pool.get("armors", []))
+        # Надёжный fallback — если ничего не собрали, используем железо
+        if not allowed_weapon_materials:
+            allowed_weapon_materials.add("iron")
+        if not allowed_armor_materials:
+            allowed_armor_materials.add("leather")
+
+        # Формируем кандидатов из ItemDatabase
+        weapons = [
+            it for it in ItemDatabase.ITEMS.values()
+            if isinstance(it, Weapon)
+            and (not it.is_unique)
+            and it.material in allowed_weapon_materials
+        ]
+        armors = [
+            it for it in ItemDatabase.ITEMS.values()
+            if isinstance(it, Armor)
+            and (not it.is_unique)
+            and it.material in allowed_armor_materials
+        ]
+
+        # Если кандидатов мало — расширяем до всех неуникальных предметов
+        if len(weapons) < 3:
+            weapons = [
+                it for it in ItemDatabase.ITEMS.values()
+                if isinstance(it, Weapon) and not it.is_unique
+            ]
+        if len(armors) < 2:
+            armors = [
+                it for it in ItemDatabase.ITEMS.values()
+                if isinstance(it, Armor) and not it.is_unique
+            ]
+
+        # Выбираем случайный ассортимент
+        sel_weapons = random.sample(weapons, min(3, len(weapons)))
+        sel_armors = random.sample(armors, min(2, len(armors)))
+
+        # Базовые аптечки оставляем в ассортименте
+        new_stock: Dict[str, Optional[int]] = {}
+        for pid, qty in [("p_small", 15), ("p_med", 8), ("p_large", 3)]:
+            if ItemDatabase.get(pid):
+                new_stock[pid] = qty
+
+        # Добавляем выбранное оружие и броню
+        for w in sel_weapons:
+            new_stock[w.id] = random.randint(1, 3)
+        for a in sel_armors:
+            new_stock[a.id] = random.randint(1, 2)
+
+        # Устанавливаем новый сток
+        self.stock = new_stock
 
 
 class Casino:
