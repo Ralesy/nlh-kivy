@@ -14,27 +14,23 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
-from kivy.graphics import Color, Rectangle
+from kivy.uix.widget import Widget
+from kivy.graphics import Color, Rectangle, Ellipse, Line
 from kivy.clock import Clock
+from kivy.core.window import Window
 from kivy.metrics import dp
 import sys
 import random
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from core.game import Game
-from core.creatures import Player
-from data.items import (
-    ItemDatabase, Weapon, Armor, Potion,
-    WEAPON_MATERIALS, ARMOR_MATERIALS
-)
-from systems.save_system import load_game, get_save_list
-from systems.battle import Battlefield, EnemyGenerator
-from data.locations import LocationManager
-from systems.npcs import NPCManager, QuestState
-from systems.npcs import QuestType
+from game import Game
+from creatures import Player
+from items import ItemDatabase, Weapon, Armor, Potion
+from save_system import save_game, load_game, get_save_list
+from battle import Battlefield, EnemyGenerator, EventSystem
+from locations import LocationManager
+from npcs import NPCManager, QuestState, GeneratedQuest
+from enemies import EnemyDatabase
+from npcs import QuestType
 
 
 class MainMenuScreen(Screen):
@@ -188,10 +184,8 @@ class CharacterCreationScreen(Screen):
         with layout.canvas.before:
             Color(0.12, 0.18, 0.28, 1)  # Темно-синий фон
             self.bg_rect = Rectangle()
-            layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
+            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
+                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
         
         title = Label(
             text='👤 Создание персонажа',
@@ -203,8 +197,7 @@ class CharacterCreationScreen(Screen):
         layout.add_widget(title)
         
         name_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(55))
-        name_label = Label(text='Имя:', size_hint_x=0.3, font_size=dp(20),
-                           color=(0.9, 0.9, 0.9, 1))
+        name_label = Label(text='Имя:', size_hint_x=0.3, font_size=dp(20), color=(0.9, 0.9, 0.9, 1))
         name_layout.add_widget(name_label)
         self.name_input = TextInput(
             text='Герой',
@@ -304,10 +297,8 @@ class CharacterCreationScreen(Screen):
         self.selected_class = cls
         # Визуальная индикация выбора
         for btn in self.class_buttons.values():
-            r, g, b, a = btn.background_color
-            btn.background_color = (r * 0.7, g * 0.7, b * 0.7, a)
-        r, g, b, a = button.background_color
-        button.background_color = (r * 1.3, g * 1.3, b * 1.3, a)
+            btn.background_color = (btn.background_color[0] * 0.7, btn.background_color[1] * 0.7, btn.background_color[2] * 0.7, 1)
+        button.background_color = (button.background_color[0] * 1.3, button.background_color[1] * 1.3, button.background_color[2] * 1.3, 1)
     
     def create_character(self, instance):
         name = self.name_input.text.strip() or "Герой"
@@ -330,7 +321,7 @@ class CharacterCreationScreen(Screen):
         
         game = Game()
         if self.selected_class == 'test':
-            from ..core.creatures import TestPlayer
+            from creatures import TestPlayer
             game.player = TestPlayer(name)
         else:
             game.player = Player(name, self.selected_class)
@@ -463,8 +454,7 @@ class MapWidget(BoxLayout):
             loc_box = BoxLayout(orientation='vertical', spacing=dp(3), size_hint_y=None, height=dp(90))
             
             btn = Button(
-                text=f"{info['name']}\n{info['desc']}\n"
-                     f"Сложность: {info['difficulty']}",
+                text=f"{info['name']}\n{info['desc']}\nСложность: {info['difficulty']}",
                 font_size=dp(18),
                 background_color=info['color'],
                 size_hint_y=None,
@@ -495,21 +485,17 @@ class GameScreen(Screen):
         with main_layout.canvas.before:
             Color(0.15, 0.2, 0.25, 1)  # Темно-серый фон
             self.bg_rect = Rectangle()
-            main_layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
+            main_layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
+                           pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
         
         # Статистика игрока с улучшенным дизайном
         stats_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(110), padding=dp(10))
         stats_box.canvas.before.clear()
         with stats_box.canvas.before:
             Color(0.2, 0.25, 0.3, 1)  # Темная панель
-            rect = Rectangle(pos=stats_box.pos, size=stats_box.size)
-            stats_box.bind(
-                pos=lambda i, v: setattr(rect, 'pos', i.pos),
-                size=lambda i, v: setattr(rect, 'size', i.size)
-            )
+            Rectangle(pos=stats_box.pos, size=stats_box.size)
+            stats_box.bind(pos=lambda instance, value: setattr(Rectangle(), 'pos', instance.pos),
+                          size=lambda instance, value: setattr(Rectangle(), 'size', instance.size))
         
         self.stats_label = Label(
             text='',
@@ -583,17 +569,7 @@ class GameScreen(Screen):
         )
         btn_status.bind(on_press=self.on_status)
         menu_layout.add_widget(btn_status)
-
-        btn_companions = Button(
-            text='🤝 Спутники',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(21),
-            background_color=(0.4, 0.6, 0.8, 1)
-        )
-        btn_companions.bind(on_press=self.on_companions)
-        menu_layout.add_widget(btn_companions)
-
+        
         btn_quests = Button(
             text='📋 Активные квесты',
             size_hint_y=None,
@@ -603,7 +579,7 @@ class GameScreen(Screen):
         )
         btn_quests.bind(on_press=self.on_active_quests)
         menu_layout.add_widget(btn_quests)
-
+        
         btn_save = Button(
             text='💾 Сохранить',
             size_hint_y=None,
@@ -784,15 +760,6 @@ class GameScreen(Screen):
             app.location_select_screen.update_locations()
             self.manager.current = 'location_select'
     
-    def on_companions(self, instance):
-        """Открыть экран управления спутниками."""
-        if not self.game or not self.game.player:
-            return
-        app = App.get_running_app()
-        if app.companion_management_screen:
-            app.companion_management_screen.update_companion()
-            self.manager.current = 'companion_management'
-
     def on_active_quests(self, instance):
         """Открыть экран активных квестов."""
         if not self.game or not self.game.player:
@@ -808,13 +775,10 @@ class GameScreen(Screen):
         
         from datetime import datetime
         
-        content = BoxLayout(orientation='vertical', spacing=dp(12),
-                            padding=dp(20))
+        content = BoxLayout(orientation='vertical', spacing=dp(12), padding=dp(20))
         
         info_label = Label(
-            text=f'День: {self.game.day} | '
-                 f'Уровень: {self.game.player.level}\n'
-                 f'Монеты: {self.game.player.coins}',
+            text=f'День: {self.game.day} | Уровень: {self.game.player.level}\nМонеты: {self.game.player.coins}',
             font_size=dp(16),
             text_size=(None, None),
             halign='center',
@@ -829,8 +793,7 @@ class GameScreen(Screen):
             background_color=(0.2, 0.2, 0.3, 1),
             foreground_color=(1, 1, 1, 1)
         )
-        content.add_widget(Label(text='Имя сохранения:', font_size=dp(18),
-                                 color=(0.9, 0.9, 0.9, 1)))
+        content.add_widget(Label(text='Имя сохранения:', font_size=dp(18), color=(0.9, 0.9, 0.9, 1)))
         content.add_widget(name_input)
         
         btn_layout = BoxLayout(orientation='horizontal', spacing=dp(10), size_hint_y=None, height=dp(55))
@@ -838,15 +801,14 @@ class GameScreen(Screen):
         def save_confirm(instance):
             name = name_input.text.strip() or f"save_{self.game.day}"
 
-            # Get NPC data - fallback to app.npc_manager if not init
+            # Get NPC data - fallback to app.npc_manager if tavern not init
             app = App.get_running_app()
             npc_manager = self.manager.get_screen('tavern').npc_manager
             if not npc_manager:
                 npc_manager = app.npc_manager
-            npcs_data = {
-                npc_id: npc.to_dict()
-                for npc_id, npc in npc_manager.npcs.items()
-            } if npc_manager else {}
+            npcs_data = ({npc_id: npc.to_dict()
+                         for npc_id, npc in npc_manager.npcs.items()}
+                         if npc_manager else {})
 
             data = {
                 'player': self.game.player.to_dict(),
@@ -922,10 +884,8 @@ class BattleScreen(Screen):
         with layout.canvas.before:
             Color(0.15, 0.15, 0.2, 1)  # Темно-синий фон
             self.bg_rect = Rectangle()
-            layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
+            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
+                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
         
         # Сообщение о событии
         self.event_label = Label(
@@ -1041,10 +1001,7 @@ class BattleScreen(Screen):
         if p.companions:
             alive_companions = [c for c in p.companions if c.is_alive]
             if alive_companions:
-                comp_text = ", ".join(
-                    [f"{c.name}({c.health}/{c.max_health})"
-                     for c in alive_companions]
-                )
+                comp_text = ", ".join([f"{c.name}({c.health}/{c.max_health})" for c in alive_companions])
                 companions_info = f"\n🤝 Спутники: {comp_text}"
             else:
                 companions_info = "\n🤝 Спутники: Все выбыли"
@@ -1080,8 +1037,7 @@ class BattleScreen(Screen):
                 bg_color = (0.5, 0.5, 0.5, 1)  # Серый для почти мертвых
             
             btn = Button(
-                text=f"⚔️ {enemy.name}\n💚 HP: {enemy.health}/"
-                     f"{enemy.max_health} | ⚔️ DMG: {enemy.damage}",
+                text=f"⚔️ {enemy.name}\n💚 HP: {enemy.health}/{enemy.max_health} | ⚔️ DMG: {enemy.damage}",
                 size_hint_y=None,
                 height=dp(60),
                 font_size=dp(16),
@@ -1226,17 +1182,19 @@ class BattleScreen(Screen):
         if self.battlefield.player.is_alive:
             self.add_log("\n🎉 Вы победили!")
             
-            # Восстанавливаем здоровье компаньонов (только павших)
-            for companion in self.battlefield.player.companions:
+            # Восстанавливаем здоровье компаньонов
+            for companion in (
+                self.battlefield.player.companions
+            ):
+                companion.health = companion.max_health
                 if not companion.is_alive:
-                    companion.health = 1  # Восстанавливаем до 1 HP
                     self.add_log(
                         f"💚 {companion.name} "
-                        f"восстановлен после боя (1 HP)!"
+                        f"восстановлен после боя!"
                     )
             
             # Генерируем результат боя с добычей
-            from systems.battle import BattleResult, LootDrop
+            from battle import BattleResult, LootDrop
             
             # Подсчитываем добычу
             total_gold = 0
@@ -1285,67 +1243,53 @@ class BattleScreen(Screen):
             self.manager.current = 'loot_window'
     
     def show_death_screen(self):
-        """Обработка поражения в бою."""
+        """Показ экрана смерти."""
         app = App.get_running_app()
-        player = app.game.player
-
-        # Потеря золота (10%)
-        gold_lost = player.coins // 10
-        player.coins -= gold_lost
-
-        # Потеря предметов
-        items_lost_messages = []
-        non_quest_items = [
-            (item_id, qty)
-            for item_id, qty in player.inventory.list_items()
-            if not player.inventory.get(item_id).is_quest_item()
-        ]
-
-        if non_quest_items:
-            num_lost = random.randint(1, min(2, len(non_quest_items)))
-            for _ in range(num_lost):
-                item_id, _ = random.choice(non_quest_items)
-                item = player.inventory.get(item_id)
-                player.inventory.remove(item_id, 1)
-                items_lost_messages.append(f"🎒 Потерян предмет: {item.name}")
-                non_quest_items = [
-                    (iid, qty) for iid, qty in non_quest_items if iid != item_id
-                ]
-
-        # Восстановление здоровья до 30% (минимум 1 HP)
-        player.health = max(1, int(player.max_health * 0.3))
-        player.is_alive = True  # Возвращаем к жизни
-
-        # Формируем сообщение для игрока
-        message = (
-            "Вас оглушили и оставили без сознания.\n"
-            "Вы очнулись в таверне, потеряв часть добычи...\n\n"
-            f"💰 Потеряно: {gold_lost} золота.\n"
+        if not app.game:
+            return
+        
+        stats = app.game.player.get_session_stats()
+        text = (
+            "ИГРА ОКОНЧЕНА - ВЫ БЫЛИ ПОВЕРЖЕНЫ!\n\n"
+            "📊 СТАТИСТИКА СЕССИИ:\n"
+            f"  Персонаж: {stats['name']} ({stats['class']})\n"
+            f"  Финальный уровень: {stats['level']}\n"
+            f"  Финальные монеты: {stats['coins']} 💰\n"
+            f"  Выданный урон: {stats['total_damage_dealt']}\n"
+            f"  Полученный урон: {stats['total_damage_taken']}\n"
+            f"  Врагов повержено: {stats['enemies_defeated']}\n"
+            f"  Битв проведено: {stats['battles_fought']}\n"
+            f"  Предметов в инвентаре: {stats['inventory_items']}\n"
         )
-        if items_lost_messages:
-            message += "\n".join(items_lost_messages) + "\n"
-        message += "\n❤️ Вы восстановили часть здоровья."
-
-        content = BoxLayout(orientation='vertical', spacing=dp(10),
-                            padding=dp(20))
-        content.add_widget(Label(
-            text=message, text_size=(dp(300), None),
-            halign='center', valign='middle'
-        ))
-
-        def return_to_main_menu(instance):
+        
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
+        content.add_widget(Label(text=text, text_size=(None, None), halign='left', valign='top'))
+        
+        btn_layout = BoxLayout(orientation='horizontal', spacing=dp(10), size_hint_y=None, height=dp(50))
+        
+        def restart(instance):
             popup.dismiss()
-            app.game_screen.update_game_state()
-            self.manager.current = 'game'
-
-        btn_continue = Button(text='Продолжить', size_hint_y=None, height=dp(50))
-        btn_continue.bind(on_press=return_to_main_menu)
-        content.add_widget(btn_continue)
-
+            app.game = None
+            self.manager.current = 'main_menu'
+        
+        def exit(instance):
+            popup.dismiss()
+            sys.exit(0)
+        
+        btn_restart = Button(text='Начать заново')
+        btn_restart.bind(on_press=restart)
+        btn_layout.add_widget(btn_restart)
+        
+        btn_exit = Button(text='Выйти')
+        btn_exit.bind(on_press=exit)
+        btn_layout.add_widget(btn_exit)
+        
+        content.add_widget(btn_layout)
+        
         popup = Popup(
-            title='🤕 Вы были оглушены',
+            title='💀 Смерть',
             content=content,
-            size_hint=(0.8, 0.6),
+            size_hint=(0.8, 0.7),
             auto_dismiss=False
         )
         popup.open()
@@ -1354,66 +1298,6 @@ class BattleScreen(Screen):
         """Возврат на главный экран."""
         app = App.get_running_app()
         if app.game:
-            if not victory:
-                # Применяем штрафы за поражение
-                player = app.game.player
-
-                # Потеря золота (10%)
-                gold_lost = player.coins // 10
-                player.coins -= gold_lost
-
-                # Потеря предметов
-                items_lost_messages = []
-                non_quest_items = [
-                    (item, qty)
-                    for item, qty in player.inventory.list_items()
-                    if not item.is_quest_item()
-                ]
-
-                if non_quest_items:
-                    num_lost = random.randint(1, min(2, len(non_quest_items)))
-                    for _ in range(num_lost):
-                        item, _ = random.choice(non_quest_items)
-                        player.inventory.remove(item.id, 1)
-                        items_lost_messages.append(f"🎒 Потерян предмет: {item.name}")
-                        non_quest_items = [
-                            (i, q) for i, q in non_quest_items if i != item
-                        ]
-
-                # Восстановление здоровья до 30% (минимум 1 HP)
-                player.health = max(1, int(player.max_health * 0.3))
-
-                # Показываем сообщение о поражении
-                message = (
-                    "Вас оглушили и оставили без сознания.\n"
-                    "Вы очнулись в таверне, потеряв часть добычи...\n\n"
-                    f"💰 Потеряно: {gold_lost} золота.\n"
-                )
-                if items_lost_messages:
-                    message += "\n".join(items_lost_messages) + "\n"
-                message += "\n❤️ Вы восстановили часть здоровья."
-
-                popup = Popup(
-                    title='🤕 Вы были оглушены',
-                    content=Label(
-                        text=message,
-                        text_size=(None, None),
-                        halign='center',
-                        valign='middle',
-                        font_size=dp(18)
-                    ),
-                    size_hint=(0.8, 0.6),
-                    auto_dismiss=False
-                )
-
-                def close_popup(instance):
-                    popup.dismiss()
-
-                btn_continue = Button(text='Продолжить', size_hint_y=None, height=dp(50))
-                btn_continue.bind(on_press=close_popup)
-                popup.content.add_widget(btn_continue)
-                popup.open()
-
             app.game_screen.game = app.game
             app.game_screen.update_game_state()
         self.manager.current = 'game'
@@ -1597,7 +1481,7 @@ class TavernScreen(Screen):
             }
             
             # Получаем цену из ROLES
-            from core.creatures import Companion
+            from creatures import Companion
             role_data = Companion.ROLES.get(
                 role, {"coins": 30}
             )
@@ -1664,10 +1548,10 @@ class TavernScreen(Screen):
         if not app.game:
             return
         
-        from core.creatures import Companion
+        from creatures import Companion
         role_data = Companion.ROLES.get(role, {"coins": 30})
         price = role_data["coins"]
-
+        
         if app.game.player.coins < price:
             popup = Popup(
                 title='Ошибка',
@@ -1676,9 +1560,9 @@ class TavernScreen(Screen):
             )
             popup.open()
             return
-
+        
         app.game.player.coins -= price
-        from core.creatures import Companion
+        from creatures import Companion
         comp = Companion(name, role, level=max(1, app.game.player.level - 1))
         app.game.player.companions.append(comp)
         
@@ -1852,10 +1736,8 @@ class CasinoScreen(Screen):
         with layout.canvas.before:
             Color(0.2, 0.15, 0.25, 1)  # Темно-фиолетовый фон
             self.bg_rect = Rectangle()
-            layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
+            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
+                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
         
         title = Label(
             text='🎰 КАЗИНО',
@@ -1974,7 +1856,7 @@ class CasinoScreen(Screen):
                 if not app.game:
                     return
                 
-                from systems.shop_casino import Casino
+                from shop_casino import Casino
                 
                 if game_type == 'coinflip':
                     if choice is None:
@@ -2037,10 +1919,8 @@ class InventoryScreen(Screen):
         with layout.canvas.before:
             Color(0.18, 0.22, 0.28, 1)
             self.bg_rect = Rectangle()
-            layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
+            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
+                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
         
         title = Label(
             text='🎒 ИНВЕНТАРЬ',
@@ -2100,96 +1980,34 @@ class InventoryScreen(Screen):
         self.items_layout.clear_widgets()
         items = p.inventory.list_items()
         for item, qty in items:
-            item_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(80), spacing=dp(3))
-            
-            # Верхняя строка: название и количество
-            top_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(40))
+            item_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60))
             item_label = Label(
                 text=f"{item.display_name()} x{qty}",
                 font_size=dp(16),
                 size_hint_x=0.7
             )
-            top_layout.add_widget(item_label)
+            item_layout.add_widget(item_label)
             
-            # Кнопка информации
-            btn_info = Button(
-                text='ℹ️',
-                size_hint_x=0.1,
-                background_color=(0.3, 0.5, 0.7, 1)
-            )
-            btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
-            top_layout.add_widget(btn_info)
-            item_layout.add_widget(top_layout)
-            
-            # Нижняя строка: кнопки действий
-            btn_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(40), spacing=dp(5))
+            btn_layout = BoxLayout(orientation='horizontal', size_hint_x=0.3, spacing=dp(5))
             
             if isinstance(item, Weapon) or isinstance(item, Armor):
-                btn_equip = Button(text='Экипировать', size_hint_x=0.5, font_size=dp(12))
+                btn_equip = Button(text='Экипировать', size_hint_x=0.5)
                 btn_equip.bind(on_press=lambda x, it=item: self.equip_item(it))
                 btn_layout.add_widget(btn_equip)
             
             if (p.weapon and p.weapon.id == item.id) or (p.armor and p.armor.id == item.id):
-                btn_unequip = Button(text='Снять', size_hint_x=0.5, font_size=dp(12))
+                btn_unequip = Button(text='Снять', size_hint_x=0.5)
                 btn_unequip.bind(on_press=lambda x, it=item: self.unequip_item(it))
                 btn_layout.add_widget(btn_unequip)
             
-            # Для зелий - кнопка "Использовать"
+            # Проверяем если это зелье
             if isinstance(item, Potion):
-                btn_use = Button(text='Использовать', size_hint_x=0.5, font_size=dp(12))
+                btn_use = Button(text='Пить', size_hint_x=0.5)
                 btn_use.bind(on_press=lambda x, it=item: self.use_potion(it))
                 btn_layout.add_widget(btn_use)
-
+            
             item_layout.add_widget(btn_layout)
             self.items_layout.add_widget(item_layout)
-    
-    def show_item_info(self, item):
-        """Показать детальную информацию о предмете."""
-        info_text = f"{item.display_name()}\n\n"
-        
-        if isinstance(item, Weapon):
-            info_text += f"⚔️ Урон: {item.damage_bonus}\n"
-            info_text += f"Материал: {WEAPON_MATERIALS.get(item.material, 'неизвестный')}\n"
-            info_text += f"Состояние: {item.condition_display}\n"
-            info_text += f"Цена: {item.price} монет\n\n"
-        elif isinstance(item, Armor):
-            info_text += f"🛡️ Защита: {item.defense}\n"
-            info_text += f"Материал: {ARMOR_MATERIALS.get(item.material, 'неизвестная')}\n"
-            info_text += f"Состояние: {item.condition_display}\n"
-            info_text += f"Цена: {item.price} монет\n\n"
-        elif isinstance(item, Potion):
-            info_text += f"💚 Восстанавливает: {item.heal_amount} HP\n"
-            info_text += f"Цена: {item.price} монет\n\n"
-        
-        if item.description:
-            info_text += f"📝 {item.description}"
-        
-        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(15))
-        
-        scroll = ScrollView()
-        info_label = Label(
-            text=info_text,
-            font_size=dp(16),
-            size_hint_y=None,
-            text_size=(dp(300), None),
-            halign='left',
-            valign='top'
-        )
-        info_label.bind(texture_size=info_label.setter('size'))
-        scroll.add_widget(info_label)
-        
-        content.add_widget(scroll)
-        
-        btn_close = Button(text='Закрыть', size_hint_y=None, height=dp(50))
-        content.add_widget(btn_close)
-        
-        popup = Popup(
-            title='📖 Информация о предмете',
-            content=content,
-            size_hint=(0.8, 0.7)
-        )
-        btn_close.bind(on_press=popup.dismiss)
-        popup.open()
     
     def equip_item(self, item):
         app = App.get_running_app()
@@ -2277,93 +2095,7 @@ class InventoryScreen(Screen):
                 popup.open()
         
         self.update_inventory()
-
-    def use_potion(self, potion):
-        """Использование зелья с выбором цели."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player:
-            return
-
-        player = app.game.player
-
-        # Создаём popup с выбором цели
-        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
-
-        content.add_widget(Label(text=f"Кому дать {potion.display_name()}?", font_size=dp(18)))
-
-        # Кнопки выбора цели
-        targets_layout = BoxLayout(orientation='vertical', spacing=dp(10))
-
-        # Игрок
-        if player.is_alive and player.health < player.max_health:
-            btn_player = Button(
-                text=f"Игрок ({player.health}/{player.max_health} HP)",
-                size_hint_y=None,
-                height=dp(50)
-            )
-            btn_player.bind(on_press=lambda x: self._heal_target(potion, player))
-            targets_layout.add_widget(btn_player)
-
-        # Спутники
-        for companion in player.companions:
-            if companion.is_alive and companion.health < companion.max_health:
-                btn_comp = Button(
-                    text=f"{companion.name} ({companion.health}/{companion.max_health} HP)",
-                    size_hint_y=None,
-                    height=dp(50)
-                )
-                btn_comp.bind(on_press=lambda x, c=companion: self._heal_target(potion, c))
-                targets_layout.add_widget(btn_comp)
-
-        content.add_widget(targets_layout)
-
-        btn_cancel = Button(text='Отмена', size_hint_y=None, height=dp(50))
-        btn_cancel.bind(on_press=lambda x: popup.dismiss())
-        content.add_widget(btn_cancel)
-
-        popup = Popup(
-            title='🎁 Использование зелья',
-            content=content,
-            size_hint=(0.7, 0.6)
-        )
-        popup.open()
-
-    def _heal_target(self, potion, target):
-        """Лечение цели зельем."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player:
-            return
-
-        player = app.game.player
-
-        # Используем зелье
-        healed = target.heal(potion.heal_amount)
-        player.inventory.remove(potion.id, 1)
-
-        # Закрываем popup и показываем результат
-        popup = None
-        for widget in App.get_running_app()._app_window.children:
-            if hasattr(widget, 'dismiss'):
-                popup = widget
-                break
-        if popup:
-            popup.dismiss()
-
-        # Показываем сообщение
-        result_popup = Popup(
-            title='✅ Зелье использовано',
-            content=Label(
-                text=f"{target.name} восстановил {healed} HP!\n"
-                     f"({target.health}/{target.max_health} HP)",
-                font_size=dp(18)
-            ),
-            size_hint=(0.6, 0.3)
-        )
-        result_popup.open()
-
-        # Обновляем инвентарь
-        self.update_inventory()
-
+    
     def on_back(self, instance):
         app = App.get_running_app()
         if app.game:
@@ -2635,10 +2367,8 @@ class StatusScreen(Screen):
         with layout.canvas.before:
             Color(0.15, 0.2, 0.25, 1)
             self.bg_rect = Rectangle()
-            layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
+            layout.bind(size=lambda instance, value: setattr(self.bg_rect, 'size', instance.size),
+                       pos=lambda instance, value: setattr(self.bg_rect, 'pos', instance.pos))
         
         title = Label(
             text='📊 СТАТУС',
@@ -3089,7 +2819,7 @@ class AncientCaveBossSelectScreen(Screen):
     
     def on_boss_select(self, boss_id):
         """Выбрать босса для боя."""
-        from systems.battle import EnemyGenerator
+        from battle import EnemyGenerator
         
         if not self.game or not self.game.player:
             return
@@ -3117,7 +2847,7 @@ class AncientCaveBossSelectScreen(Screen):
             return
         
         # Создаём поле боя
-        from systems.battle import Battlefield
+        from battle import Battlefield
         self.game.day += 1
         self.game.player.battles_fought += 1
         
@@ -3628,425 +3358,6 @@ class LootWindowScreen(Screen):
         self.manager.current = 'game'
 
 
-class CompanionManagementScreen(Screen):
-    """Экран управления спутниками."""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
-
-        # Фон
-        with layout.canvas.before:
-            Color(0.15, 0.2, 0.25, 1)
-            self.bg_rect = Rectangle()
-            layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
-
-        title = Label(
-            text='🤝 УПРАВЛЕНИЕ СПУТНИКАМИ',
-            font_size=dp(32),
-            size_hint_y=None,
-            height=dp(60),
-            color=(0.9, 0.8, 0.3, 1)
-        )
-        layout.add_widget(title)
-
-        # Информация о спутнике
-        self.companion_info = Label(
-            text='',
-            font_size=dp(18),
-            size_hint_y=None,
-            height=dp(100),
-            text_size=(None, None),
-            halign='center',
-            valign='top',
-            color=(0.9, 0.9, 0.9, 1)
-        )
-        layout.add_widget(self.companion_info)
-
-        # Кнопки действий
-        actions_layout = GridLayout(cols=2, spacing=dp(10), size_hint_y=None)
-        actions_layout.height = dp(200)
-
-        self.btn_heal = Button(
-            text='💚 Лечить зельем',
-            font_size=dp(18),
-            background_color=(0.2, 0.7, 0.3, 1)
-        )
-        self.btn_heal.bind(on_press=self.on_heal)
-        actions_layout.add_widget(self.btn_heal)
-
-        self.btn_equip_weapon = Button(
-            text='⚔️ Экипировать оружие',
-            font_size=dp(18),
-            background_color=(0.6, 0.4, 0.2, 1)
-        )
-        self.btn_equip_weapon.bind(on_press=self.on_equip_weapon)
-        actions_layout.add_widget(self.btn_equip_weapon)
-
-        self.btn_equip_armor = Button(
-            text='🛡️ Экипировать броню',
-            font_size=dp(18),
-            background_color=(0.4, 0.4, 0.6, 1)
-        )
-        self.btn_equip_armor.bind(on_press=self.on_equip_armor)
-        actions_layout.add_widget(self.btn_equip_armor)
-
-        self.btn_unequip_weapon = Button(
-            text='⚔️ Снять оружие',
-            font_size=dp(18),
-            background_color=(0.7, 0.3, 0.3, 1)
-        )
-        self.btn_unequip_weapon.bind(on_press=self.on_unequip_weapon)
-        actions_layout.add_widget(self.btn_unequip_weapon)
-
-        self.btn_unequip_armor = Button(
-            text='🛡️ Снять броню',
-            font_size=dp(18),
-            background_color=(0.7, 0.3, 0.3, 1)
-        )
-        self.btn_unequip_armor.bind(on_press=self.on_unequip_armor)
-        actions_layout.add_widget(self.btn_unequip_armor)
-
-        self.btn_dismiss = Button(
-            text='❌ Отпустить',
-            font_size=dp(18),
-            background_color=(0.8, 0.2, 0.2, 1)
-        )
-        self.btn_dismiss.bind(on_press=self.on_dismiss)
-        actions_layout.add_widget(self.btn_dismiss)
-
-        layout.add_widget(actions_layout)
-
-        btn_back = Button(
-            text='← Назад',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
-            background_color=(0.5, 0.5, 0.5, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-
-        self.add_widget(layout)
-
-    def update_companion(self):
-        """Обновить информацию о спутнике."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player:
-            self.companion_info.text = 'Нет спутника'
-            self._disable_buttons()
-            return
-
-        player = app.game.player
-        if not player.companions:
-            self.companion_info.text = 'У вас нет спутника.\nНанмите кого-нибудь в таверне!'
-            self._disable_buttons()
-            return
-
-        companion = player.companions[0]  # Только один спутник
-
-        weapon_name = companion.weapon.name if companion.weapon else 'Нет'
-        armor_name = companion.armor.name if companion.armor else 'Нет'
-
-        self.companion_info.text = (
-            f"🤝 {companion.name} ({companion.role})\n"
-            f"💚 HP: {companion.health}/{companion.max_health}\n"
-            f"⚔️ Урон: {companion.damage}\n"
-            f"🛡️ Защита: {companion.defense}\n"
-            f"⚔️ Оружие: {weapon_name}\n"
-            f"🛡️ Броня: {armor_name}"
-        )
-
-        # Включить кнопки
-        self.btn_heal.disabled = companion.health >= companion.max_health
-        self.btn_equip_weapon.disabled = False
-        self.btn_equip_armor.disabled = False
-        self.btn_unequip_weapon.disabled = companion.weapon is None
-        self.btn_unequip_armor.disabled = companion.armor is None
-        self.btn_dismiss.disabled = False
-
-    def _disable_buttons(self):
-        """Отключить все кнопки."""
-        self.btn_heal.disabled = True
-        self.btn_equip_weapon.disabled = True
-        self.btn_equip_armor.disabled = True
-        self.btn_unequip_weapon.disabled = True
-        self.btn_unequip_armor.disabled = True
-        self.btn_dismiss.disabled = True
-
-    def on_heal(self, instance):
-        """Лечить спутника зельем."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player or not app.game.player.companions:
-            return
-
-        player = app.game.player
-        companion = player.companions[0]
-
-        # Найти зелья в инвентаре
-        potions = []
-        for item, qty in player.inventory.list_items():
-            if isinstance(item, Potion) and qty > 0:
-                potions.append((item, qty))
-
-        if not potions:
-            popup = Popup(
-                title='Ошибка',
-                content=Label(text='У вас нет зелий!'),
-                size_hint=(0.6, 0.3)
-            )
-            popup.open()
-            return
-
-        # Показать выбор зелья
-        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
-
-        content.add_widget(Label(text=f"Выберите зелье для {companion.name}:"))
-
-        for potion, qty in potions:
-            btn = Button(
-                text=f"{potion.display_name()} x{qty} (+{potion.heal_amount} HP)",
-                size_hint_y=None,
-                height=dp(50)
-            )
-            btn.bind(on_press=lambda x, p=potion: self._heal_with_potion(p))
-            content.add_widget(btn)
-
-        btn_cancel = Button(text='Отмена', size_hint_y=None, height=dp(50))
-        btn_cancel.bind(on_press=lambda x: popup.dismiss())
-        content.add_widget(btn_cancel)
-
-        popup = Popup(
-            title='🎁 Выбор зелья',
-            content=content,
-            size_hint=(0.7, 0.6)
-        )
-        popup.open()
-
-    def _heal_with_potion(self, potion):
-        """Лечить выбранным зельем."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player or not app.game.player.companions:
-            return
-
-        player = app.game.player
-        companion = player.companions[0]
-
-        # Использовать зелье
-        healed = companion.heal(potion.heal_amount)
-        player.inventory.remove(potion.id, 1)
-
-        # Закрыть popup
-        for widget in App.get_running_app()._app_window.children:
-            if hasattr(widget, 'dismiss'):
-                widget.dismiss()
-                break
-
-        # Показать результат
-        popup = Popup(
-            title='✅ Лечение',
-            content=Label(
-                text=f"{companion.name} восстановил {healed} HP!\n"
-                     f"({companion.health}/{companion.max_health} HP)"
-            ),
-            size_hint=(0.6, 0.3)
-        )
-        popup.open()
-
-        self.update_companion()
-
-    def on_equip_weapon(self, instance):
-        """Экипировать оружие."""
-        self._show_equip_dialog('weapon')
-
-    def on_equip_armor(self, instance):
-        """Экипировать броню."""
-        self._show_equip_dialog('armor')
-
-    def _show_equip_dialog(self, item_type):
-        """Показать диалог выбора предмета для экипировки."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player or not app.game.player.companions:
-            return
-
-        player = app.game.player
-        companion = player.companions[0]
-
-        # Найти подходящие предметы
-        items = []
-        for item, qty in player.inventory.list_items():
-            if qty > 0:
-                if item_type == 'weapon' and isinstance(item, Weapon):
-                    items.append((item, qty))
-                elif item_type == 'armor' and isinstance(item, Armor):
-                    items.append((item, qty))
-
-        item_type_names = {
-            'weapon': 'оружия',
-            'armor': 'брони'
-        }
-        item_type_name = item_type_names.get(item_type, item_type)
-
-        if not items:
-            popup = Popup(
-                title='Ошибка',
-                content=Label(text=f'У вас нет {item_type_name}!'),
-                size_hint=(0.6, 0.3)
-            )
-            popup.open()
-            return
-
-        # Показать выбор предмета
-        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
-
-        content.add_widget(Label(text=f"Выберите {item_type} для {companion.name}:"))
-
-        for item, qty in items:
-            btn = Button(
-                text=f"{item.display_name()} x{qty}",
-                size_hint_y=None,
-                height=dp(50)
-            )
-            btn.bind(on_press=lambda x, i=item: self._equip_item(i, item_type))
-            content.add_widget(btn)
-
-        btn_cancel = Button(text='Отмена', size_hint_y=None, height=dp(50))
-        btn_cancel.bind(on_press=lambda x: popup.dismiss())
-        content.add_widget(btn_cancel)
-
-        popup = Popup(
-            title=f'⚔️ Выбор {item_type}',
-            content=content,
-            size_hint=(0.7, 0.6)
-        )
-        popup.open()
-
-    def _equip_item(self, item, item_type):
-        """Экипировать выбранный предмет."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player or not app.game.player.companions:
-            return
-
-        player = app.game.player
-        companion = player.companions[0]
-
-        # Снять старый предмет, если есть
-        old_item = None
-        if item_type == 'weapon':
-            old_item = companion.weapon
-            # Удалить из инвентаря игрока перед экипировкой
-            player.inventory.remove(item.id, 1)
-            # Использовать метод equip_weapon для корректного обновления урона
-            companion.equip_weapon(item)
-        elif item_type == 'armor':
-            old_item = companion.armor
-            # Удалить из инвентаря игрока перед экипировкой
-            player.inventory.remove(item.id, 1)
-            # Использовать метод equip_armor для корректного обновления защиты
-            companion.equip_armor(item)
-
-        # Вернуть старый предмет в инвентарь, если был
-        if old_item:
-            player.inventory.add(old_item, 1)
-
-        # Закрыть popup
-        for widget in App.get_running_app()._app_window.children:
-            if hasattr(widget, 'dismiss'):
-                widget.dismiss()
-                break
-
-        # Показать результат
-        popup = Popup(
-            title='✅ Экипировка',
-            content=Label(text=f"{companion.name} экипирован {item.display_name()}!"),
-            size_hint=(0.6, 0.3)
-        )
-        popup.open()
-
-        self.update_companion()
-
-    def on_unequip_weapon(self, instance):
-        """Снять оружие."""
-        self._unequip_item('weapon')
-
-    def on_unequip_armor(self, instance):
-        """Снять броню."""
-        self._unequip_item('armor')
-
-    def _unequip_item(self, item_type):
-        """Снять предмет."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player:
-            return
-        if not app.game.player.companions:
-            return
-
-        player = app.game.player
-        companion = player.companions[0]
-
-        item = None
-        if item_type == 'weapon':
-            item = companion.weapon
-            # Использовать метод unequip_weapon для корректного обновления урона
-            if item:
-                companion.unequip_weapon()
-        elif item_type == 'armor':
-            item = companion.armor
-            # Использовать метод unequip_armor для корректного обновления защиты
-            if item:
-                companion.unequip_armor()
-
-        if item:
-            # Вернуть в инвентарь игрока
-            player.inventory.add(item, 1)
-
-            popup = Popup(
-                title='✅ Снято',
-                content=Label(text=f"{item.display_name()} возвращено в инвентарь!"),
-                size_hint=(0.6, 0.3)
-            )
-            popup.open()
-
-        self.update_companion()
-
-    def on_dismiss(self, instance):
-        """Отпустить спутника."""
-        app = App.get_running_app()
-        if not app.game or not app.game.player or not app.game.player.companions:
-            return
-
-        player = app.game.player
-        companion = player.companions[0]
-
-        # Вернуть экипировку в инвентарь
-        if companion.weapon:
-            player.inventory.add(companion.weapon, 1)
-        if companion.armor:
-            player.inventory.add(companion.armor, 1)
-
-        # Удалить спутника
-        player.companions.remove(companion)
-
-        popup = Popup(
-            title='👋 Спутник отпущен',
-            content=Label(text=f"{companion.name} покинул вашу партию.\nЭкипировка возвращена в инвентарь."),
-            size_hint=(0.7, 0.4)
-        )
-        popup.open()
-
-        self.update_companion()
-
-    def on_back(self, instance):
-        """Вернуться в главное меню."""
-        app = App.get_running_app()
-        if app.game:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
-
-
 class ActiveQuestsScreen(Screen):
     """Экран активных квестов."""
     
@@ -4290,12 +3601,6 @@ class RPGApp(App):
         sm.add_widget(loot_window_screen)
         self.loot_window_screen = loot_window_screen
         
-        companion_management_screen = CompanionManagementScreen(
-            name='companion_management'
-        )
-        sm.add_widget(companion_management_screen)
-        self.companion_management_screen = companion_management_screen
-
         active_quests_screen = ActiveQuestsScreen(
             name='active_quests'
         )
@@ -4310,3 +3615,4 @@ class RPGApp(App):
 
 if __name__ == '__main__':
     RPGApp().run()
+

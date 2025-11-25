@@ -426,152 +426,242 @@ class ItemDatabase:
         """Инициализация базовых предметов."""
         # === ЖЕЛЕЗНОЕ ОРУЖИЕ ===
         cls.register(
-            Weapon("w_iron_sword", "Железный меч", 50,
-                   "iron", 8, "normal",
-                   description="Стандартное железное оружие")
+            Weapon("w_iron_sword", "Железный меч", 120,
+                   "iron", 12, "normal",
+                   description="Простой, но эффективный в умелых руках")
         )
         cls.register(
-            Weapon("w_iron_axe", "Железный топор", 45,
-                   "iron", 9, "normal")
+            Weapon("w_iron_axe", "Железный топор", 100,
+                   "iron", 9, "normal",
+                   description="Выглядит круто. Это его единственное достоинство")
+        )
+        cls.register(
+            Weapon("w_iron_spear", "Железное копье", 110,
+                   "iron", 10, "normal",
+                   description="Длинное и острое, хорошая дистанция")
+        )
+        cls.register(
+            Weapon("w_iron_bow", "Железный лук", 130,
+                   "iron", 11, "normal",
+                   description="Простой деревянный лук с железными усилениями")
+        )
+        cls.register(
+            Weapon("w_iron_dagger", "Железный кинжал", 80,
+                   "iron", 7, "normal",
+                   description="Короткий и острый, хорош для скрытных атак")
         )
 
         # === СТАЛЬНОЕ ОРУЖИЕ ===
         cls.register(
-            Weapon("w_steel_sword", "Стальной меч", 120,
-                   "steel", 15, "normal")
+            Weapon("w_steel_sword", "Стальной меч", 280,
+                   "steel", 22, "normal",
+                   description="Красивый и эффективный")
         )
         cls.register(
-            Weapon("w_steel_axe", "Стальной топор", 130,
-                   "steel", 17, "normal")
+            Weapon("w_steel_axe", "Стальной топор", 250,
+                   "steel", 19, "normal",
+                   description="Значительно тяжелее железного топора")
+        )
+        cls.register(
+            Weapon("w_steel_spear", "Стальное копье", 270,
+                   "steel", 20, "normal",
+                   description="Прочное копье с острым наконечником")
+        )
+        cls.register(
+            Weapon("w_steel_bow", "Стальной лук", 300,
+                   "steel", 21, "normal",
+                   description="Мощный лук со стальными плечами")
+        )
+        cls.register(
+            Weapon("w_steel_dagger", "Стальной кинжал", 220,
+                   "steel", 16, "normal",
+                   description="Идеально сбалансированный для метания")
         )
 
         # === ГОБЛИНСКОЕ ОРУЖИЕ ===
         cls.register(
-            Weapon("w_goblin_cleaver", "Гоблинское тесло", 80,
-                   "goblin", 11, "normal")
+            Weapon("w_goblin_cleaver", "Гоблинский топорик", 180,
+                   "goblin", 16, "normal",
+                   description="Смахивает на игрушечный")
         )
         cls.register(
-            Weapon("w_goblin_dagger", "Гоблинский кинжал", 60,
-                   "goblin", 9, "normal")
+            Weapon("w_goblin_dagger", "Гоблинский короткий меч", 200,
+                   "goblin", 19, "normal",
+                   description="Не выглядит надежно")
+        )
+        cls.register(
+            Weapon("w_goblin_spear", "Гоблинское копье", 320,
+                   "goblin", 24, "normal",
+                   description="Неожиданно качественное для гоблинского оружия")
+        )
+        cls.register(
+            Weapon("w_goblin_bow", "Гоблинский лук", 170,
+                   "goblin", 15, "normal",
+                   description="Кривой и ненадежный, как и его владельцы")
+        )
+        cls.register(
+            Weapon("w_goblin_kris", "Гоблинский кинжал", 150,
+                   "goblin", 13, "normal",
+                   description="Ржавый и кривой, но острее, чем кажется")
         )
 
         # === ОРЧЬЕ ОРУЖИЕ ===
         cls.register(
-            Weapon("w_orc_maul", "Орчий молот", 150,
-                   "orc", 18, "normal")
+            Weapon("w_orc_maul", "Орчий топор", 450,
+                   "orc", 32, "normal",
+                   description="Устрашает своим видом")
         )
         cls.register(
-            Weapon("w_orc_sword", "Орчий меч", 140,
-                   "orc", 16, "normal")
+            Weapon("w_orc_sword", "Орчий меч", 480,
+                   "orc", 35, "normal",
+                   description="Уродливый, но очень острый")
+        )
+        cls.register(
+            Weapon("w_orc_spear", "Орчье копье", 460,
+                   "orc", 33, "normal",
+                   description="Массивное и тяжелое, пробивает любую броню")
+        )
+        cls.register(
+            Weapon("w_orc_bow", "Орчий лук", 440,
+                   "orc", 31, "normal",
+                   description="Требует огромной силы для натяжения")
+        )
+        cls.register(
+            Weapon("w_orc_dagger", "Орчий кинжал", 380,
+                   "orc", 28, "normal",
+                   description="Скорее короткий меч, чем кинжал")
         )
 
         # === ЭЛЬФИЙСКОЕ ОРУЖИЕ ===
         cls.register(
-            Weapon("w_elf_bow", "Эльфийский лук", 160,
-                   "elf", 14, "normal")
+            Weapon("w_elf_sword", "Эльфийский меч", 650,
+                   "elf", 40, "normal",
+                   description="Очень красивый и легкий")
         )
         cls.register(
-            Weapon("w_elf_sword", "Эльфийский клинок", 170,
-                   "elf", 16, "normal")
+            Weapon("w_elf_axe", "Эльфийский топорик", 620,
+                   "elf", 37, "normal",
+                   description="Небольшой. Изящный")
+        )
+        cls.register(
+            Weapon("w_elf_spear", "Эльфийское копье", 640,
+                   "elf", 39, "normal",
+                   description="Идеально сбалансированное, словно продолжение руки")
+        )
+        cls.register(
+            Weapon("w_elf_bow", "Эльфийский лук", 950,
+                   "elf", 54, "normal",
+                   description="Величайшее творение эльфийских мастеров")
+        )
+        cls.register(
+            Weapon("w_elf_dagger", "Эльфийский кинжал", 580,
+                   "elf", 34, "normal",
+                   description="Искусно выкованный, почти невесомый")
         )
 
         # === ГНОМЬЕ ОРУЖИЕ ===
         cls.register(
-            Weapon("w_dwarf_axe", "Гномий боевой топор", 180,
-                   "dwarf", 19, "normal")
+            Weapon("w_dwarf_sword", "Гномий широкий меч", 900,
+                   "dwarf", 55, "normal",
+                   description="Шедевр гномьих кузнецов")
         )
         cls.register(
-            Weapon("w_dwarf_hammer", "Гномий молот", 190,
-                   "dwarf", 20, "normal")
+            Weapon("w_dwarf_axe", "Гномий боевой топор", 850,
+                   "dwarf", 52, "normal",
+                   description="Невероятно прочный и смертоносный")
+        )
+        cls.register(
+            Weapon("w_dwarf_spear", "Гномье копье", 870,
+                   "dwarf", 53, "normal",
+                   description="Короткое, но невероятно прочное")
+        )
+        cls.register(
+            Weapon("w_dwarf_bow", "Гномий арбалет", 820,
+                   "dwarf", 48, "normal",
+                   description="Мощный механический арбалет")
+        )
+        cls.register(
+            Weapon("w_dwarf_dagger", "Гномий кинжал", 780,
+                   "dwarf", 46, "normal",
+                   description="Солидный и надежный, как и все гномье")
         )
 
         # === ДРАКОНЬЕ ОРУЖИЕ (УНИКАЛЬНОЕ) ===
         cls.register(
-            Weapon("w_dragon_sword", "Клинок Драконоборца", 500,
-                   "dragon", 35, "masterwork",
-                   description="Уникальное оружие, добытое у драконов",
+            Weapon("w_dragon_sword", "Клинок Драконоборца", 1200,
+                   "dragon", 58, "masterwork",
+                   description="Выкован из драконьей кости. Уникальное изделие",
                    is_unique=True)
         )
 
-        # === ТРЕПЬЁ (БРОНЯ) ===
-        cls.register(
-            Armor("a_rags_leather", "Тряпичная броня", 15,
-                  "rags", 2, "normal")
-        )
-
-        # === КОЖАНАЯ БРОНЯ ===
-        cls.register(
-            Armor("a_leather_armor", "Кожаная броня", 50,
-                  "leather", 5, "normal")
-        )
-
-        # === ЖЕЛЕЗНАЯ БРОНЯ ===
-        cls.register(
-            Armor("a_iron_plate", "Железные латы", 100,
-                  "iron", 10, "normal")
-        )
-
-        # === СТАЛЬНАЯ БРОНЯ ===
-        cls.register(
-            Armor("a_steel_plate", "Стальные доспехи", 180,
-                  "steel", 15, "normal")
-        )
-
-        # === ОРЧЬЯ БРОНЯ ===
-        cls.register(
-            Armor("a_orc_mail", "Орчья кольчуга", 160,
-                  "orc", 14, "normal")
-        )
-
-        # === ЭЛЬФИЙСКАЯ БРОНЯ ===
-        cls.register(
-            Armor("a_elf_mail", "Эльфийская броня", 170,
-                  "elf", 13, "normal")
-        )
-
-        # === ГНОМЬЯ БРОНЯ (ЛУЧШАЯ) ===
-        cls.register(
-            Armor("a_dwarf_plate", "Гномьи доспехи", 200,
-                  "dwarf", 18, "normal")
-        )
-
         # === УНИКАЛЬНЫЕ БОЕВЫЕ ПРЕДМЕТЫ ОТ БОССОВ ===
-        
-        # От босса 1 (Безумный мародёр) - Меч безумного мародёра
         cls.register(
             Weapon("w_mad_raider_sword",
-                   "Меч безумного мародёра", 350,
-                   "steel", 28, "masterwork",
+                   "Меч безумного мародёра", 850,
+                   "steel", 45, "masterwork",
                    description="Уникальный меч от Безумного Мародёра. "
                                "Истошает ярость и отчаяние.",
                    is_unique=True)
         )
-
-        # От босса 2 (Хозяин Болота) - Посох Хозяина Болота
         cls.register(
             Weapon("w_bog_master_staff",
-                   "Посох Хозяина Болота", 340,
-                   "orc", 26, "masterwork",
+                   "Посох Хозяина Болота", 820,
+                   "orc", 43, "masterwork",
                    description="Уникальный посох от Хозяина Болота. "
                                "Пахнет грязью и тиной.",
                    is_unique=True)
         )
-
-        # От босса 3 (Король Шахт) - Молот короля гномов
         cls.register(
             Weapon("w_dwarf_king_hammer",
-                   "Молот короля гномов", 360,
-                   "dwarf", 30, "masterwork",
-                   description="Уникальный молот от Короля Шахт. "
+                   "Молот короля гномов", 1100,
+                   "dwarf", 52, "masterwork",
+                   description="Уникальный Молот от Короля Шахт. "
                                "Выкован из драгоценных гномьих металлов.",
                    is_unique=True)
         )
 
-        # От босса 4 (Повелитель Драконов) - Доспех Повелителя Драконов
+        # === БРОНЯ ===
+        cls.register(
+            Armor("a_rags_leather", "Тряпичная броня", 30,
+                  "rags", 1, "normal",
+                  description="Простая тряпичная броня, лучше чем ничего")
+        )
+        cls.register(
+            Armor("a_leather_armor", "Кожаная броня", 80,
+                  "leather", 3, "normal",
+                  description="Прочная кожаная броня")
+        )
+        cls.register(
+            Armor("a_iron_plate", "Железные латы", 180,
+                  "iron", 6, "normal",
+                  description="Надежные железные доспехи")
+        )
+        cls.register(
+            Armor("a_steel_plate", "Стальные доспехи", 350,
+                  "steel", 10, "normal",
+                  description="Качественные стальные доспехи")
+        )
+        cls.register(
+            Armor("a_orc_mail", "Орчья кольчуга", 400,
+                  "orc", 11, "normal",
+                  description="Грубая, но очень прочная орчья броня")
+        )
+        cls.register(
+            Armor("a_elf_mail", "Эльфийская броня", 400,
+                  "elf", 11, "normal",
+                  description="Изысканная и легкая эльфийская броня")
+        )
+        cls.register(
+            Armor("a_dwarf_plate", "Гномьи доспехи", 600,
+                  "dwarf", 14, "normal",
+                  description="Невероятно прочные гномьи доспехи")
+        )
+
+        # === УНИКАЛЬНАЯ БРОНЯ ===
         cls.register(
             Armor("a_dragon_lord_plate",
-                  "Доспех Повелителя Драконов", 400,
-                  "dragon", 28, "legendary",
+                  "Доспех Повелителя Драконов", 1500,
+                  "dragon", 20, "legendary",
                   description="Уникальная броня от Повелителя Драконов. "
                               "Скованы из драконьей чешуи.",
                   is_unique=True)
@@ -580,17 +670,21 @@ class ItemDatabase:
         # === ЗЕЛЬЯ ===
         cls.register(
             Potion("p_small", "Малое зелье", 25,
-                   heal_amount=40, description="Восстанавливает 40 HP")
+                   heal_amount=40,
+                   description="Восстанавливает 40 HP")
         )
         cls.register(
             Potion("p_med", "Среднее зелье", 60,
-                   heal_amount=100, description="Восстанавливает 100 HP")
+                   heal_amount=100,
+                   description="Восстанавливает 100 HP")
         )
         cls.register(
             Potion("p_large", "Большое зелье", 150,
-                   heal_amount=250, description="Восстанавливает 250 HP")
+                   heal_amount=250,
+                   description="Восстанавливает 250 HP")
         )
         cls.register(
             Potion("p_mega", "Мега-зелье", 300,
-                   heal_amount=500, description="Восстанавливает 500 HP")
+                   heal_amount=500,
+                   description="Восстанавливает 500 HP")
         )
