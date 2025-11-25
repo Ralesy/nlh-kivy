@@ -118,7 +118,8 @@ class Weapon(Item):
         base_damage: int,
         condition: str = "normal",
         description: str = "",
-        is_unique: bool = False
+        is_unique: bool = False,
+        weapon_type: str = None
     ):
         super().__init__(id_, name, price, description, is_unique)
         # iron, steel, goblin, orc, elf, dwarf, dragon
@@ -126,6 +127,41 @@ class Weapon(Item):
         self.base_damage = base_damage
         cond = condition if condition in WEAPON_CONDITIONS else "normal"
         self.condition = cond
+        
+        # Определяем тип оружия автоматически если не указан
+        if weapon_type is None:
+            weapon_type = self._detect_weapon_type(id_, name)
+        self.weapon_type = weapon_type
+        
+        # Инициализируем способность оружия
+        from data.weapon_abilities import get_weapon_ability
+        self.ability = get_weapon_ability(
+            weapon_type, is_unique, id_
+        )
+    
+    @staticmethod
+    def _detect_weapon_type(item_id: str, name: str) -> str:
+        """Автоматически определить тип оружия по ID или названию."""
+        name_lower = name.lower()
+        id_lower = item_id.lower()
+        
+        if "меч" in name_lower or "sword" in id_lower:
+            return "sword"
+        elif "топор" in name_lower or "axe" in id_lower:
+            return "axe"
+        elif "лук" in name_lower or "bow" in id_lower:
+            return "bow"
+        elif "копье" in name_lower or "spear" in id_lower:
+            return "spear"
+        elif "кинжал" in name_lower or "dagger" in id_lower:
+            return "dagger"
+        elif "молот" in name_lower or "hammer" in id_lower \
+             or "maul" in id_lower:
+            return "mace"
+        elif "посох" in name_lower or "staff" in id_lower:
+            return "staff"
+        else:
+            return "sword"  # По умолчанию
 
     @property
     def damage_bonus(self) -> int:
@@ -464,7 +500,7 @@ class ItemDatabase:
         )
         cls.register(
             Weapon("w_steel_spear", "Стальное копье", 270,
-                   "steel", 20, "normal",
+                   "steel", 25, "normal",
                    description="Прочное копье с острым наконечником")
         )
         cls.register(
@@ -491,8 +527,9 @@ class ItemDatabase:
         )
         cls.register(
             Weapon("w_goblin_spear", "Гоблинское копье", 320,
-                   "goblin", 24, "normal",
-                   description="Неожиданно качественное для гоблинского оружия")
+                   "goblin", 30, "normal",
+                   description="Неожиданно качественное для "
+                               "гоблинского оружия")
         )
         cls.register(
             Weapon("w_goblin_bow", "Гоблинский лук", 170,
@@ -518,8 +555,9 @@ class ItemDatabase:
         )
         cls.register(
             Weapon("w_orc_spear", "Орчье копье", 460,
-                   "orc", 33, "normal",
-                   description="Массивное и тяжелое, пробивает любую броню")
+                   "orc", 39, "normal",
+                   description="Массивное и тяжелое, пробивает "
+                               "любую броню")
         )
         cls.register(
             Weapon("w_orc_bow", "Орчий лук", 440,
@@ -545,8 +583,9 @@ class ItemDatabase:
         )
         cls.register(
             Weapon("w_elf_spear", "Эльфийское копье", 640,
-                   "elf", 39, "normal",
-                   description="Идеально сбалансированное, словно продолжение руки")
+                   "elf", 45, "normal",
+                   description="Идеально сбалансированное, "
+                               "словно продолжение руки")
         )
         cls.register(
             Weapon("w_elf_bow", "Эльфийский лук", 950,
@@ -571,8 +610,8 @@ class ItemDatabase:
                    description="Невероятно прочный и смертоносный")
         )
         cls.register(
-            Weapon("w_dwarf_spear", "Гномье копье", 860,
-                   "dwarf", 52, "normal",
+            Weapon("w_dwarf_spear", "Гномье копье", 870,
+                   "dwarf", 59, "normal",
                    description="Короткое, но невероятно прочное")
         )
         cls.register(

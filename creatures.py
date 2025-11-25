@@ -6,8 +6,8 @@ Creatures: система существ, персонажа и спутнико
 """
 
 from typing import List, Optional, Tuple
-from data.items import Weapon, Armor, Inventory, ItemDatabase
-from core.utils import clamp
+from items import Weapon, Armor, Inventory, ItemDatabase
+from utils import clamp
 
 
 class Creature:
@@ -200,7 +200,7 @@ class Companion(Creature):
 
         # Восстанавливаем экипировку
         if data.get("weapon_id"):
-            from data.items import ItemDatabase
+            from items import ItemDatabase
             ItemDatabase.initialize()
             weapon = ItemDatabase.get(data["weapon_id"])
             if weapon:
@@ -494,7 +494,7 @@ class Player(Creature):
 
         # Восстанавливаем инвентарь
         if "inventory" in data:
-            from data.items import ItemDatabase
+            from items import ItemDatabase
             ItemDatabase.initialize()
             player.inventory = Inventory.from_dict(data["inventory"])
 
@@ -511,7 +511,7 @@ class Player(Creature):
 
         # Восстанавливаем спутников
         if "companions" in data:
-            from core.creatures import Companion
+            from creatures import Companion
             player.companions = [Companion.from_dict(c) for c in data["companions"]]
 
         # Восстанавливаем квесты (без сериализации квестов для теперь)

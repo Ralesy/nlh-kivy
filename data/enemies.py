@@ -44,9 +44,11 @@ class Enemy:
 
         # Гуманоиды: из своего таблицы дропа
         if self.enemy_type == "humanoid":
-            for item_id, chance in self.loot_table:
-                if random.random() < chance:
-                    loot.append((item_id, 1))
+            if self.loot_table:
+                items = [item_id for item_id, _ in self.loot_table]
+                chances = [chance for _, chance in self.loot_table]
+                chosen_item = random.choices(items, weights=chances, k=1)[0]
+                loot.append((chosen_item, 1))
 
             # 10% шанс на редкий предмет более высокого уровня
             if random.random() < 0.10:
@@ -61,9 +63,11 @@ class Enemy:
 
         # Боссы: специальный лут
         if self.is_boss:
-            for item_id, chance in self.loot_table:
-                if random.random() < chance:
-                    loot.append((item_id, 1))
+            if self.loot_table:
+                items = [item_id for item_id, _ in self.loot_table]
+                chances = [chance for _, chance in self.loot_table]
+                chosen_item = random.choices(items, weights=chances, k=1)[0]
+                loot.append((chosen_item, 1))
 
         return loot
 
@@ -105,14 +109,17 @@ class EnemyDatabase:
             xp_reward=50
         ))
 
-        # Мародёры (гуманоиды - трепьё + железные мечи)
+        # Мародёры (гуманоиды - трепьё + железное оружие)
         cls.register(Enemy(
             "enemy_forest_raider", "Мародёр", "humanoid",
             base_health=50, base_damage=12, base_coins=40,
             xp_reward=75,
             loot_table=[
                 ("a_rags_leather", 0.8),
-                ("w_iron_sword", 0.6)
+                ("w_iron_sword", 0.35),
+                ("w_iron_axe", 0.35),
+                ("w_iron_spear", 0.25),
+                ("w_iron_bow", 0.2)
             ]
         ))
 
@@ -123,7 +130,10 @@ class EnemyDatabase:
             xp_reward=80,
             loot_table=[
                 ("a_leather_armor", 0.7),
-                ("w_iron_axe", 0.65)
+                ("w_iron_sword", 0.35),
+                ("w_iron_axe", 0.35),
+                ("w_iron_dagger", 0.25),
+                ("w_iron_bow", 0.2)
             ]
         ))
 
@@ -133,8 +143,12 @@ class EnemyDatabase:
             base_health=60, base_damage=14, base_coins=70,
             xp_reward=100,
             loot_table=[
-                ("w_steel_sword", 0.7),
-                ("a_steel_plate", 0.5)
+                ("a_steel_plate", 0.5),
+                ("w_steel_sword", 0.35),
+                ("w_steel_axe", 0.35),
+                ("w_steel_spear", 0.25),
+                ("w_steel_dagger", 0.2),
+                ("w_steel_bow", 0.15)
             ]
         ))
 
@@ -146,8 +160,11 @@ class EnemyDatabase:
             base_health=40, base_damage=10, base_coins=45,
             xp_reward=70,
             loot_table=[
-                ("w_goblin_cleaver", 0.6),
-                ("w_goblin_dagger", 0.4)
+                ("w_goblin_dagger", 0.35),
+                ("w_goblin_cleaver", 0.35),
+                ("w_goblin_spear", 0.25),
+                ("w_goblin_bow", 0.2),
+                ("w_goblin_kris", 0.15)
             ]
         ))
 
@@ -158,14 +175,16 @@ class EnemyDatabase:
             xp_reward=65
         ))
 
-        # Болотники (животные/гуманоиды - часто зелья)
+        # Болотники (животные/гуманоиды - часто зелья и оружие)
         cls.register(Enemy(
             "enemy_swamp_bog_walker", "Болотник", "humanoid",
             base_health=48, base_damage=11, base_coins=50,
             xp_reward=75,
             loot_table=[
                 ("p_small", 0.5),
-                ("p_med", 0.2)
+                ("p_med", 0.2),
+                ("w_goblin_spear", 0.25),
+                ("w_goblin_bow", 0.15)
             ]
         ))
 
@@ -177,8 +196,11 @@ class EnemyDatabase:
             base_health=70, base_damage=15, base_coins=80,
             xp_reward=120,
             loot_table=[
-                ("w_orc_sword", 0.6),
-                ("w_orc_maul", 0.4)
+                ("w_orc_sword", 0.35),
+                ("w_orc_maul", 0.35),
+                ("w_orc_spear", 0.25),
+                ("w_orc_bow", 0.2),
+                ("w_orc_dagger", 0.15)
             ]
         ))
 
@@ -188,8 +210,11 @@ class EnemyDatabase:
             base_health=65, base_damage=16, base_coins=90,
             xp_reward=130,
             loot_table=[
-                ("w_dwarf_axe", 0.5),
-                ("a_dwarf_plate", 0.3)
+                ("a_dwarf_plate", 0.3),
+                ("w_dwarf_axe", 0.35),
+                ("w_dwarf_sword", 0.35),
+                ("w_dwarf_spear", 0.25),
+                ("w_dwarf_dagger", 0.15)
             ]
         ))
 
@@ -207,7 +232,10 @@ class EnemyDatabase:
             xp_reward=200,
             loot_table=[
                 ("p_large", 0.4),
-                ("w_orc_sword", 0.3)
+                ("w_orc_sword", 0.3),
+                ("w_orc_maul", 0.25),
+                ("w_orc_spear", 0.2),
+                ("w_orc_dagger", 0.15)
             ]
         ))
 
@@ -218,9 +246,12 @@ class EnemyDatabase:
             base_health=150, base_damage=22, base_coins=200,
             xp_reward=300,
             loot_table=[
-                ("w_dwarf_hammer", 0.7),
+                ("a_dwarf_plate", 0.5),
                 ("p_large", 0.6),
-                ("a_dwarf_plate", 0.5)
+                ("w_dwarf_sword", 0.35),
+                ("w_dwarf_axe", 0.3),
+                ("w_dwarf_spear", 0.25),
+                ("w_dwarf_dagger", 0.15)
             ]
         ))
 

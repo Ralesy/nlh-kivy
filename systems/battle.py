@@ -171,6 +171,7 @@ class Battlefield:
         self.player = player
         self.enemies = enemies
         self.round = 0
+        self.ability_used_this_battle = False
 
     def alive_enemies(self) -> List[Creature]:
         """Живые враги."""
@@ -178,7 +179,58 @@ class Battlefield:
 
     def is_over(self) -> bool:
         """Закончилась ли битва."""
-        return not self.player.is_alive or not self.alive_enemies()
+        return (not self.player.is_alive or
+                not self.alive_enemies())
+
+    def _apply_passive_abilities(self, damage: int) -> int:
+        """Применить пассивные способности оружия к урону."""
+        weapon = self.player.weapon
+        if not weapon or not hasattr(weapon, 'ability'):
+            return damage
+        
+        ability = weapon.ability
+        if not ability or ability.ability_type != "passive":
+            return damage
+        
+        # Пассивная способность кинжалов - ярость
+        if hasattr(ability, 'damage_per_hit'):
+            damage += ability.damage_per_hit
+        
+        return damage
+
+    def _apply_armor_ignore(self, damage: int,
+                            target: Creature) -> int:
+        """Применить игнорирование брони топорами."""
+        weapon = self.player.weapon
+        if not weapon or not hasattr(weapon, 'ability'):
+            return damage
+        
+        ability = weapon.ability
+        if (not ability or
+                not hasattr(ability, 'armor_ignore')):
+            return damage
+        
+        # Топоры игнорируют 30% защиты цели
+        armor_ignore_dmg = int(
+            target.defense * ability.armor_ignore
+        )
+        damage += armor_ignore_dmg
+        
+        return damage
+
+    def _get_critical_chance(self) -> float:
+        """Получить вероятность крита с учётом способностей."""
+        base_crit = 0.04  # 4%
+        weapon = self.player.weapon
+        
+        if weapon and hasattr(weapon, 'ability'):
+            ability = weapon.ability
+            if (hasattr(ability, 'crit_multiplier') and
+                    ability.crit_multiplier):
+                # Кинжалы: x2 шанс крита
+                return base_crit * ability.crit_multiplier
+        
+        return base_crit
 
     def player_attack(self) -> Tuple[str, bool]:
         """Атака игрока."""
@@ -190,8 +242,13 @@ class Battlefield:
         damage = self.player.damage + random.randint(-3, 5)
         damage = max(1, damage)
         
-        # Проверка на критический удар (4% шанс x2 урона)
-        is_critical = random.random() < 0.04
+        # Применяем пассивные способности
+        damage = self._apply_passive_abilities(damage)
+        damage = self._apply_armor_ignore(damage, target)
+        
+        # Проверка на критический удар
+        crit_chance = self._get_critical_chance()
+        is_critical = random.random() < crit_chance
         if is_critical:
             damage *= 2
         
@@ -211,6 +268,107 @@ class Battlefield:
             self.player.update_quest_progress(target.name)
 
         return log, killed
+    
+    def use_weapon_ability(self) -> Tuple[bool, List[str]]:
+        """Использовать активную способность оружия."""
+        weapon = self.player.weapon
+        if (not weapon or not hasattr(weapon, 'ability') or
+                not weapon.ability):
+            return (False,
+                    ["Оружие не имеет активной способности."])
+        
+        ability = weapon.ability
+        
+        if ability.ability_type != "active":
+            return (False,
+                    ["Это пассивная способность, не активная."])
+        
+        if self.ability_used_this_battle:
+            return (False,
+                    ["Способность уже использована в этой битве!"])
+        
+        enemies = self.alive_enemies()
+        if not enemies:
+            return False, ["Нет врагов для атаки!"]
+        
+        logs = []
+        weapon_type = (weapon.weapon_type
+                       if hasattr(weapon, 'weapon_type')
+                       else "sword")
+        
+        if weapon_type == "sword":
+            # Двойной удар - сосредоточенная атака на одного врага
+            target = random.choice(enemies)
+            total_damage = 0
+            for i in range(2):
+                damage = (int(self.player.damage * 1.3) +
+                          random.randint(-1, 3))
+                damage = max(1, damage)
+                dealt = target.take_damage(damage)
+                total_damage += dealt
+                logs.append(
+                    f"⚔️ Удар {i+1}! Вы наносите {dealt} урона "
+                    f"по {target.name}."
+                )
+                if not target.is_alive:
+                    logs.append(
+                        f"💥 {target.name} повержен мечом!"
+                    )
+                    self.player.update_quest_progress(
+                        target.name
+                    )
+                    break
+            
+            if target.is_alive:
+                logs.append(
+                    f"⚡ Всего урона: {total_damage}!"
+                )
+        
+        elif weapon_type == "bow":
+            # Два выстрела по разным врагам
+            targets = random.sample(
+                enemies,
+                min(2, len(enemies))
+            )
+            for i, target in enumerate(targets):
+                damage = (self.player.damage +
+                          random.randint(-2, 2))
+                damage = max(1, damage)
+                dealt = target.take_damage(damage)
+                logs.append(
+                    f"🏹 Выстрел {i+1}! Вы наносите {dealt} урона "
+                    f"по {target.name}."
+                )
+                
+                if not target.is_alive:
+                    logs.append(
+                        f"💥 {target.name} поражен стрелой!"
+                    )
+                    self.player.update_quest_progress(
+                        target.name
+                    )
+        
+        elif weapon_type == "staff":
+            # Магический взрыв - урон всем
+            for target in enemies:
+                damage = (self.player.damage +
+                          random.randint(-3, 2))
+                damage = max(1, damage)
+                dealt = target.take_damage(damage)
+                logs.append(
+                    f"✨ Магический взрыв наносит {dealt} урона "
+                    f"по {target.name}!"
+                )
+                if not target.is_alive:
+                    logs.append(
+                        f"💥 {target.name} повержен!"
+                    )
+                    self.player.update_quest_progress(
+                        target.name
+                    )
+        
+        self.ability_used_this_battle = True
+        return True, logs
 
     def enemy_turn(self) -> List[str]:
         """Ход всех врагов."""

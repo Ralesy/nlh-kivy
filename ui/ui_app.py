@@ -330,7 +330,7 @@ class CharacterCreationScreen(Screen):
         
         game = Game()
         if self.selected_class == 'test':
-            from ..core.creatures import TestPlayer
+            from core.creatures import TestPlayer
             game.player = TestPlayer(name)
         else:
             game.player = Player(name, self.selected_class)
@@ -983,7 +983,7 @@ class BattleScreen(Screen):
         layout.add_widget(scroll_log)
         
         # Кнопки действий
-        actions_layout = GridLayout(cols=2, spacing=dp(10), size_hint_y=None, height=dp(120))
+        actions_layout = GridLayout(cols=2, spacing=dp(10), size_hint_y=None, height=dp(180))
         
         self.btn_inventory = Button(
             text='🎒 Инвентарь',
@@ -992,6 +992,14 @@ class BattleScreen(Screen):
         )
         self.btn_inventory.bind(on_press=self.on_open_inventory)
         actions_layout.add_widget(self.btn_inventory)
+        
+        self.btn_ability = Button(
+            text='⚔️ Способность',
+            font_size=dp(18),
+            background_color=(0.8, 0.2, 0.2, 1)
+        )
+        self.btn_ability.bind(on_press=self.on_ability_use)
+        actions_layout.add_widget(self.btn_ability)
         
         self.btn_escape = Button(
             text='🏃 Убежать',
@@ -1095,6 +1103,29 @@ class BattleScreen(Screen):
         self.btn_inventory.disabled = self.is_processing_turn
         self.btn_escape.disabled = self.is_processing_turn
         self.btn_surrender.disabled = self.is_processing_turn
+        
+        # Кнопка способности: отключена если способность уже использована или нет оружия
+        ability_disabled = (
+            self.is_processing_turn or 
+            not self.battlefield.player.weapon or
+            not hasattr(self.battlefield.player.weapon, 'ability') or
+            not self.battlefield.player.weapon.ability or
+            self.battlefield.player.weapon.ability.ability_type != "active" or
+            self.battlefield.ability_used_this_battle
+        )
+        self.btn_ability.disabled = ability_disabled
+        
+        # Обновляем текст кнопки способности с названием
+        if (not ability_disabled and 
+            self.battlefield.player.weapon and 
+            hasattr(self.battlefield.player.weapon, 'ability') and
+            self.battlefield.player.weapon.ability):
+            ability_name = self.battlefield.player.weapon.ability.name
+            self.btn_ability.text = f"⚔️ {ability_name}"
+        elif self.battlefield.ability_used_this_battle:
+            self.btn_ability.text = "⚔️ Способность (использована)"
+        else:
+            self.btn_ability.text = "⚔️ Способность"
     
     def add_log(self, message):
         """Добавление сообщения в лог."""
@@ -1171,6 +1202,50 @@ class BattleScreen(Screen):
         self.update_battle_display()
         self.add_log("\nВы сдались...")
         Clock.schedule_once(lambda dt: self.return_to_game(False), 1.5)
+    
+    def on_ability_use(self, instance):
+        """Использование способности оружия."""
+        # Блокируем повторные клики
+        if self.is_processing_turn:
+            return
+        
+        if not self.battlefield or self.battlefield.is_over():
+            return
+        
+        # Проверяем наличие способности
+        weapon = self.battlefield.player.weapon
+        if (not weapon or not hasattr(weapon, 'ability') or
+                not weapon.ability or
+                weapon.ability.ability_type != "active"):
+            self.add_log("❌ Нет активной способности для использования!")
+            return
+        
+        if self.battlefield.ability_used_this_battle:
+            self.add_log("❌ Способность уже использована в этой битве!")
+            return
+        
+        # Устанавливаем флаг обработки
+        self.is_processing_turn = True
+        self.update_battle_display()
+        
+        # Используем способность
+        success, logs = self.battlefield.use_weapon_ability()
+        if success:
+            for log in logs:
+                self.add_log(f"✨ {log}")
+            self.add_log("")
+            self.update_battle_display()
+        else:
+            self.add_log("❌ " + logs[0])
+            self.is_processing_turn = False
+            self.update_battle_display()
+            return
+        
+        if self.battlefield.is_over():
+            self.is_processing_turn = False
+            self.end_battle()
+        else:
+            Clock.schedule_once(lambda dt: self.enemy_turn(), 1.0)
     
     def enemy_turn(self):
         """Ход врагов."""
