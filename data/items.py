@@ -531,39 +531,45 @@ class ItemDatabase:
                   "dwarf", 18, "normal")
         )
 
-        # === УНИКАЛЬНЫЕ БРОНЕВЫЕ ПРЕДМЕТЫ ===
-        # От босса 1 (Безумный мародёр)
+        # === УНИКАЛЬНЫЕ БОЕВЫЕ ПРЕДМЕТЫ ОТ БОССОВ ===
+        
+        # От босса 1 (Безумный мародёр) - Меч безумного мародёра
         cls.register(
-            Armor("a_berserker_plate",
-                  "Доспех Берсеркера", 300,
-                  "steel", 20, "enhanced",
-                  description="От боса Безумного Мародёра",
-                  is_unique=True)
-        )
-
-        # От босса 2 (Хозяин Болота)
-        cls.register(
-            Armor("a_bog_mail", "Болотная кольчуга", 280,
-                  "orc", 19, "enhanced",
-                  description="От боса Хозяина Болота",
-                  is_unique=True)
-        )
-
-        # От босса 3 (Король Шахт - Придуманный босс)
-        cls.register(
-            Weapon("w_mining_king_pickaxe",
-                   "Кирка Короля Шахт", 320,
-                   "dwarf", 25, "masterwork",
-                   description="От боса Короля Шахт",
+            Weapon("w_mad_raider_sword",
+                   "Меч безумного мародёра", 350,
+                   "steel", 28, "masterwork",
+                   description="Уникальный меч от Безумного Мародёра. "
+                               "Истошает ярость и отчаяние.",
                    is_unique=True)
         )
 
-        # От босса 4 (Повелитель Драконов)
+        # От босса 2 (Хозяин Болота) - Посох Хозяина Болота
+        cls.register(
+            Weapon("w_bog_master_staff",
+                   "Посох Хозяина Болота", 340,
+                   "orc", 26, "masterwork",
+                   description="Уникальный посох от Хозяина Болота. "
+                               "Пахнет грязью и тиной.",
+                   is_unique=True)
+        )
+
+        # От босса 3 (Король Шахт) - Молот короля гномов
+        cls.register(
+            Weapon("w_dwarf_king_hammer",
+                   "Молот короля гномов", 360,
+                   "dwarf", 30, "masterwork",
+                   description="Уникальный молот от Короля Шахт. "
+                               "Выкован из драгоценных гномьих металлов.",
+                   is_unique=True)
+        )
+
+        # От босса 4 (Повелитель Драконов) - Доспех Повелителя Драконов
         cls.register(
             Armor("a_dragon_lord_plate",
                   "Доспех Повелителя Драконов", 400,
-                  "dragon", 25, "legendary",
-                  description="От боса Повелителя Драконов",
+                  "dragon", 28, "legendary",
+                  description="Уникальная броня от Повелителя Драконов. "
+                              "Скованы из драконьей чешуи.",
                   is_unique=True)
         )
 

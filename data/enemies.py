@@ -277,7 +277,7 @@ class EnemyDatabase:
             base_health=200, base_damage=20, base_coins=500,
             xp_reward=1000,
             loot_table=[
-                ("a_berserker_plate", 1.0)  # Гарантированный дроп
+                ("w_mad_raider_sword", 1.0)  # Меч безумного мародёра
             ],
             is_boss=True
         ))
@@ -288,7 +288,7 @@ class EnemyDatabase:
             base_health=220, base_damage=18, base_coins=600,
             xp_reward=1100,
             loot_table=[
-                ("a_bog_mail", 1.0)  # Гарантированный дроп
+                ("w_bog_master_staff", 1.0)  # Посох Хозяина Болота
             ],
             is_boss=True
         ))
@@ -299,7 +299,7 @@ class EnemyDatabase:
             base_health=250, base_damage=24, base_coins=700,
             xp_reward=1200,
             loot_table=[
-                ("w_mining_king_pickaxe", 1.0)  # Гарантированный дроп
+                ("w_dwarf_king_hammer", 1.0)  # Молот короля гномов
             ],
             is_boss=True
         ))
@@ -310,7 +310,7 @@ class EnemyDatabase:
             base_health=300, base_damage=28, base_coins=1000,
             xp_reward=1500,
             loot_table=[
-                ("a_dragon_lord_plate", 1.0)  # Гарантированный дроп
+                ("a_dragon_lord_plate", 1.0)  # Доспех Повелителя Драконов
             ],
             is_boss=True
         ))
@@ -323,7 +323,7 @@ class EnemyDatabase:
             base_health=200, base_damage=20, base_coins=500,
             xp_reward=1000,
             loot_table=[
-                ("a_berserker_plate", 1.0)
+                ("w_mad_raider_sword", 1.0)
             ],
             is_boss=True
         ))
@@ -333,7 +333,7 @@ class EnemyDatabase:
             base_health=220, base_damage=18, base_coins=600,
             xp_reward=1100,
             loot_table=[
-                ("a_bog_mail", 1.0)
+                ("w_bog_master_staff", 1.0)
             ],
             is_boss=True
         ))
@@ -343,7 +343,7 @@ class EnemyDatabase:
             base_health=250, base_damage=24, base_coins=700,
             xp_reward=1200,
             loot_table=[
-                ("w_mining_king_pickaxe", 1.0)
+                ("w_dwarf_king_hammer", 1.0)
             ],
             is_boss=True
         ))
