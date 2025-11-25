@@ -8,8 +8,8 @@ Save system: сохранение и загрузка игры.
 import json
 from typing import Optional, List
 from pathlib import Path
-from creatures import Player
-from items import ItemDatabase
+from core.creatures import Player
+from data.items import ItemDatabase
 
 
 SAVES_DIR = Path("saves")

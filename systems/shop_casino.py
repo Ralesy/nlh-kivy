@@ -7,8 +7,8 @@ Shop & Casino: магазин и казино.
 
 import random
 from typing import Dict, Optional, Tuple
-from creatures import Player
-from items import ItemDatabase, Weapon, Armor
+from core.creatures import Player
+from data.items import ItemDatabase, Weapon, Armor
 
 
 class Shop:

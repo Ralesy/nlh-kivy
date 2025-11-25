@@ -9,18 +9,18 @@ Game: главный модуль игры с интерфейсом и мене
 import random
 import sys
 from typing import Optional
-from creatures import Player
-from items import ItemDatabase
-from battle import (
+from core.creatures import Player
+from data.items import ItemDatabase
+from systems.battle import (
     Battlefield, EnemyGenerator, EventSystem, BattleResult
 )
-from quests import Tavern
-from shop_casino import Shop, Casino
-from save_system import save_game, load_game, get_save_list
-from locations import LocationManager
-from npcs import NPCManager, GeneratedQuest
-from enemies import EnemyDatabase
-from utils import print_header, print_section, pause
+from systems.quests import Tavern
+from systems.shop_casino import Shop, Casino
+from systems.save_system import save_game, load_game, get_save_list
+from data.locations import LocationManager
+from systems.npcs import NPCManager, GeneratedQuest
+from data.enemies import EnemyDatabase
+from core.utils import print_header, print_section, pause
 
 
 class Game:
@@ -34,7 +34,7 @@ class Game:
         self.npc_manager = NPCManager()
         
         # Инициализация врагов
-        from enemies import EnemyDatabase
+        from data.enemies import EnemyDatabase
         EnemyDatabase.initialize()
 
         # Инициализация магазина (обновленный сток)

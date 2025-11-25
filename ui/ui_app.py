@@ -22,15 +22,15 @@ from kivy.metrics import dp
 import sys
 import random
 
-from game import Game
-from creatures import Player
-from items import ItemDatabase, Weapon, Armor, Potion
-from save_system import save_game, load_game, get_save_list
-from battle import Battlefield, EnemyGenerator, EventSystem
-from locations import LocationManager
-from npcs import NPCManager, QuestState, GeneratedQuest
-from enemies import EnemyDatabase
-from npcs import QuestType
+from core.game import Game
+from core.creatures import Player
+from data.items import ItemDatabase, Weapon, Armor, Potion
+from systems.save_system import save_game, load_game, get_save_list
+from systems.battle import Battlefield, EnemyGenerator, EventSystem
+from data.locations import LocationManager
+from systems.npcs import NPCManager, QuestState, GeneratedQuest
+from data.enemies import EnemyDatabase
+from systems.npcs import QuestType
 
 
 class MainMenuScreen(Screen):
@@ -321,7 +321,7 @@ class CharacterCreationScreen(Screen):
         
         game = Game()
         if self.selected_class == 'test':
-            from creatures import TestPlayer
+            from core.creatures import TestPlayer
             game.player = TestPlayer(name)
         else:
             game.player = Player(name, self.selected_class)
@@ -690,7 +690,7 @@ class GameScreen(Screen):
         if not enemies:
             # Если нет врагов - это ошибка в данных
             # Создаем обычных волков как fallback
-            from creatures import Creature
+            from core.creatures import Creature
             enemies = [
                 Creature(
                     "Враг",
@@ -1194,7 +1194,7 @@ class BattleScreen(Screen):
                     )
             
             # Генерируем результат боя с добычей
-            from battle import BattleResult, LootDrop
+            from systems.battle import BattleResult, LootDrop
             
             # Подсчитываем добычу
             total_gold = 0
@@ -1481,7 +1481,7 @@ class TavernScreen(Screen):
             }
             
             # Получаем цену из ROLES
-            from creatures import Companion
+            from core.creatures import Companion
             role_data = Companion.ROLES.get(
                 role, {"coins": 30}
             )
@@ -1548,7 +1548,7 @@ class TavernScreen(Screen):
         if not app.game:
             return
         
-        from creatures import Companion
+        from core.creatures import Companion
         role_data = Companion.ROLES.get(role, {"coins": 30})
         price = role_data["coins"]
         
@@ -1562,7 +1562,7 @@ class TavernScreen(Screen):
             return
         
         app.game.player.coins -= price
-        from creatures import Companion
+        from core.creatures import Companion
         comp = Companion(name, role, level=max(1, app.game.player.level - 1))
         app.game.player.companions.append(comp)
         
@@ -1856,7 +1856,7 @@ class CasinoScreen(Screen):
                 if not app.game:
                     return
                 
-                from shop_casino import Casino
+                from systems.shop_casino import Casino
                 
                 if game_type == 'coinflip':
                     if choice is None:
@@ -2819,7 +2819,7 @@ class AncientCaveBossSelectScreen(Screen):
     
     def on_boss_select(self, boss_id):
         """Выбрать босса для боя."""
-        from battle import EnemyGenerator
+        from systems.battle import EnemyGenerator
         
         if not self.game or not self.game.player:
             return
@@ -2847,7 +2847,7 @@ class AncientCaveBossSelectScreen(Screen):
             return
         
         # Создаём поле боя
-        from battle import Battlefield
+        from systems.battle import Battlefield
         self.game.day += 1
         self.game.player.battles_fought += 1
         

@@ -15,14 +15,18 @@ Mini RPG - Главная точка входа
 """
 
 import sys
+from pathlib import Path
+
+# Добавляем корень проекта в путь Python
+sys.path.insert(0, str(Path(__file__).parent))
 
 # Проверяем, запущен ли с флагом --console для консольного режима
 if '--console' in sys.argv:
-    from game import main
+    from core.game import main
     if __name__ == "__main__":
         main()
 else:
     # Запускаем Kivy UI
-    from ui_app import RPGApp
+    from ui.ui_app import RPGApp
     if __name__ == "__main__":
         RPGApp().run()

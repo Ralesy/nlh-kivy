@@ -5,8 +5,14 @@
 Test for Ancient Cave boss selection screen.
 """
 
-from locations import LocationManager
-from battle import EnemyGenerator
+import sys
+from pathlib import Path
+
+# Добавляем корень проекта в путь Python
+sys.path.insert(0, str(Path(__file__).parent))
+
+from data.locations import LocationManager
+from systems.battle import EnemyGenerator
 
 
 def test_boss_unlock_conditions():
@@ -47,7 +53,7 @@ def test_boss_unlock_conditions():
 
 def test_boss_generation():
     """Test that all bosses can be generated."""
-    from enemies import EnemyDatabase
+    from data.enemies import EnemyDatabase
     
     EnemyDatabase.initialize()
     

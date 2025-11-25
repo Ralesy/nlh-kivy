@@ -5,10 +5,16 @@
 Test for Ancient Cave location and bosses.
 """
 
-from locations import LocationManager
-from enemies import EnemyDatabase
-from items import ItemDatabase
-from battle import EnemyGenerator
+import sys
+from pathlib import Path
+
+# Добавляем корень проекта в путь Python
+sys.path.insert(0, str(Path(__file__).parent))
+
+from data.locations import LocationManager
+from data.enemies import EnemyDatabase
+from data.items import ItemDatabase
+from systems.battle import EnemyGenerator
 
 
 def test_ancient_cave_location():

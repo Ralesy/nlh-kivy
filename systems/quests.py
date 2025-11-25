@@ -6,8 +6,8 @@ Quests: система квестов и таверна.
 """
 
 from typing import Dict, Optional
-from creatures import Player
-from items import ItemDatabase
+from core.creatures import Player
+from data.items import ItemDatabase
 
 
 class Quest:

@@ -8,10 +8,10 @@ Battle system: боевая система, враги и события.
 
 import random
 from typing import List, Tuple, Optional
-from creatures import Creature, Player
-from utils import clamp
-from items import ItemDatabase
-from enemies import EnemyDatabase
+from core.creatures import Creature, Player
+from core.utils import clamp
+from data.items import ItemDatabase
+from data.enemies import EnemyDatabase
 
 
 class LootDrop:
