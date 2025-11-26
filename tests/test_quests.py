@@ -7,9 +7,9 @@ _this_dir = os.path.dirname(__file__)
 _proj_root = os.path.abspath(os.path.join(_this_dir, '..'))
 sys.path.insert(0, _proj_root)
 
-from items import ItemDatabase
-from game import Game
-from creatures import Player
+from data.items import ItemDatabase
+from core.game import Game
+from core.creatures import Player
 
 
 def run():

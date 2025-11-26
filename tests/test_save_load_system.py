@@ -15,9 +15,9 @@ _this_dir = os.path.dirname(__file__)
 _proj_root = os.path.abspath(os.path.join(_this_dir, '..'))
 sys.path.insert(0, _proj_root)
 
-from items import ItemDatabase, Weapon, Armor
-from creatures import Player, Inventory
-from save_system import save_game, load_game, delete_save, get_save_list
+from data.items import ItemDatabase, Weapon, Armor
+from core.creatures import Player, Inventory
+from systems.save_system import save_game, load_game, delete_save, get_save_list
 
 
 def test_basic_save_load():

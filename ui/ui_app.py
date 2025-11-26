@@ -717,7 +717,7 @@ class GameScreen(Screen):
         if not enemies:
             # Если нет врагов - это ошибка в данных
             # Создаем обычных волков как fallback
-            from creatures import Creature
+            from core.creatures import Creature
             enemies = [
                 Creature(
                     "Враг",

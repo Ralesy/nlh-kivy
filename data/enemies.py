@@ -58,6 +58,8 @@ class Enemy:
                     "w_orc_maul", "w_orc_sword",
                     "a_steel_plate", "a_orc_mail"
                 ]
+                # include staffs among rare drops
+                rare_items.append("w_steel_staff")
                 if random.random() < 0.5:
                     loot.append((random.choice(rare_items), 1))
 
@@ -119,7 +121,8 @@ class EnemyDatabase:
                 ("w_iron_sword", 0.35),
                 ("w_iron_axe", 0.35),
                 ("w_iron_spear", 0.25),
-                ("w_iron_bow", 0.2)
+                ("w_iron_bow", 0.2),
+                ("w_iron_staff", 0.15)
             ]
         ))
 
@@ -133,7 +136,8 @@ class EnemyDatabase:
                 ("w_iron_sword", 0.35),
                 ("w_iron_axe", 0.35),
                 ("w_iron_dagger", 0.25),
-                ("w_iron_bow", 0.2)
+                ("w_iron_bow", 0.2),
+                ("w_iron_staff", 0.15)
             ]
         ))
 
@@ -148,7 +152,8 @@ class EnemyDatabase:
                 ("w_steel_axe", 0.35),
                 ("w_steel_spear", 0.25),
                 ("w_steel_dagger", 0.2),
-                ("w_steel_bow", 0.15)
+                ("w_steel_bow", 0.15),
+                ("w_steel_staff", 0.12)
             ]
         ))
 
@@ -164,7 +169,8 @@ class EnemyDatabase:
                 ("w_goblin_cleaver", 0.35),
                 ("w_goblin_spear", 0.25),
                 ("w_goblin_bow", 0.2),
-                ("w_goblin_kris", 0.15)
+                ("w_goblin_kris", 0.15),
+                ("w_goblin_staff", 0.12)
             ]
         ))
 
@@ -184,7 +190,8 @@ class EnemyDatabase:
                 ("p_small", 0.5),
                 ("p_med", 0.2),
                 ("w_goblin_spear", 0.25),
-                ("w_goblin_bow", 0.15)
+                ("w_goblin_bow", 0.15),
+                ("w_goblin_staff", 0.12)
             ]
         ))
 
@@ -200,7 +207,8 @@ class EnemyDatabase:
                 ("w_orc_maul", 0.35),
                 ("w_orc_spear", 0.25),
                 ("w_orc_bow", 0.2),
-                ("w_orc_dagger", 0.15)
+                ("w_orc_dagger", 0.15),
+                ("w_orc_staff", 0.12)
             ]
         ))
 
@@ -214,7 +222,8 @@ class EnemyDatabase:
                 ("w_dwarf_axe", 0.35),
                 ("w_dwarf_sword", 0.35),
                 ("w_dwarf_spear", 0.25),
-                ("w_dwarf_dagger", 0.15)
+                ("w_dwarf_dagger", 0.15),
+                ("w_dwarf_staff", 0.12)
             ]
         ))
 

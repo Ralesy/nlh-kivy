@@ -1,6 +1,12 @@
-from items import ItemDatabase
-from creatures import Player
-from shop_casino import Shop
+import sys
+import os
+_this_dir = os.path.dirname(__file__)
+_proj_root = os.path.abspath(os.path.join(_this_dir, '..'))
+sys.path.insert(0, _proj_root)
+
+from data.items import ItemDatabase
+from core.creatures import Player
+from systems.shop_casino import Shop
 
 ItemDatabase.initialize()
 
@@ -14,7 +20,7 @@ if not sword:
 p.inventory.add(sword,2)
 # Equip one copy
 p.equip_weapon(sword)
-shop = Shop({'w_iron_sword': None})
+shop = Shop({'w_iron_sword': 10})
 print('Inventory qty before:', p.inventory.qty('w_iron_sword'))
 print('Weapon equipped id:', p.weapon.id if p.weapon else None)
 print('Attempt to sell 1 (should be allowed):', shop.sell(p,'w_iron_sword',1))
@@ -31,7 +37,7 @@ if not armor:
 p2.inventory.add(armor,2)
 # Equip one copy
 p2.equip_armor(armor)
-shop2 = Shop({'a_leather_armor': None})
+shop2 = Shop({'a_leather_armor': 10})
 print('Armor inventory before:', p2.inventory.qty('a_leather_armor'))
 print('Armor equipped id:', p2.armor.id if p2.armor else None)
 print('Sell 1 (should be allowed):', shop2.sell(p2,'a_leather_armor',1))

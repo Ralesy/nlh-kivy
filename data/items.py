@@ -482,6 +482,11 @@ class ItemDatabase:
                    description="Простой деревянный лук с железными усилениями")
         )
         cls.register(
+            Weapon("w_iron_staff", "Железный посох", 125,
+                   "iron", 11, "normal",
+                   description="Простой посох, используемый для магии и ударов")
+        )
+        cls.register(
             Weapon("w_iron_dagger", "Железный кинжал", 80,
                    "iron", 7, "normal",
                    description="Короткий и острый, хорош для скрытных атак")
@@ -507,6 +512,11 @@ class ItemDatabase:
             Weapon("w_steel_bow", "Стальной лук", 300,
                    "steel", 21, "normal",
                    description="Мощный лук со стальными плечами")
+        )
+        cls.register(
+            Weapon("w_steel_staff", "Стальной посох", 290,
+                   "steel", 20, "normal",
+                   description="Прочный посох, усиленный металлической оплёткой")
         )
         cls.register(
             Weapon("w_steel_dagger", "Стальной кинжал", 220,
@@ -541,6 +551,11 @@ class ItemDatabase:
                    "goblin", 13, "normal",
                    description="Ржавый и кривой, но острее, чем кажется")
         )
+        cls.register(
+            Weapon("w_goblin_staff", "Гоблинский посох", 160,
+                   "goblin", 14, "normal",
+                   description="Изогнутый посох, покрытый плесенью")
+        )
 
         # === ОРЧЬЕ ОРУЖИЕ ===
         cls.register(
@@ -568,6 +583,11 @@ class ItemDatabase:
             Weapon("w_orc_dagger", "Орчий кинжал", 380,
                    "orc", 28, "normal",
                    description="Скорее короткий меч, чем кинжал")
+        )
+        cls.register(
+            Weapon("w_orc_staff", "Орчий посох", 420,
+                   "orc", 33, "normal",
+                   description="Массивный посох, пропитан кровью")
         )
 
         # === ЭЛЬФИЙСКОЕ ОРУЖИЕ ===
@@ -623,6 +643,11 @@ class ItemDatabase:
             Weapon("w_dwarf_dagger", "Гномий кинжал", 780,
                    "dwarf", 46, "normal",
                    description="Солидный и надежный, как и все гномье")
+        )
+        cls.register(
+            Weapon("w_dwarf_staff", "Гномий посох", 800,
+                   "dwarf", 39, "normal",
+                   description="Короткий посох с рунами кузнецов")
         )
 
         # === ДРАКОНЬЕ ОРУЖИЕ (УНИКАЛЬНОЕ) ===

@@ -1,4 +1,4 @@
-from enemies import EnemyDatabase
+from data.enemies import EnemyDatabase
 
 EnemyDatabase.initialize()
 

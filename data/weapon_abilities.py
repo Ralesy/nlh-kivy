@@ -92,7 +92,7 @@ def get_weapon_ability(
     if is_unique and unique_id == "w_dragon_sword":
         return DoubleStrikeAbility()  # Как обычный меч
     elif is_unique and unique_id == "w_mad_raider_sword":
-        return DamageScalingAbility()  # Ярость
+        return DoubleStrikeAbility()  # Treat mad raider sword as a standard sword
     elif is_unique and unique_id == "w_bog_master_staff":
         return StaffAoEAbility()  # Магический взрыв
     elif is_unique and unique_id == "w_dwarf_king_hammer":
