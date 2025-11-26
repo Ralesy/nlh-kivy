@@ -151,12 +151,27 @@ class Shop:
         # Собираем разрешённые материалы по разблокированным локациям
         allowed_weapon_materials = set()
         allowed_armor_materials = set()
+        # Determine whether mines are unlocked; elven gear is gated by mines
+        mines_unlocked = False
+        try:
+            mines_loc = getattr(location_manager, 'locations', {}).get('mines')
+            if mines_loc and not getattr(mines_loc, 'is_locked', True):
+                mines_unlocked = True
+        except Exception:
+            mines_unlocked = False
         for loc in getattr(location_manager, "locations", {}).values():
             if not getattr(loc, "is_locked", True):
                 pool = LOCATION_MATERIAL_POOLS.get(loc.id)
                 if pool:
-                    allowed_weapon_materials.update(pool.get("weapons", []))
-                    allowed_armor_materials.update(pool.get("armors", []))
+                    # Only allow 'elf' material if mines are unlocked
+                    for m in pool.get("weapons", []):
+                        if m == 'elf' and not mines_unlocked:
+                            continue
+                        allowed_weapon_materials.add(m)
+                    for m in pool.get("armors", []):
+                        if m == 'elf' and not mines_unlocked:
+                            continue
+                        allowed_armor_materials.add(m)
         # Надёжный fallback — если ничего не собрали, используем железо
         if not allowed_weapon_materials:
             allowed_weapon_materials.add("iron")

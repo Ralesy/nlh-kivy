@@ -1937,7 +1937,8 @@ class ShopScreen(Screen):
         items = app.game.player.inventory.list_items()
         for item, qty in items:
             item_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60))
-            price = (item.price * qty) // 2
+            # Use the same sell calculation as Shop.sell(): 20% of base price
+            price = (item.price * qty) // 5
             item_label = Label(
                 text=f"{item.display_name()} x{qty} — продать за {price} монет",
                 font_size=dp(16),
