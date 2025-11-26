@@ -96,7 +96,7 @@ class LocationManager:
             "Топкое болото полное гоблинов и гигантских жаб",
             difficulty=2,
             is_locked=True,
-            unlock_condition="Завершите 3 квеста в Лесу Криволесье",
+            unlock_condition="Победите первого босса (Безумный мародёр)",
             enemy_types=[
                 "enemy_swamp_goblin",
                 "enemy_swamp_toad",
@@ -111,7 +111,7 @@ class LocationManager:
             "Тёмные подземные шахты с орками и гномами-драуграми",
             difficulty=3,
             is_locked=True,
-            unlock_condition="Завершите 4 квеста в Болотах",
+            unlock_condition="Победите босса Хозяин Болота (второй босс)",
             enemy_types=[
                 "enemy_mines_orc",
                 "enemy_mines_draugr",
@@ -180,20 +180,26 @@ class LocationManager:
         """
         unlocked = []
 
-        # БОЛОТА: если 3+ квеста из леса
-        if (self._quest_counters["forest_quests"] >= 3
+        # Новая логика разблокировки локаций по цепочке побед над боссами:
+        # - Победа над боссом 1 открывает БОЛОТА и делает доступным босса 2
+        # - Победа над боссом 2 открывает ШАХТЫ и делает доступным босса 3
+        # - Победа над боссом 3 открывает ГОРЫ и делает доступным босса 4
+        # Эта логика заменяет предыдущие зависимости от счётчиков квестов.
+
+        # БОЛОТА: если побежден босс 1
+        if (self._quest_counters.get("boss_1_defeated")
                 and self.locations["swamp"].is_locked):
             self.unlock_location("swamp")
             unlocked.append("swamp")
 
-        # ШАХТЫ: если 4+ квеста из болот
-        if (self._quest_counters["swamp_quests"] >= 4
+        # ШАХТЫ: если побежден босс 2
+        if (self._quest_counters.get("boss_2_defeated")
                 and self.locations["mines"].is_locked):
             self.unlock_location("mines")
             unlocked.append("mines")
 
-        # ГОРЫ: если босс шахт побежден
-        if (self._quest_counters["boss_3_defeated"]
+        # ГОРЫ: если побежден босс 3
+        if (self._quest_counters.get("boss_3_defeated")
                 and self.locations["mountains"].is_locked):
             self.unlock_location("mountains")
             unlocked.append("mountains")
@@ -218,18 +224,15 @@ class LocationManager:
 
     def is_boss_unlocked(self, boss_id: int) -> bool:
         """Разблокирован ли босс."""
+        # Новая логика: каждый следующий босс доступен после победы над предыдущим
         if boss_id == 1:
-            # Безумный мародёр - доступен сразу (как лес)
             return True
-        elif boss_id == 2:
-            # Хозяин Болота - требует открытия болота
-            return not self.locations["swamp"].is_locked
-        elif boss_id == 3:
-            # Король Шахт - требует открытия шахт
-            return not self.locations["mines"].is_locked
-        elif boss_id == 4:
-            # Повелитель Драконов - требует открытия гор
-            return not self.locations["mountains"].is_locked
+        if boss_id == 2:
+            return bool(self._quest_counters.get("boss_1_defeated"))
+        if boss_id == 3:
+            return bool(self._quest_counters.get("boss_2_defeated"))
+        if boss_id == 4:
+            return bool(self._quest_counters.get("boss_3_defeated"))
         return False
 
     def is_boss_defeated(self, boss_id: int) -> bool:

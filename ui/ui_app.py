@@ -1330,6 +1330,61 @@ class BattleScreen(Screen):
                     if loot:
                         for item_id, quantity in loot:
                             loot_drops.append(LootDrop(item_id, quantity))
+                    # Если убит босс — отмечаем его как побежденного
+                    try:
+                        if hasattr(enemy, '_template') and enemy._template:
+                            tpl = enemy._template
+                            if getattr(tpl, 'is_boss', False):
+                                boss_enemy_id = getattr(tpl, 'id', '')
+                                boss_id = None
+                                if 'berserker' in boss_enemy_id or 'mad_raider' in boss_enemy_id or 'boss_1' in boss_enemy_id:
+                                    boss_id = 1
+                                elif 'bog_master' in boss_enemy_id or 'boss_2' in boss_enemy_id:
+                                    boss_id = 2
+                                elif 'mine_king' in boss_enemy_id or 'boss_3' in boss_enemy_id:
+                                    boss_id = 3
+                                elif 'dragon_lord' in boss_enemy_id or 'boss_4' in boss_enemy_id:
+                                    boss_id = 4
+
+                                if boss_id and app and getattr(app, 'game', None):
+                                    lm = app.game.location_manager
+                                    if lm:
+                                        lm.mark_boss_defeated(boss_id)
+                    except Exception:
+                        pass
+
+            # After marking bosses defeated, immediately check for location unlocks
+            try:
+                app2 = App.get_running_app()
+                if app2 and getattr(app2, 'game', None):
+                    lm2 = app2.game.location_manager
+                    if lm2:
+                        unlocked = lm2.check_and_unlock_locations()
+                        if unlocked:
+                            names = [lm2.get_location(l).name for l in unlocked]
+                            popup = Popup(
+                                title='🔓 Новые локации!',
+                                content=Label(text='\n'.join(names)),
+                                size_hint=(0.6, 0.3)
+                            )
+                            popup.open()
+                        # Refresh shop and UI screens so changes appear immediately
+                        try:
+                            app2.game.shop.refresh(lm2)
+                        except Exception:
+                            pass
+                        if getattr(app2, 'shop_screen', None):
+                            try:
+                                app2.shop_screen.update_shop()
+                            except Exception:
+                                pass
+                        if getattr(app2, 'location_select_screen', None):
+                            try:
+                                app2.location_select_screen.update_locations()
+                            except Exception:
+                                pass
+            except Exception:
+                pass
             
             battle_result = BattleResult(
                 victory=True,
@@ -3002,7 +3057,8 @@ class LocationSelectScreen(Screen):
         """Обновление списка локаций."""
         app = App.get_running_app()
         self.game = app.game
-        self.location_manager = LocationManager()
+        # Use shared LocationManager from game when available
+        self.location_manager = self.game.location_manager if (self.game and getattr(self.game, 'location_manager', None)) else LocationManager()
         
         self.locations_layout.clear_widgets()
         
@@ -3198,7 +3254,8 @@ class AncientCaveBossSelectScreen(Screen):
         """Обновление списка боссов."""
         app = App.get_running_app()
         self.game = app.game
-        self.location_manager = LocationManager()
+        # Use shared LocationManager from game when available
+        self.location_manager = self.game.location_manager if (self.game and getattr(self.game, 'location_manager', None)) else LocationManager()
         
         self.bosses_layout.clear_widgets()
         

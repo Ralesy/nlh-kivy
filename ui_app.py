@@ -634,8 +634,13 @@ class GameScreen(Screen):
             popup.open()
             return
         
-        # Получить локацию
-        location_manager = LocationManager()
+        # Получить локацию из общего менеджера (если есть), иначе создать временный
+        location_manager = None
+        if getattr(self, 'game', None):
+            location_manager = self.game.location_manager
+        else:
+            app = App.get_running_app()
+            location_manager = app.game.location_manager if (app and getattr(app, 'game', None)) else LocationManager()
         location = location_manager.get_location(loc_id)
         
         if not location:
@@ -1213,6 +1218,52 @@ class BattleScreen(Screen):
                     if loot:
                         for item_id, quantity in loot:
                             loot_drops.append(LootDrop(item_id, quantity))
+                    # Если убит босс — отмечаем его как побежденного
+                    try:
+                        if hasattr(enemy, '_template') and enemy._template:
+                            tpl = enemy._template
+                            if getattr(tpl, 'is_boss', False):
+                                boss_enemy_id = getattr(tpl, 'id', '')
+                                boss_id = None
+                                # Простейшее сопоставление по идентификатору шаблона
+                                if 'berserker' in boss_enemy_id or 'mad_raider' in boss_enemy_id or 'boss_1' in boss_enemy_id:
+                                    boss_id = 1
+                                elif 'bog_master' in boss_enemy_id or 'boss_2' in boss_enemy_id:
+                                    boss_id = 2
+                                elif 'mine_king' in boss_enemy_id or 'boss_3' in boss_enemy_id:
+                                    boss_id = 3
+                                elif 'dragon_lord' in boss_enemy_id or 'boss_4' in boss_enemy_id:
+                                    boss_id = 4
+
+                                if boss_id and app and getattr(app, 'game', None):
+                                    lm = app.game.location_manager
+                                    if lm:
+                                        lm.mark_boss_defeated(boss_id)
+                    except Exception:
+                        # Не блокируем завершение боя из-за ошибки метки босса
+                        pass
+                    # После пометки босса сразу пробуем разблокировать локации
+                    try:
+                        if app and getattr(app, 'game', None):
+                            lm = app.game.location_manager
+                            if lm:
+                                unlocked = lm.check_and_unlock_locations()
+                                if unlocked:
+                                    names = [lm.get_location(lid).name for lid in unlocked]
+                                    popup = Popup(
+                                        title='🔓 Новые локации!',
+                                        content=Label(text='\n'.join(names)),
+                                        size_hint=(0.6, 0.3)
+                                    )
+                                    popup.open()
+                                try:
+                                    app.game.shop.refresh(lm)
+                                    if getattr(app, 'shop_screen', None):
+                                        app.shop_screen.update_shop()
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
             
             battle_result = BattleResult(
                 victory=True,
@@ -2751,7 +2802,8 @@ class LocationSelectScreen(Screen):
         """Обновление списка локаций."""
         app = App.get_running_app()
         self.game = app.game
-        self.location_manager = LocationManager()
+        # Use shared location manager from the game when available
+        self.location_manager = self.game.location_manager if (self.game and getattr(self.game, 'location_manager', None)) else LocationManager()
         
         self.locations_layout.clear_widgets()
         
@@ -2947,7 +2999,8 @@ class AncientCaveBossSelectScreen(Screen):
         """Обновление списка боссов."""
         app = App.get_running_app()
         self.game = app.game
-        self.location_manager = LocationManager()
+        # Use shared LocationManager from game when available
+        self.location_manager = self.game.location_manager if (self.game and getattr(self.game, 'location_manager', None)) else LocationManager()
         
         self.bosses_layout.clear_widgets()
         

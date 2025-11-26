@@ -105,14 +105,14 @@ class EnemyDatabase:
         # Волки (животные - только опыт+деньги)
         cls.register(Enemy(
             "enemy_forest_wolf", "Волк", "animal",
-            base_health=30, base_damage=8, base_coins=20,
+            base_health=30, base_damage=8, base_coins=8,
             xp_reward=50
         ))
 
         # Мародёры (гуманоиды - трепьё + железное оружие)
         cls.register(Enemy(
             "enemy_forest_raider", "Мародёр", "humanoid",
-            base_health=50, base_damage=12, base_coins=40,
+            base_health=50, base_damage=12, base_coins=16,
             xp_reward=75,
             loot_table=[
                 ("a_rags_leather", 0.8),
@@ -126,7 +126,7 @@ class EnemyDatabase:
         # Бандиты (гуманоиды - кожаная броня + железное оружие)
         cls.register(Enemy(
             "enemy_forest_bandit", "Бандит", "humanoid",
-            base_health=45, base_damage=11, base_coins=50,
+            base_health=45, base_damage=11, base_coins=20,
             xp_reward=80,
             loot_table=[
                 ("a_leather_armor", 0.7),
@@ -140,7 +140,7 @@ class EnemyDatabase:
         # Дезертиры (гуманоиды - стальное оружие + броня)
         cls.register(Enemy(
             "enemy_forest_deserter", "Дезертир", "humanoid",
-            base_health=60, base_damage=14, base_coins=70,
+            base_health=60, base_damage=14, base_coins=28,
             xp_reward=100,
             loot_table=[
                 ("a_steel_plate", 0.5),
@@ -157,7 +157,7 @@ class EnemyDatabase:
         # Гоблины (гуманоиды - гоблинское оружие)
         cls.register(Enemy(
             "enemy_swamp_goblin", "Гоблин", "humanoid",
-            base_health=40, base_damage=10, base_coins=45,
+            base_health=40, base_damage=10, base_coins=18,
             xp_reward=70,
             loot_table=[
                 ("w_goblin_dagger", 0.35),
@@ -171,14 +171,14 @@ class EnemyDatabase:
         # Гигантские жабы (животные)
         cls.register(Enemy(
             "enemy_swamp_giant_toad", "Гигантская жаба", "animal",
-            base_health=55, base_damage=13, base_coins=35,
+            base_health=55, base_damage=13, base_coins=14,
             xp_reward=65
         ))
 
         # Болотники (животные/гуманоиды - часто зелья и оружие)
         cls.register(Enemy(
             "enemy_swamp_bog_walker", "Болотник", "humanoid",
-            base_health=48, base_damage=11, base_coins=50,
+            base_health=48, base_damage=11, base_coins=20,
             xp_reward=75,
             loot_table=[
                 ("p_small", 0.5),
@@ -193,7 +193,7 @@ class EnemyDatabase:
         # Орки (гуманоиды - орчье оружие)
         cls.register(Enemy(
             "enemy_mines_orc", "Орк", "humanoid",
-            base_health=70, base_damage=15, base_coins=80,
+            base_health=70, base_damage=15, base_coins=32,
             xp_reward=120,
             loot_table=[
                 ("w_orc_sword", 0.35),
@@ -207,7 +207,7 @@ class EnemyDatabase:
         # Гномы-драугры (гуманоиды - гномье оружие)
         cls.register(Enemy(
             "enemy_mines_dwarven_draugr", "Гном-драугр", "humanoid",
-            base_health=65, base_damage=16, base_coins=90,
+            base_health=65, base_damage=16, base_coins=36,
             xp_reward=130,
             loot_table=[
                 ("a_dwarf_plate", 0.3),
@@ -221,14 +221,14 @@ class EnemyDatabase:
         # Скелеты (животные)
         cls.register(Enemy(
             "enemy_mines_skeleton", "Скелет", "animal",
-            base_health=55, base_damage=12, base_coins=30,
+            base_health=55, base_damage=12, base_coins=12,
             xp_reward=60
         ))
 
         # Крысиный Король (гуманоид)
         cls.register(Enemy(
             "enemy_mines_rat_king", "Крысиный Король", "humanoid",
-            base_health=100, base_damage=18, base_coins=150,
+            base_health=100, base_damage=18, base_coins=60,
             xp_reward=200,
             loot_table=[
                 ("p_large", 0.4),
@@ -243,7 +243,7 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_mines_old_stonehammer",
             "Старый Камнежор", "humanoid",
-            base_health=150, base_damage=22, base_coins=200,
+            base_health=150, base_damage=22, base_coins=80,
             xp_reward=300,
             loot_table=[
                 ("a_dwarf_plate", 0.5),
@@ -261,14 +261,14 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_mountains_mad_snowman", "Безумный снеговик",
             "animal",
-            base_health=60, base_damage=13, base_coins=50,
+            base_health=60, base_damage=13, base_coins=20,
             xp_reward=80
         ))
 
         # Горные волки (животные)
         cls.register(Enemy(
             "enemy_mountains_mountain_wolf", "Горный волк", "animal",
-            base_health=65, base_damage=15, base_coins=55,
+            base_health=65, base_damage=15, base_coins=22,
             xp_reward=90
         ))
 
@@ -276,7 +276,7 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_mountains_ice_specter", "Ледяное приведение",
             "animal",
-            base_health=70, base_damage=16, base_coins=60,
+            base_health=70, base_damage=16, base_coins=24,
             xp_reward=100
         ))
 
@@ -284,7 +284,7 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_mountains_dragonslayer_zombie",
             "Драконоборец-зомби", "humanoid",
-            base_health=120, base_damage=20, base_coins=150,
+            base_health=120, base_damage=20, base_coins=60,
             xp_reward=250,
             loot_table=[
                 ("w_orc_maul", 0.5),
@@ -296,7 +296,7 @@ class EnemyDatabase:
         # Драконы (животные)
         cls.register(Enemy(
             "enemy_mountains_dragon", "Дракон", "animal",
-            base_health=200, base_damage=25, base_coins=300,
+            base_health=200, base_damage=25, base_coins=120,
             xp_reward=400
         ))
 
@@ -305,7 +305,7 @@ class EnemyDatabase:
         # Босс 1: Безумный мародёр
         cls.register(Enemy(
             "boss_1_mad_raider", "Безумный мародёр", "boss",
-            base_health=200, base_damage=20, base_coins=500,
+            base_health=200, base_damage=20, base_coins=200,
             xp_reward=1000,
             loot_table=[
                 ("w_mad_raider_sword", 1.0)  # Меч безумного мародёра
@@ -316,7 +316,7 @@ class EnemyDatabase:
         # Босс 2: Хозяин Болота
         cls.register(Enemy(
             "boss_2_bog_master", "Хозяин Болота", "boss",
-            base_health=220, base_damage=18, base_coins=600,
+            base_health=220, base_damage=18, base_coins=240,
             xp_reward=1100,
             loot_table=[
                 ("w_bog_master_staff", 1.0)  # Посох Хозяина Болота
@@ -327,7 +327,7 @@ class EnemyDatabase:
         # Босс 3: Король Шахт
         cls.register(Enemy(
             "boss_3_mine_king", "Король Шахт", "boss",
-            base_health=250, base_damage=24, base_coins=700,
+            base_health=250, base_damage=24, base_coins=280,
             xp_reward=1200,
             loot_table=[
                 ("w_dwarf_king_hammer", 1.0)  # Молот короля гномов
@@ -338,7 +338,7 @@ class EnemyDatabase:
         # Босс 4: Повелитель Драконов
         cls.register(Enemy(
             "boss_4_dragon_lord", "Повелитель Драконов", "boss",
-            base_health=300, base_damage=28, base_coins=1000,
+            base_health=300, base_damage=28, base_coins=400,
             xp_reward=1500,
             loot_table=[
                 ("a_dragon_lord_plate", 1.0)  # Доспех Повелителя Драконов
@@ -351,7 +351,7 @@ class EnemyDatabase:
         # Враги пещеры - ссылки на боссов
         cls.register(Enemy(
             "enemy_ancient_cave_berserker", "Безумный мародёр", "boss",
-            base_health=200, base_damage=20, base_coins=500,
+            base_health=200, base_damage=20, base_coins=200,
             xp_reward=1000,
             loot_table=[
                 ("w_mad_raider_sword", 1.0)
@@ -361,7 +361,7 @@ class EnemyDatabase:
 
         cls.register(Enemy(
             "enemy_ancient_cave_bog_master", "Хозяин Болота", "boss",
-            base_health=220, base_damage=18, base_coins=600,
+            base_health=220, base_damage=18, base_coins=240,
             xp_reward=1100,
             loot_table=[
                 ("w_bog_master_staff", 1.0)
@@ -371,7 +371,7 @@ class EnemyDatabase:
 
         cls.register(Enemy(
             "enemy_ancient_cave_mine_king", "Король Шахт", "boss",
-            base_health=250, base_damage=24, base_coins=700,
+            base_health=250, base_damage=24, base_coins=280,
             xp_reward=1200,
             loot_table=[
                 ("w_dwarf_king_hammer", 1.0)
@@ -382,7 +382,7 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_ancient_cave_dragon_lord", "Повелитель Драконов",
             "boss",
-            base_health=300, base_damage=28, base_coins=1000,
+            base_health=300, base_damage=28, base_coins=400,
             xp_reward=1500,
             loot_table=[
                 ("a_dragon_lord_plate", 1.0)
