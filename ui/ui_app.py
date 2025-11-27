@@ -14,6 +14,7 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
+from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
 from kivy.metrics import dp
@@ -534,35 +535,15 @@ class GameScreen(Screen):
         # Кнопки меню с улучшенным дизайном
         menu_layout = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_x=0.4)
         
-        btn_tavern = Button(
-            text='🏰 Таверна',
+        btn_city = Button(
+            text='🏛️ Город',
             size_hint_y=None,
             height=dp(55),
             font_size=dp(21),
-            background_color=(0.6, 0.4, 0.2, 1)
+            background_color=(0.7, 0.5, 0.2, 1)
         )
-        btn_tavern.bind(on_press=self.on_tavern)
-        menu_layout.add_widget(btn_tavern)
-        
-        btn_shop = Button(
-            text='🛒 Магазин',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(21),
-            background_color=(0.2, 0.6, 0.8, 1)
-        )
-        btn_shop.bind(on_press=self.on_shop)
-        menu_layout.add_widget(btn_shop)
-        
-        btn_casino = Button(
-            text='🎰 Казино',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(21),
-            background_color=(0.8, 0.6, 0.2, 1)
-        )
-        btn_casino.bind(on_press=self.on_casino)
-        menu_layout.add_widget(btn_casino)
+        btn_city.bind(on_press=self.on_city)
+        menu_layout.add_widget(btn_city)
         
         btn_inventory = Button(
             text='🎒 Инвентарь',
@@ -743,26 +724,10 @@ class GameScreen(Screen):
         )
         self.manager.current = 'battle'
     
-    def on_tavern(self, instance):
+    def on_city(self, instance):
         if not self.game or not self.game.player:
             return
-        app = App.get_running_app()
-        app.tavern_screen.update_tavern()
-        self.manager.current = 'tavern'
-    
-    def on_shop(self, instance):
-        if not self.game or not self.game.player:
-            return
-        app = App.get_running_app()
-        app.shop_screen.update_shop()
-        self.manager.current = 'shop'
-    
-    def on_casino(self, instance):
-        if not self.game or not self.game.player:
-            return
-        app = App.get_running_app()
-        app.casino_screen.update_casino()
-        self.manager.current = 'casino'
+        self.manager.current = 'city_menu'
     
     def on_inventory(self, instance):
         if not self.game or not self.game.player:
@@ -4481,6 +4446,95 @@ class ActiveQuestsScreen(Screen):
         self.manager.current = 'game'
 
 
+class CityMenuScreen(Screen):
+    """Меню города с казино, таверной и магазином."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        layout = BoxLayout(orientation='vertical', padding=dp(20),
+                           spacing=dp(15))
+        
+        with layout.canvas.before:
+            Color(0.15, 0.2, 0.25, 1)
+            self.bg_rect = Rectangle()
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
+        
+        title = Label(
+            text='🏛️ ГОРОД',
+            font_size=dp(32),
+            size_hint_y=None,
+            height=dp(80),
+            bold=True,
+            color=(0.95, 0.95, 0.3, 1)
+        )
+        layout.add_widget(title)
+        
+        btn_tavern = Button(
+            text='🏰 Таверна',
+            size_hint_y=None,
+            height=dp(60),
+            font_size=dp(22),
+            background_color=(0.6, 0.4, 0.2, 1)
+        )
+        btn_tavern.bind(on_press=self.on_tavern)
+        layout.add_widget(btn_tavern)
+        
+        btn_shop = Button(
+            text='🛒 Магазин',
+            size_hint_y=None,
+            height=dp(60),
+            font_size=dp(22),
+            background_color=(0.2, 0.6, 0.8, 1)
+        )
+        btn_shop.bind(on_press=self.on_shop)
+        layout.add_widget(btn_shop)
+        
+        btn_casino = Button(
+            text='🎰 Казино',
+            size_hint_y=None,
+            height=dp(60),
+            font_size=dp(22),
+            background_color=(0.8, 0.6, 0.2, 1)
+        )
+        btn_casino.bind(on_press=self.on_casino)
+        layout.add_widget(btn_casino)
+        
+        layout.add_widget(Widget(size_hint_y=1))
+        
+        btn_back = Button(
+            text='← Вернуться',
+            size_hint_y=None,
+            height=dp(55),
+            font_size=dp(20),
+            background_color=(0.4, 0.4, 0.4, 1)
+        )
+        btn_back.bind(on_press=self.on_back)
+        layout.add_widget(btn_back)
+        
+        self.add_widget(layout)
+    
+    def on_tavern(self, instance):
+        app = App.get_running_app()
+        if app.tavern_screen:
+            app.tavern_screen.update_npcs()
+        self.manager.current = 'tavern'
+    
+    def on_shop(self, instance):
+        app = App.get_running_app()
+        if app.shop_screen:
+            app.shop_screen.update_items()
+        self.manager.current = 'shop'
+    
+    def on_casino(self, instance):
+        self.manager.current = 'casino'
+    
+    def on_back(self, instance):
+        self.manager.current = 'game'
+
+
 class RPGApp(App):
     """Главное приложение."""
     
@@ -4520,6 +4574,10 @@ class RPGApp(App):
         casino_screen = CasinoScreen(name='casino')
         sm.add_widget(casino_screen)
         self.casino_screen = casino_screen
+        
+        city_menu_screen = CityMenuScreen(name='city_menu')
+        sm.add_widget(city_menu_screen)
+        self.city_menu_screen = city_menu_screen
         
         inventory_screen = InventoryScreen(name='inventory')
         sm.add_widget(inventory_screen)
