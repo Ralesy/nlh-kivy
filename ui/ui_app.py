@@ -13,6 +13,8 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.image import Image
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle
@@ -554,6 +556,16 @@ class GameScreen(Screen):
         )
         btn_inventory.bind(on_press=self.on_inventory)
         menu_layout.add_widget(btn_inventory)
+
+        btn_locations = Button(
+            text='🗺️ Локации',
+            size_hint_y=None,
+            height=dp(55),
+            font_size=dp(21),
+            background_color=(0.25, 0.55, 0.6, 1)
+        )
+        btn_locations.bind(on_press=self.on_locations)
+        menu_layout.add_widget(btn_locations)
         
         btn_status = Button(
             text='📊 Статус',
@@ -2985,57 +2997,79 @@ class LocationSelectScreen(Screen):
         self.current_location = None
         self.location_manager = None
         self.game = None
-        
+        # positions on the map (normalized 0..1) for location hotspots
+        self._map_positions = {
+            'forest': (0.18, 0.58),
+            # swamp: a bit higher
+            'swamp': (0.48, 0.62),
+            'mines': (0.72, 0.45),
+            'mountains': (0.86, 0.78),
+            # ancient cave: lower and to the left
+            'ancient_cave': (0.72, 0.26)
+        }
+
         main_layout = BoxLayout(
             orientation='vertical',
-            padding=dp(15),
-            spacing=dp(12)
+            padding=dp(8),
+            spacing=dp(8)
         )
-        
+
         # Фон
         with main_layout.canvas.before:
-            Color(0.15, 0.2, 0.25, 1)
+            Color(0.12, 0.14, 0.16, 1)
             self.bg_rect = Rectangle()
             main_layout.bind(
-                size=lambda i, v: setattr(
-                    self.bg_rect, 'size', i.size
-                ),
-                pos=lambda i, v: setattr(
-                    self.bg_rect, 'pos', i.pos
-                )
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
             )
-        
+
         # Заголовок
         title_label = Label(
             text='🗺️ ВЫБОР ЛОКАЦИИ',
-            font_size=dp(24),
+            font_size=dp(22),
             size_hint_y=None,
-            height=dp(50),
-            color=(0.9, 0.7, 0.1, 1),
+            height=dp(48),
+            color=(0.95, 0.85, 0.6, 1),
             bold=True
         )
         main_layout.add_widget(title_label)
-        
-        # Список локаций в ScrollView
-        scroll = ScrollView(size_hint=(1, 0.7))
-        self.locations_layout = GridLayout(
-            cols=1,
-            spacing=dp(10),
-            size_hint_y=None,
-            padding=dp(10)
+
+        # Map container with background image and overlay for small buttons
+        self.map_container = FloatLayout(size_hint=(1, 0.82))
+        # Get the correct path relative to the script location
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        map_src = os.path.join(project_root, 'assets', 'maps', 'Emberfall_global_map.png')
+        # Ensure the map fills the container (don't preserve aspect ratio)
+        self.map_image = Image(
+            source=map_src,
+            allow_stretch=True,
+            keep_ratio=False,
+            size_hint=(1, 1),
+            pos_hint={'x': 0, 'y': 0}
         )
-        self.locations_layout.bind(
-            minimum_height=self.locations_layout.setter(
-                'height'
-            )
+        self.map_container.add_widget(self.map_image)
+
+        # overlay for interactive small buttons
+        self.map_overlay = FloatLayout(size_hint=(1, 1))
+        self.map_container.add_widget(self.map_overlay)
+
+        # Debug label to confirm map is visible (can be removed later)
+        debug_lbl = Label(
+            text='КАРТА',
+            size_hint=(None, None),
+            pos_hint={'x': 0.02, 'y': 0.92},
+            color=(1, 1, 1, 0.9),
+            bold=True
         )
-        scroll.add_widget(self.locations_layout)
-        main_layout.add_widget(scroll)
-        
-        # Кнопки внизу
+        self.map_overlay.add_widget(debug_lbl)
+
+        main_layout.add_widget(self.map_container)
+
+        # bottom controls
         btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None)
         btn_layout.height = dp(50)
-        
+
         btn_back = Button(
             text='← Назад',
             size_hint_x=0.5,
@@ -3043,7 +3077,7 @@ class LocationSelectScreen(Screen):
         )
         btn_back.bind(on_press=self.on_back)
         btn_layout.add_widget(btn_back)
-        
+
         btn_stats = Button(
             text='📊 Статус',
             size_hint_x=0.5,
@@ -3051,7 +3085,7 @@ class LocationSelectScreen(Screen):
         )
         btn_stats.bind(on_press=self.on_status)
         btn_layout.add_widget(btn_stats)
-        
+
         main_layout.add_widget(btn_layout)
         self.add_widget(main_layout)
     
@@ -3059,39 +3093,180 @@ class LocationSelectScreen(Screen):
         """Обновление списка локаций."""
         app = App.get_running_app()
         self.game = app.game
+        print(f"[DEBUG] LocationSelectScreen.update_locations() called - game={'set' if self.game else 'None'}")
+        print(f"[DEBUG] player_exists={bool(getattr(self.game, 'player', None)) if self.game else False}")
         # Use shared LocationManager from game when available
         self.location_manager = self.game.location_manager if (self.game and getattr(self.game, 'location_manager', None)) else LocationManager()
-        
-        self.locations_layout.clear_widgets()
-        
-        for loc_id, location in (
-            self.location_manager.locations.items()
-        ):
-            # Кнопка локации
-            btn_text = self._get_location_text(location)
-            btn = Button(
-                text=btn_text,
-                size_hint_y=None,
-                height=dp(80),
-                font_size=dp(15),
-                background_color=(
-                    (0.2, 0.5, 0.3, 1) if not location.is_locked
-                    else (0.5, 0.2, 0.2, 1)
+        # Render small translucent hotspots over the map image
+        # Clear previous overlay widgets
+        try:
+            print(f"[DEBUG] map_overlay present={hasattr(self, 'map_overlay')}")
+            self.map_overlay.clear_widgets()
+        except Exception:
+            print("[DEBUG] map_overlay clearing failed, falling back to list layout")
+            # If map_overlay isn't present (older UI), fall back to list behavior
+            try:
+                self.locations_layout.clear_widgets()
+            except Exception:
+                print("[DEBUG] locations_layout not present either")
+            for loc_id, location in self.location_manager.locations.items():
+                btn_text = self._get_location_text(location)
+                btn = Button(
+                    text=btn_text,
+                    size_hint_y=None,
+                    height=dp(80),
+                    font_size=dp(15),
+                    background_color=(
+                        (0.2, 0.5, 0.3, 1) if not location.is_locked
+                        else (0.5, 0.2, 0.2, 1)
+                    )
                 )
-            )
-            
-            if not location.is_locked:
-                btn.bind(
-                    on_press=lambda b, lid=loc_id:
-                    self.on_select_location(lid)
-                )
-            else:
-                btn.bind(
-                    on_press=lambda b, loc=location:
-                    self.on_locked_location(loc)
-                )
+                if not location.is_locked:
+                    btn.bind(on_press=lambda b, lid=loc_id: self.on_select_location(lid))
+                else:
+                    btn.bind(on_press=lambda b, loc=location: self.on_locked_location(loc))
+                self.locations_layout.add_widget(btn)
+            return
 
-            self.locations_layout.add_widget(btn)
+        print("[DEBUG] map_overlay cleared, creating hotspots...")
+
+        for loc_id, location in self.location_manager.locations.items():
+            pos = self._map_positions.get(loc_id)
+            if not pos:
+                continue
+            x, y = pos
+            # small circular translucent button
+            btn = Button(
+                text='',
+                size_hint=(None, None),
+                size=(dp(48), dp(48)),
+                pos_hint={'center_x': x, 'center_y': y},
+                background_normal='',
+                background_color=(0.18, 0.6, 0.18, 0.45) if not location.is_locked else (0.6, 0.18, 0.18, 0.45)
+            )
+            if not location.is_locked:
+                btn.bind(on_press=lambda b, lid=loc_id: self.on_select_location(lid))
+            else:
+                btn.bind(on_press=lambda b, loc=location: self.on_locked_location(loc))
+            self.map_overlay.add_widget(btn)
+
+        # Add city hotspot that opens city menu
+        def _open_city(*args):
+            self.manager.current = 'city_menu'
+
+        # City hotspot: make it a slightly larger square and move right
+        city_btn = Button(
+            text='',
+            size_hint=(None, None),
+            size=(dp(64), dp(64)),
+            pos_hint={'center_x': 0.28, 'center_y': 0.9},
+            background_normal='',
+            background_color=(0.82, 0.7, 0.28, 0.6)
+        )
+        city_btn.bind(on_press=_open_city)
+        self.map_overlay.add_widget(city_btn)
+
+        # Inventory quick-access button on the map (bottom-right)
+        def _open_inventory(*args):
+            app = App.get_running_app()
+            if getattr(app, 'inventory_screen', None):
+                try:
+                    app.inventory_screen.update_inventory()
+                except Exception:
+                    pass
+            # only open if game/player exists
+            if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+                try:
+                    self.manager.current = 'inventory'
+                except Exception:
+                    pass
+
+        # Move inventory to left-bottom, make it larger
+        inv_btn = Button(
+            text='🎒',
+            size_hint=(None, None),
+            size=(dp(96), dp(96)),
+            pos_hint={'x': 0.01, 'y': 0.12},
+            background_normal='',
+            background_color=(0.2, 0.35, 0.7, 0.9)
+        )
+        inv_btn.bind(on_press=_open_inventory)
+        self.map_overlay.add_widget(inv_btn)
+
+        # Status button above inventory
+        def _open_status(*args):
+            app = App.get_running_app()
+            if getattr(app, 'status_screen', None):
+                try:
+                    app.status_screen.update_status()
+                except Exception:
+                    pass
+            if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+                try:
+                    self.manager.current = 'status'
+                except Exception:
+                    pass
+
+        status_btn = Button(
+            text='📊',
+            size_hint=(None, None),
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.01, 'y': 0.30},
+            background_normal='',
+            background_color=(0.5, 0.5, 0.7, 0.95)
+        )
+        status_btn.bind(on_press=_open_status)
+        self.map_overlay.add_widget(status_btn)
+
+        # Companions management button above status
+        def _open_companions(*args):
+            app = App.get_running_app()
+            if getattr(app, 'companion_management_screen', None):
+                try:
+                    app.companion_management_screen.update_companion()
+                except Exception:
+                    pass
+            if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+                try:
+                    self.manager.current = 'companion_management'
+                except Exception:
+                    pass
+
+        comp_btn = Button(
+            text='🤝',
+            size_hint=(None, None),
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.01, 'y': 0.44},
+            background_normal='',
+            background_color=(0.4, 0.65, 0.8, 0.95)
+        )
+        comp_btn.bind(on_press=_open_companions)
+        self.map_overlay.add_widget(comp_btn)
+
+        # Active quests button to the right of the inventory
+        def _open_active_quests(*args):
+            app = App.get_running_app()
+            if getattr(app, 'active_quests_screen', None):
+                try:
+                    app.active_quests_screen.update_quests()
+                except Exception:
+                    pass
+            if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+                try:
+                    self.manager.current = 'active_quests'
+                except Exception:
+                    pass
+
+        quests_btn = Button(
+            text='📋',
+            size_hint=(None, None),
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.18, 'y': 0.12},
+            background_normal='',
+            background_color=(0.6, 0.5, 0.2, 0.95)
+        )
+        quests_btn.bind(on_press=_open_active_quests)
+        self.map_overlay.add_widget(quests_btn)
     
     def _get_location_text(self, location):
         """Получить текст кнопки локации."""
@@ -3116,8 +3291,23 @@ class LocationSelectScreen(Screen):
     def on_select_location(self, loc_id):
         """Выбор локации для входа."""
         app = App.get_running_app()
-        app.game_screen.enter_location(loc_id)
-        self.manager.current = 'battle'
+        # only allow entering if game/player initialized
+        if not getattr(app, 'game', None) or not getattr(app.game, 'player', None):
+            popup = Popup(title='Ошибка', content=Label(text='Игра не инициализирована!'), size_hint=(0.6, 0.3))
+            popup.open()
+            return
+
+        # delegate to GameScreen.enter_location which will choose the
+        # appropriate next screen (battle or boss selection)
+        try:
+            app.game_screen.enter_location(loc_id)
+        except Exception:
+            # fallback: if something goes wrong, show battle as before
+            try:
+                app.battle_screen.start_battle(None, '')
+                self.manager.current = 'battle'
+            except Exception:
+                pass
     
     def on_back(self, instance):
         """Возврат в главное меню игры."""
@@ -3129,6 +3319,24 @@ class LocationSelectScreen(Screen):
     def on_status(self, instance):
         """Открыть статус."""
         self.manager.current = 'status'
+
+    def on_enter(self):
+        """Debug: visual confirmation when LocationSelectScreen is shown."""
+        try:
+            print("[DEBUG] LocationSelectScreen.on_enter called")
+            has_overlay = hasattr(self, 'map_overlay')
+            children_count = len(self.map_overlay.children) if has_overlay else 0
+            print(f"[DEBUG] on_enter map_overlay={has_overlay} children={children_count}")
+            # show small popup that auto-dismisses so user can see whether screen was entered
+            content = Label(text=f"КАРТА:\noverlay={has_overlay}\nchildren={children_count}")
+            popup = Popup(title='DEBUG: LocationSelect', content=content, size_hint=(0.36, 0.18))
+            popup.open()
+            try:
+                Clock.schedule_once(lambda dt: popup.dismiss(), 1.4)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def on_locked_location(self, location):
         """Показать требования для разблокировки локации."""
