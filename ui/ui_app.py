@@ -1777,6 +1777,24 @@ class TavernScreen(Screen):
         role_data = Companion.ROLES.get(role, {"coins": 30})
         price = role_data["coins"]
 
+        # Проверяем, есть ли уже активный спутник
+        if app.game.player.companions:
+            active_companion = app.game.player.companions[0]
+            popup = Popup(
+                title='⚠️ Уже есть активный спутник',
+                content=Label(
+                    text=f'У вас уже есть спутник: {active_companion.name}.\n'
+                         f'Отпустите его в меню "Спутники", '
+                         f'чтобы нанять нового.',
+                    text_size=(None, None),
+                    halign='center',
+                    font_size=dp(18)
+                ),
+                size_hint=(0.75, 0.4)
+            )
+            popup.open()
+            return
+
         if app.game.player.coins < price:
             popup = Popup(
                 title='Ошибка',
@@ -1787,7 +1805,6 @@ class TavernScreen(Screen):
             return
 
         app.game.player.coins -= price
-        from core.creatures import Companion
         comp = Companion(name, role, level=max(1, app.game.player.level - 1))
         app.game.player.companions.append(comp)
         
