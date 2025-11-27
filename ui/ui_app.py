@@ -40,6 +40,93 @@ from systems.npcs import NPCManager, QuestState
 from systems.npcs import QuestType
 
 
+def _add_back_to_map_button(parent_widget, manager):
+    """Utility: add a small edge button that returns to the global map.
+
+    parent_widget: the screen instance where the button will be added
+    manager: ScreenManager (parent_widget.manager may be None during init)
+    """
+    try:
+        app = App.get_running_app()
+    except Exception:
+        app = None
+
+    def _go_map(btn):
+        app2 = App.get_running_app()
+        if getattr(app2, 'location_select_screen', None):
+            try:
+                app2.location_select_screen.update_locations()
+            except Exception:
+                pass
+        try:
+            parent_widget.manager.current = 'location_select'
+        except Exception:
+            # fallback: if manager not set yet, use app
+            try:
+                if getattr(app2, 'sm', None):
+                    app2.sm.current = 'location_select'
+            except Exception:
+                pass
+
+    # place the map button in the top-left area so it's consistent across screens
+    btn = Button(
+        text='🗺️',
+        size_hint=(None, None),
+        size=(dp(56), dp(56)),
+        pos_hint={'x': 0.02, 'y': 0.88},
+        background_normal='',
+        background_color=(0.25, 0.25, 0.35, 0.95)
+    )
+    btn.bind(on_press=_go_map)
+    try:
+        parent_widget.add_widget(btn)
+    except Exception:
+        # if parent uses .add_widget later, attach to a stored overlay
+        try:
+            if hasattr(parent_widget, 'content_layout'):
+                parent_widget.content_layout.add_widget(btn)
+        except Exception:
+            pass
+
+
+def _add_back_to_city_button(parent_widget, manager):
+    """Utility: add a small button next to the map button that returns to the city menu."""
+    try:
+        app = App.get_running_app()
+    except Exception:
+        app = None
+
+    def _go_city(btn):
+        app2 = App.get_running_app()
+        try:
+            parent_widget.manager.current = 'city_menu'
+        except Exception:
+            try:
+                if getattr(app2, 'sm', None):
+                    app2.sm.current = 'city_menu'
+            except Exception:
+                pass
+
+    # place city button just to the right of the map button in top-left
+    btn = Button(
+        text='🏛️',
+        size_hint=(None, None),
+        size=(dp(56), dp(56)),
+        pos_hint={'x': 0.12, 'y': 0.88},
+        background_normal='',
+        background_color=(0.35, 0.25, 0.25, 0.95)
+    )
+    btn.bind(on_press=_go_city)
+    try:
+        parent_widget.add_widget(btn)
+    except Exception:
+        try:
+            if hasattr(parent_widget, 'content_layout'):
+                parent_widget.content_layout.add_widget(btn)
+        except Exception:
+            pass
+
+
 class MainMenuScreen(Screen):
     """Главное меню."""
     
@@ -165,9 +252,13 @@ class LoadGameScreen(Screen):
 
             app = App.get_running_app()
             app.game = game
-            app.game_screen.game = game
-            app.game_screen.update_game_state()
-            self.manager.current = 'game'
+            # Open global map instead of old game menu
+            try:
+                if getattr(app, 'location_select_screen', None):
+                    app.location_select_screen.update_locations()
+            except Exception:
+                pass
+            self.manager.current = 'location_select'
         else:
             popup = Popup(
                 title='Ошибка',
@@ -280,27 +371,29 @@ class CharacterCreationScreen(Screen):
         self.class_buttons['test'] = btn_test
         
         layout.add_widget(class_layout)
-        
+
+        # Button to create character
         btn_create = Button(
-            text='✨ Создать персонажа',
+            text='🎮 Создать персонажа',
             size_hint_y=None,
             height=dp(70),
-            font_size=dp(26),
-            background_color=(0.2, 0.7, 0.3, 1)
+            font_size=dp(24),
+            background_color=(0.2, 0.8, 0.2, 1)
         )
         btn_create.bind(on_press=self.create_character)
         layout.add_widget(btn_create)
-        
+
+        # Back button
         btn_back = Button(
             text='← Назад',
             size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
+            height=dp(50),
+            font_size=dp(20),
             background_color=(0.5, 0.5, 0.5, 1)
         )
         btn_back.bind(on_press=self.on_back)
         layout.add_widget(btn_back)
-        
+
         self.add_widget(layout)
     
     def select_class(self, cls, button):
@@ -355,8 +448,6 @@ class CharacterCreationScreen(Screen):
         
         app = App.get_running_app()
         app.game = game
-        app.game_screen.game = game
-        app.game_screen.update_game_state()
         
         # Показываем приветственное сообщение
         weapon_name = (
@@ -392,8 +483,14 @@ class CharacterCreationScreen(Screen):
             size_hint=(0.8, 0.6)
         )
         popup.open()
-        
-        self.manager.current = 'game'
+        # Open global map directly after character creation
+        app2 = App.get_running_app()
+        try:
+            if getattr(app2, 'location_select_screen', None):
+                app2.location_select_screen.update_locations()
+        except Exception:
+            pass
+        self.manager.current = 'location_select'
     
     def on_back(self, instance):
         self.manager.current = 'main_menu'
@@ -627,114 +724,103 @@ class GameScreen(Screen):
     def enter_location(self, loc_id):
         """Вход в локацию."""
         if not self.game or not self.game.player:
-            popup = Popup(
-                title='Ошибка',
-                content=Label(
-                    text='Игра не инициализирована!'
-                ),
-                size_hint=(0.6, 0.3)
-            )
-            popup.open()
-            return
-        
+            return  # Early return if game or player is not initialized
+
         if not self.game.player.is_alive:
             popup = Popup(
                 title='Ошибка',
-                content=Label(
-                    text='Вы не можете идти - вы мертвы!'
-                ),
-                size_hint=(0.6, 0.3)
-            )
-            popup.open()
-            return
-        
-        # Получить локацию из общего менеджера игры
-        location_manager = self.game.location_manager
-        location = location_manager.get_location(loc_id)
-        # Отмечаем что локация посещена
-        if location:
-            location.visited = True
-        
-        if not location:
-            popup = Popup(
-                title='Ошибка',
-                content=Label(
-                    text='Локация не найдена!'
-                ),
+                content=Label(text='Вы не можете идти - вы мертвы!'),
                 size_hint=(0.6, 0.3)
             )
             popup.open()
             return
 
-        if location.is_locked:
-            condition_text = (
-                location.unlock_condition or
-                "Эта локация пока недоступна."
+        # Получить локацию из менеджера
+        location_manager = getattr(self.game, 'location_manager', None)
+        location = None
+        if location_manager:
+            try:
+                location = location_manager.get_location(loc_id)
+            except Exception:
+                location = None
+
+        if location:
+            location.visited = True
+
+        if not location:
+            popup = Popup(
+                title='Ошибка',
+                content=Label(text='Локация не найдена!'),
+                size_hint=(0.6, 0.3)
             )
+            popup.open()
+            return
+
+        if getattr(location, 'is_locked', False):
+            condition_text = getattr(location, 'unlock_condition', None) or 'Эта локация пока недоступна.'
             popup = Popup(
                 title=f'🔒 {location.name}',
-                content=Label(
-                    text=(
-                        f"Требования для разблокировки:\n"
-                        f"{condition_text}"
-                    ),
-                    text_size=(None, None),
-                    halign='center',
-                    valign='middle',
-                    font_size=dp(18)
-                ),
+                content=Label(text=f"Требования для разблокировки:\n{condition_text}", font_size=dp(18)),
                 size_hint=(0.7, 0.4)
             )
             popup.open()
             return
-        
-        # Специальная обработка для Пещеры Древних
-        if loc_id == "ancient_cave":
+
+        # Special case: ancient cave -> boss selection screen
+        if loc_id == 'ancient_cave':
             app = App.get_running_app()
-            app.ancient_cave_boss_screen.update_bosses()
-            self.manager.current = 'ancient_cave_boss'
+            try:
+                if getattr(app, 'ancient_cave_boss_screen', None):
+                    try:
+                        app.ancient_cave_boss_screen.update_bosses()
+                    except Exception:
+                        pass
+                # switch to boss selection
+                try:
+                    self.manager.current = 'ancient_cave_boss'
+                except Exception:
+                    if getattr(app, 'sm', None):
+                        app.sm.current = 'ancient_cave_boss'
+            except Exception:
+                pass
             return
-        
-        # Обычная генерация врагов для прочих локаций
-        self.game.day += 1
-        self.game.player.battles_fought += 1
-        
-        enemies = (
-            EnemyGenerator.generate_for_location(
-                loc_id,
-                self.game.player.level,
-                random.randint(1, 3)
-            )
-        )
-        
-        if not enemies:
-            # Если нет врагов - это ошибка в данных
-            # Создаем обычных волков как fallback
-            from core.creatures import Creature
-            enemies = [
-                Creature(
-                    "Враг",
-                    30,
-                    8,
-                    20,
-                    level=self.game.player.level
-                )
-                for _ in range(random.randint(1, 2))
-            ]
-        
-        self.battlefield = Battlefield(
-            self.game.player,
-            enemies
-        )
-        self.current_location = location
-        
-        # Переход на экран боя
+
+        # Normal locations -> start a battle
         app = App.get_running_app()
-        app.battle_screen.start_battle(
-            self.battlefield,
-            location.name
-        )
-        self.manager.current = 'battle'
+        player = self.game.player
+
+        # choose enemy count 1-3
+        cnt = random.randint(1, 3)
+        try:
+            enemies = EnemyGenerator.generate_for_location(loc_id, player.level, count=cnt)
+        except Exception:
+            enemies = []
+
+        if not enemies:
+            popup = Popup(title='Ошибка', content=Label(text='Нет врагов для этой локации.'), size_hint=(0.6, 0.3))
+            popup.open()
+            return
+
+        # progress day/battles
+        try:
+            self.game.day += 1
+            self.game.player.battles_fought += 1
+        except Exception:
+            pass
+
+        self.battlefield = Battlefield(self.game.player, enemies)
+        self.current_location = location
+
+        try:
+            if app and getattr(app, 'battle_screen', None):
+                app.battle_screen.start_battle(self.battlefield, location.name)
+            else:
+                # fallback: use self.manager to switch to battle and let battle screen pick up
+                pass
+            self.manager.current = 'battle'
+        except Exception:
+            popup = Popup(title='Ошибка', content=Label(text='Не удалось начать бой.'), size_hint=(0.6, 0.3))
+            popup.open()
     
     def on_city(self, instance):
         if not self.game or not self.game.player:
@@ -1456,8 +1542,7 @@ class BattleScreen(Screen):
 
         def return_to_main_menu(instance):
             popup.dismiss()
-            app.game_screen.update_game_state()
-            self.manager.current = 'game'
+            self.manager.current = 'location_select'
 
         btn_continue = Button(text='Продолжить', size_hint_y=None, height=dp(50))
         btn_continue.bind(on_press=return_to_main_menu)
@@ -1530,14 +1615,16 @@ class BattleScreen(Screen):
                 def close_popup(instance):
                     popup.dismiss()
 
-                btn_continue = Button(text='Продолжить', size_hint_y=None, height=dp(50))
+                btn_continue = Button(
+                    text='Продолжить',
+                    size_hint_y=None,
+                    height=dp(50)
+                )
                 btn_continue.bind(on_press=close_popup)
                 popup.content.add_widget(btn_continue)
                 popup.open()
 
-            app.game_screen.game = app.game
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
+        self.manager.current = 'location_select'
 
 
 class TavernScreen(Screen):
@@ -1597,17 +1684,10 @@ class TavernScreen(Screen):
         scroll.add_widget(self.content_layout)
         layout.add_widget(scroll)
         
-        btn_back = Button(
-            text='← Назад',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
-            background_color=(0.5, 0.5, 0.5, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-        
         self.add_widget(layout)
+        # add map and city return buttons in top-left
+        _add_back_to_map_button(self, self.manager)
+        _add_back_to_city_button(self, self.manager)
         self.current_tab = 'npcs'
         self.npc_manager = None
     
@@ -1777,8 +1857,6 @@ class TavernScreen(Screen):
         )
         popup.open()
         self.show_quests()
-        # Обновляем игровой экран
-        app.game_screen.update_game_state()
     
     def hire_companion(self, name, role):
         app = App.get_running_app()
@@ -1835,14 +1913,6 @@ class TavernScreen(Screen):
         )
         popup.open()
         self.show_companions()
-        # Обновляем игровой экран
-        app.game_screen.update_game_state()
-    
-    def on_back(self, instance):
-        app = App.get_running_app()
-        if app.game:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
 
 
 class ShopScreen(Screen):
@@ -1876,11 +1946,10 @@ class ShopScreen(Screen):
         scroll.add_widget(self.content_layout)
         layout.add_widget(scroll)
         
-        btn_back = Button(text='← Назад', size_hint_y=None, height=dp(50), font_size=dp(20))
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-        
         self.add_widget(layout)
+        # add map and city return buttons in top-left
+        _add_back_to_map_button(self, self.manager)
+        _add_back_to_city_button(self, self.manager)
         self.current_tab = 'buy'
     
     def update_shop(self):
@@ -2044,12 +2113,6 @@ class ShopScreen(Screen):
         popup.open()
         self.show_sell()
     
-    def on_back(self, instance):
-        app = App.get_running_app()
-        if app.game:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
-
 
 class CasinoScreen(Screen):
     """Экран казино."""
@@ -2132,17 +2195,10 @@ class CasinoScreen(Screen):
         
         layout.add_widget(games_layout)
         
-        btn_back = Button(
-            text='← Назад',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
-            background_color=(0.5, 0.5, 0.5, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-        
         self.add_widget(layout)
+        # add map and city return buttons in top-left
+        _add_back_to_map_button(self, self.manager)
+        _add_back_to_city_button(self, self.manager)
     
     def update_casino(self):
         app = App.get_running_app()
@@ -2228,12 +2284,6 @@ class CasinoScreen(Screen):
             size_hint=(0.7, 0.5)
         )
         popup.open()
-    
-    def on_back(self, instance):
-        app = App.get_running_app()
-        if app.game:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
 
 
 class InventoryScreen(Screen):
@@ -2279,17 +2329,11 @@ class InventoryScreen(Screen):
         scroll.add_widget(self.items_layout)
         layout.add_widget(scroll)
         
-        btn_back = Button(
-            text='← Назад',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
-            background_color=(0.5, 0.5, 0.5, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-        
         self.add_widget(layout)
+        # add map and city return buttons in top-left
+        _add_back_to_map_button(self, self.manager)
+        _add_back_to_city_button(self, self.manager)
+        _add_back_to_city_button(self, self.manager)
     
     def update_inventory(self):
         app = App.get_running_app()
@@ -2590,12 +2634,6 @@ class InventoryScreen(Screen):
         # Обновляем инвентарь
         self.update_inventory()
 
-    def on_back(self, instance):
-        app = App.get_running_app()
-        if app.game:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
-
 
 class BattleInventoryScreen(Screen):
     """Экран инвентаря в бою."""
@@ -2889,17 +2927,9 @@ class StatusScreen(Screen):
         scroll.add_widget(self.status_label)
         layout.add_widget(scroll)
         
-        btn_back = Button(
-            text='← Назад',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
-            background_color=(0.5, 0.5, 0.5, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-        
         self.add_widget(layout)
+        # remove old back button; add edge 'Back to Map' button
+        _add_back_to_map_button(self, self.manager)
     
     def update_status(self):
         app = App.get_running_app()
@@ -2984,9 +3014,6 @@ class StatusScreen(Screen):
                 text += f"  • {h}\n"
         
         self.status_label.text = text
-    
-    def on_back(self, instance):
-        self.manager.current = 'game'
 
 
 class LocationSelectScreen(Screen):
@@ -3066,21 +3093,13 @@ class LocationSelectScreen(Screen):
 
         main_layout.add_widget(self.map_container)
 
-        # bottom controls
+        # bottom controls (status button occupies full width on map)
         btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None)
         btn_layout.height = dp(50)
 
-        btn_back = Button(
-            text='← Назад',
-            size_hint_x=0.5,
-            background_color=(0.4, 0.4, 0.4, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        btn_layout.add_widget(btn_back)
-
         btn_stats = Button(
             text='📊 Статус',
-            size_hint_x=0.5,
+            size_hint_x=1,
             background_color=(0.5, 0.5, 0.7, 1)
         )
         btn_stats.bind(on_press=self.on_status)
@@ -3293,28 +3312,36 @@ class LocationSelectScreen(Screen):
         app = App.get_running_app()
         # only allow entering if game/player initialized
         if not getattr(app, 'game', None) or not getattr(app.game, 'player', None):
-            popup = Popup(title='Ошибка', content=Label(text='Игра не инициализирована!'), size_hint=(0.6, 0.3))
+            popup = Popup(
+                title='Ошибка',
+                content=Label(text='Игра не инициализирована!'),
+                size_hint=(0.6, 0.3)
+            )
             popup.open()
             return
 
-        # delegate to GameScreen.enter_location which will choose the
-        # appropriate next screen (battle or boss selection)
-        try:
-            app.game_screen.enter_location(loc_id)
-        except Exception:
-            # fallback: if something goes wrong, show battle as before
+        # Determine location and handle appropriately
+        if loc_id == 'ancient_cave':
+            # Boss selection for ancient cave
+            self.manager.current = 'ancient_cave_boss'
+        else:
+            # Start normal battle for other locations: generate enemies
             try:
-                app.battle_screen.start_battle(None, '')
+                player = app.game.player
+                # generate 1-3 enemies depending on location difficulty
+                import random as _rand
+                count = _rand.randint(1, 3)
+                enemies = EnemyGenerator.generate_for_location(loc_id, player.level, count=count)
+                if not enemies:
+                    popup = Popup(title='Ошибка', content=Label(text='Нет доступных врагов для этой локации.'), size_hint=(0.6, 0.3))
+                    popup.open()
+                    return
+                battlefield = Battlefield(player, enemies)
+                app.battle_screen.start_battle(battlefield, None)
                 self.manager.current = 'battle'
-            except Exception:
+            except Exception as e:
+                print(f"[DEBUG] failed to start battle for {loc_id}: {e}")
                 pass
-    
-    def on_back(self, instance):
-        """Возврат в главное меню игры."""
-        app = App.get_running_app()
-        if app.game_screen:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
     
     def on_status(self, instance):
         """Открыть статус."""
@@ -3445,20 +3472,9 @@ class AncientCaveBossSelectScreen(Screen):
         scroll.add_widget(self.bosses_layout)
         main_layout.add_widget(scroll)
         
-        # Кнопки внизу
-        btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None)
-        btn_layout.height = dp(50)
-        
-        btn_back = Button(
-            text='← Назад',
-            size_hint_x=1,
-            background_color=(0.4, 0.4, 0.4, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        btn_layout.add_widget(btn_back)
-        
-        main_layout.add_widget(btn_layout)
         self.add_widget(main_layout)
+        # replace old bottom back with edge 'Back to Map' button
+        _add_back_to_map_button(self, self.manager)
     
     def update_bosses(self):
         """Обновление списка боссов."""
@@ -3561,6 +3577,18 @@ class AncientCaveBossSelectScreen(Screen):
         )
         self.manager.current = 'battle'
     
+    def on_enter(self):
+        """Обновление данных при входе на экран выбора боссов."""
+        app = App.get_running_app()
+        self.game = getattr(app, 'game', None)
+        if self.game and getattr(self.game, 'location_manager', None):
+            self.location_manager = self.game.location_manager
+        # Refresh the boss list when screen is entered
+        try:
+            self.update_bosses()
+        except Exception:
+            pass
+    
     def on_locked_boss(self, boss_info):
         """Показать требования для разблокировки босса."""
         popup = Popup(
@@ -3576,12 +3604,6 @@ class AncientCaveBossSelectScreen(Screen):
         )
         popup.open()
     
-    def on_back(self, instance):
-        """Возврат в главное меню игры."""
-        app = App.get_running_app()
-        if app.game_screen:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
 
 
 class NPCDialogueScreen(Screen):
@@ -4048,24 +4070,6 @@ class LootWindowScreen(Screen):
             # Add experience and trigger level-ups
             player.add_experience(self.battle_result.xp_earned)
 
-            # Обновляем прогресс локации и возможные разблокировки
-            try:
-                current_loc = getattr(app.game_screen, 'current_location', None)
-                if current_loc:
-                    app.game.location_manager.increment_quest_counter(current_loc.id)
-                    unlocked = app.game.location_manager.check_and_unlock_locations()
-                    if unlocked:
-                        # Показываем небольшой popup о разблокировке
-                        names = [app.game.location_manager.get_location(l).name for l in unlocked]
-                        popup = Popup(
-                            title='🔓 Новые локации!',
-                            content=Label(text='\n'.join(names)),
-                            size_hint=(0.6, 0.3)
-                        )
-                        popup.open()
-            except Exception:
-                pass
-
             # Обновляем магазин по новым разблокировкам
             try:
                 app.game.shop.refresh(app.game.location_manager)
@@ -4075,8 +4079,7 @@ class LootWindowScreen(Screen):
             except Exception:
                 pass
         
-        app.game_screen.update_game_state()
-        self.manager.current = 'game'
+        self.manager.current = 'location_select'
 
 
 class CompanionManagementScreen(Screen):
@@ -4171,17 +4174,9 @@ class CompanionManagementScreen(Screen):
 
         layout.add_widget(actions_layout)
 
-        btn_back = Button(
-            text='← Назад',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
-            background_color=(0.5, 0.5, 0.5, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-
         self.add_widget(layout)
+        # remove old back button; add edge 'Back to Map' button
+        _add_back_to_map_button(self, self.manager)
 
     def update_companion(self):
         """Обновить информацию о спутнике."""
@@ -4490,13 +4485,6 @@ class CompanionManagementScreen(Screen):
 
         self.update_companion()
 
-    def on_back(self, instance):
-        """Вернуться в главное меню."""
-        app = App.get_running_app()
-        if app.game:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
-
 
 class ActiveQuestsScreen(Screen):
     """Экран активных квестов."""
@@ -4548,18 +4536,10 @@ class ActiveQuestsScreen(Screen):
         scroll.add_widget(self.quests_layout)
         main_layout.add_widget(scroll)
         
-        # Кнопка назад
-        btn_back = Button(
-            text='← Назад',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(22),
-            background_color=(0.5, 0.5, 0.5, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        main_layout.add_widget(btn_back)
-        
         self.add_widget(main_layout)
+        # Кнопка назад
+        # replace old bottom back with edge 'Back to Map' button
+        _add_back_to_map_button(self, self.manager)
     
     def update_quests(self):
         """Обновить список активных квестов."""
@@ -4663,12 +4643,6 @@ class ActiveQuestsScreen(Screen):
             quest_box.add_widget(reward_label)
             
             self.quests_layout.add_widget(quest_box)
-    
-    def on_back(self, instance):
-        app = App.get_running_app()
-        if app.game:
-            app.game_screen.update_game_state()
-        self.manager.current = 'game'
 
 
 class CityMenuScreen(Screen):
@@ -4728,18 +4702,11 @@ class CityMenuScreen(Screen):
         layout.add_widget(btn_casino)
         
         layout.add_widget(Widget(size_hint_y=1))
-        
-        btn_back = Button(
-            text='← Вернуться',
-            size_hint_y=None,
-            height=dp(55),
-            font_size=dp(20),
-            background_color=(0.4, 0.4, 0.4, 1)
-        )
-        btn_back.bind(on_press=self.on_back)
-        layout.add_widget(btn_back)
-        
+
         self.add_widget(layout)
+
+        # add edge 'Back to Map' button after layout so it's on top
+        _add_back_to_map_button(self, self.manager)
     
     def on_tavern(self, instance):
         app = App.get_running_app()
@@ -4758,9 +4725,6 @@ class CityMenuScreen(Screen):
         if app.casino_screen:
             app.casino_screen.update_casino()
         self.manager.current = 'casino'
-    
-    def on_back(self, instance):
-        self.manager.current = 'game'
 
 
 class RPGApp(App):
