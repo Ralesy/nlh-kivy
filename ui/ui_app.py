@@ -1091,13 +1091,16 @@ class BattleScreen(Screen):
                 bg_color = (0.5, 0.5, 0.5, 1)  # Серый для почти мертвых
             
             btn = Button(
-                text=f"⚔️ {enemy.name}\n💚 HP: {enemy.health}/"
-                     f"{enemy.max_health} | ⚔️ DMG: {enemy.damage}",
+                text=(
+                    f"⚔️ {enemy.name}\n"
+                    f"💚 HP: {enemy.health}/{enemy.max_health} | ⚔️ DMG: {enemy.damage}"
+                    f" | 🛡️ DEF: {enemy.defense}"
+                ),
                 size_hint_y=None,
                 height=dp(60),
                 font_size=dp(16),
                 disabled=self.is_processing_turn,
-                background_color=bg_color
+                background_color=bg_color,
             )
             btn.bind(on_press=lambda x, idx=i: self.attack_enemy(idx))
             self.enemies_layout.add_widget(btn)

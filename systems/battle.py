@@ -10,7 +10,7 @@ import random
 from typing import List, Tuple, Optional
 from core.creatures import Creature, Player
 from core.utils import clamp
-from data.items import ItemDatabase
+from data.items import ItemDatabase, Weapon, Armor
 from data.enemies import EnemyDatabase
 
 
@@ -81,6 +81,25 @@ class EnemyGenerator:
             # Сохраняем шаблон для дропа
             enemy._template = enemy_template
 
+            # Попробуем экипировать врага из его таблицы лута (если есть)
+            try:
+                ItemDatabase.initialize()
+            except Exception:
+                pass
+
+            if enemy._template and enemy._template.loot_table:
+                for item_id, _chance in enemy._template.loot_table:
+                    it = ItemDatabase.get(item_id)
+                    if it is None:
+                        continue
+                    # экипируем броню и оружие, если ещё не надеты
+                    if isinstance(it, Armor) and enemy.armor is None:
+                        enemy.equip_armor(it)
+                    elif isinstance(it, Weapon) and enemy.weapon is None:
+                        enemy.equip_weapon(it)
+                    if enemy.weapon and enemy.armor:
+                        break
+
             enemies.append(enemy)
 
         return enemies
@@ -100,6 +119,23 @@ class EnemyGenerator:
             level=10
         )
         enemy._template = enemy_template
+        # Экипируем босса из его таблицы лута (если есть)
+        try:
+            ItemDatabase.initialize()
+        except Exception:
+            pass
+
+        if enemy._template and enemy._template.loot_table:
+            for item_id, _chance in enemy._template.loot_table:
+                it = ItemDatabase.get(item_id)
+                if it is None:
+                    continue
+                if isinstance(it, Armor) and enemy.armor is None:
+                    enemy.equip_armor(it)
+                elif isinstance(it, Weapon) and enemy.weapon is None:
+                    enemy.equip_weapon(it)
+                if enemy.weapon and enemy.armor:
+                    break
         return enemy
 
 
@@ -244,7 +280,10 @@ class Battlefield:
         
         # Применяем пассивные способности
         damage = self._apply_passive_abilities(damage)
+        # Сохраняем значение до игнорирования брони, чтобы показать его в логе
+        damage_before_armor_ignore = damage
         damage = self._apply_armor_ignore(damage, target)
+        armor_ignored = damage - damage_before_armor_ignore
         
         # Проверка на критический удар
         crit_chance = self._get_critical_chance()
@@ -254,11 +293,17 @@ class Battlefield:
         
         dealt = target.take_damage(damage)
 
-        log = f"Вы наносите {dealt} урона по {target.name}."
+        # Формируем лог с указанием, сколько брони было проигнорировано (если есть)
+        if armor_ignored and armor_ignored > 0:
+            ignore_text = f" (игнорируя {armor_ignored} ед. брони)"
+        else:
+            ignore_text = ""
+
+        log = f"Вы наносите {dealt} урона по {target.name}.{ignore_text}"
         if is_critical:
             log = (
                 f"⚡ КРИТИЧЕСКИЙ УДАР! ⚡ Вы наносите "
-                f"{dealt} урона по {target.name}!"
+                f"{dealt} урона по {target.name}!{ignore_text}"
             )
         
         killed = not target.is_alive
@@ -464,6 +509,16 @@ class Battlefield:
                 drops = template.generate_loot()
                 for item_id, qty in drops:
                     loot_items.append(LootDrop(item_id, qty))
+
+            # Если у врага надето оружие/броня — добавляем их в лут
+            if getattr(enemy, 'weapon', None):
+                wid = getattr(enemy.weapon, 'id', None)
+                if wid:
+                    loot_items.append(LootDrop(wid, 1))
+            if getattr(enemy, 'armor', None):
+                aid = getattr(enemy.armor, 'id', None)
+                if aid:
+                    loot_items.append(LootDrop(aid, 1))
 
         return BattleResult(
             victory=True,
