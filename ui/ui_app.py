@@ -4519,16 +4519,19 @@ class CityMenuScreen(Screen):
     def on_tavern(self, instance):
         app = App.get_running_app()
         if app.tavern_screen:
-            app.tavern_screen.update_npcs()
+            app.tavern_screen.update_tavern()
         self.manager.current = 'tavern'
     
     def on_shop(self, instance):
         app = App.get_running_app()
         if app.shop_screen:
-            app.shop_screen.update_items()
+            app.shop_screen.update_shop()
         self.manager.current = 'shop'
     
     def on_casino(self, instance):
+        app = App.get_running_app()
+        if app.casino_screen:
+            app.casino_screen.update_casino()
         self.manager.current = 'casino'
     
     def on_back(self, instance):
