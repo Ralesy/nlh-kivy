@@ -142,14 +142,142 @@ class GameHUD(BoxLayout):
             pass
 
     def _on_player_event(self, event, **kwargs):
-        # Schedule update on the main thread
+        # Schedule update on the main thread and handle special events
         try:
             Clock.schedule_once(lambda dt: self.update(), 0)
+            # If player leveled up, show level-up popup to allocate skill points
+            try:
+                if event == 'level':
+                    player = getattr(self, '_bound_player', None)
+                    if player and getattr(player, 'skill_points_available', 0) > 0:
+                        # Small delay to ensure HUD updated first
+                        Clock.schedule_once(lambda dt: LevelUpPopup(player).open(), 0.05)
+            except Exception:
+                pass
         except Exception:
             try:
                 self.update()
             except Exception:
                 pass
+
+    def update(self):
+        app = App.get_running_app()
+        if not app or not getattr(app, 'game', None) or not getattr(app.game, 'player', None):
+            return
+        p = app.game.player
+        try:
+            self.level_label.text = f"Lvl: {p.level}"
+            # HP text and bar
+            self.hp_label.text = f"HP: {p.health}/{p.max_health}"
+            try:
+                pct = float(p.health) / float(p.max_health) if p.max_health else 0.0
+            except Exception:
+                pct = 0.0
+            # update HP bar width
+            try:
+                container = self._hp_bar_container
+                full_w = max(1, container.width)
+                fg_w = max(0, int(full_w * pct))
+                self._hp_bar_fg.size = (fg_w, container.height)
+            except Exception:
+                pass
+            # XP text and bar
+            req = p.level * 100 if getattr(p, 'level', 0) else 0
+            self.xp_label.text = f"XP: {p.experience}/{req}"
+            try:
+                xp_pct = float(p.experience) / float(req) if req else 0.0
+            except Exception:
+                xp_pct = 0.0
+            # update XP bar width
+            try:
+                container = self._xp_bar_container
+                full_w = max(1, container.width)
+                fg_w = max(0, int(full_w * xp_pct))
+                self._xp_bar_fg.size = (fg_w, container.height)
+            except Exception:
+                pass
+            # Stats (no emoji)
+            self.dmg_label.text = f"DMG: {p.damage}"
+            self.def_label.text = f"DEF: {p.defense}"
+            self.coins_label_small.text = f"COINS: {p.coins}"
+        except Exception:
+            pass
+
+
+class LevelUpPopup(Popup):
+    """Popup allowing the player to distribute available skill points."""
+
+    def __init__(self, player, **kwargs):
+        super().__init__(**kwargs)
+        self.title = 'Распределение очков'
+        self.size_hint = (0.7, 0.7)
+        self.auto_dismiss = False
+        self.player = player
+
+        root = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
+
+        self.info_label = Label(text=self._info_text(), size_hint_y=None, height=dp(40))
+        root.add_widget(self.info_label)
+
+        # Skills grid
+        grid = GridLayout(cols=2, spacing=dp(8), size_hint_y=1)
+
+        self.skill_rows = {}
+        for skill in ['endurance', 'strength', 'agility', 'luck', 'trade']:
+            name = skill.capitalize()
+            lbl = Label(text=f"{name}: {self.player.skill_points_allocated.get(skill,0)}", halign='left')
+            btn_box = BoxLayout(orientation='horizontal', size_hint_x=None, width=dp(160), spacing=dp(6))
+            minus = Button(text='−', size_hint_x=None, width=dp(50))
+            plus = Button(text='+', size_hint_x=None, width=dp(50))
+            minus.bind(on_press=lambda inst, s=skill: self._deallocate(s))
+            plus.bind(on_press=lambda inst, s=skill: self._allocate(s))
+            btn_box.add_widget(minus)
+            btn_box.add_widget(plus)
+            grid.add_widget(lbl)
+            grid.add_widget(btn_box)
+            self.skill_rows[skill] = lbl
+
+        root.add_widget(grid)
+
+        # Bottom controls
+        bottom = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
+        btn_done = Button(text='Готово')
+        btn_auto = Button(text='Распределить автоматически')
+        btn_done.bind(on_press=lambda inst: self.dismiss())
+        btn_auto.bind(on_press=lambda inst: self._auto_allocate())
+        bottom.add_widget(btn_auto)
+        bottom.add_widget(btn_done)
+        root.add_widget(bottom)
+
+        self.content = root
+
+    def _info_text(self):
+        pts = getattr(self.player, 'skill_points_available', 0)
+        return f"Доступно очков для распределения: {pts}"
+
+    def _refresh(self):
+        # Update info and labels
+        self.info_label.text = self._info_text()
+        for sk, lbl in self.skill_rows.items():
+            lbl.text = f"{sk.capitalize()}: {self.player.skill_points_allocated.get(sk,0)}"
+
+    def _allocate(self, skill):
+        if self.player.allocate_skill_point(skill):
+            self._refresh()
+
+    def _deallocate(self, skill):
+        if self.player.deallocate_skill_point(skill):
+            self._refresh()
+
+    def _auto_allocate(self):
+        # Simple heuristic: put remaining points into strength then endurance
+        order = ['strength', 'endurance', 'agility', 'luck', 'trade']
+        while getattr(self.player, 'skill_points_available', 0) > 0:
+            for s in order:
+                if self.player.skill_points_available <= 0:
+                    break
+                self.player.allocate_skill_point(s)
+        self._refresh()
 
     def update(self):
         app = App.get_running_app()
@@ -3193,7 +3321,7 @@ class StatusScreen(Screen):
             f"👤 ПЕРСОНАЖ\n"
             f"═══════════════════════════════════\n"
             f"Имя: {p.name}\n"
-            f"Класс: {p.CLASS_STATS[p.cls]['name']}\n"
+            f"Класс: {p.background}\n"
             f"Уровень: {p.level} ⭐\n"
             f"День: {app.game.day} 📅\n\n"
             f"═══════════════════════════════════\n"

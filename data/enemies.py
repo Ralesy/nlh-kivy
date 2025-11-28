@@ -34,8 +34,13 @@ class Enemy:
         self.loot_table = loot_table or []
         self.is_boss = is_boss
 
-    def generate_loot(self) -> List[Tuple[str, int]]:
-        """Генерировать лут при убийстве."""
+    def generate_loot(self, luck: float = 1.0) -> List[Tuple[str, int]]:
+        """Генерировать лут при убийстве.
+
+        :param luck: multiplicative luck factor from the player (1.0 = neutral).
+        Luck increases the probability of rare drops and biases weighted
+        selections toward higher-weighted items.
+        """
         loot = []
 
         # Животные/монстры: только опыт и деньги
@@ -45,13 +50,17 @@ class Enemy:
         # Гуманоиды: из своего таблицы дропа
         if self.enemy_type == "humanoid":
             if self.loot_table:
+                # Apply luck as a multiplier to the weights: higher luck biases selection
                 items = [item_id for item_id, _ in self.loot_table]
-                chances = [chance for _, chance in self.loot_table]
-                chosen_item = random.choices(items, weights=chances, k=1)[0]
+                base_chances = [chance for _, chance in self.loot_table]
+                # Multiply weights by luck to bias toward better outcomes when luck>1
+                adj_chances = [max(0.0, c * luck) for c in base_chances]
+                chosen_item = random.choices(items, weights=adj_chances, k=1)[0]
                 loot.append((chosen_item, 1))
 
-            # 10% шанс на редкий предмет более высокого уровня
-            if random.random() < 0.10:
+            # Rare drop chance scales with luck (base 10%)
+            rare_chance = 0.10 * luck
+            if random.random() < rare_chance:
                 # Выбираем случайный редкий предмет из доступных
                 rare_items = [
                     "w_steel_sword", "w_steel_axe",
@@ -60,6 +69,7 @@ class Enemy:
                 ]
                 # include staffs among rare drops
                 rare_items.append("w_steel_staff")
+                # Slight extra roll to avoid always granting rare item when luck is high
                 if random.random() < 0.5:
                     loot.append((random.choice(rare_items), 1))
 

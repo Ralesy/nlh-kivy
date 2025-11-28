@@ -504,13 +504,7 @@ class Battlefield:
             else:
                 total_xp += enemy.level * 30
 
-            # Дроп предметов
-            if template:
-                drops = template.generate_loot()
-                for item_id, qty in drops:
-                    loot_items.append(LootDrop(item_id, qty))
-
-            # Если у врага надето оружие/броня — добавляем их в лут
+            # ОСНОВНОЙ ЛУТ: только то, что надето на враге
             if getattr(enemy, 'weapon', None):
                 wid = getattr(enemy.weapon, 'id', None)
                 if wid:
@@ -519,6 +513,27 @@ class Battlefield:
                 aid = getattr(enemy.armor, 'id', None)
                 if aid:
                     loot_items.append(LootDrop(aid, 1))
+
+            # БОНУСНЫЙ ЛУТ: дополнительный предмет, если повезёт (зависит от удачи)
+            if template and template.loot_table:
+                try:
+                    player_luck = getattr(self.player, 'luck', 1.0)
+                except Exception:
+                    player_luck = 1.0
+                
+                # Базовый шанс выпадения бонуса = 15%
+                # С удачей 1.5: 15% * 1.5 = 22.5%
+                # С удачей 2.0: 15% * 2.0 = 30%
+                bonus_chance = 0.15 * player_luck
+                
+                if random.random() < bonus_chance:
+                    # Выбираем бонусный предмет из таблицы лута врага
+                    items = [item_id for item_id, _ in template.loot_table]
+                    chances = [chance for _, chance in template.loot_table]
+                    # Увеличиваем вероятность лучших предметов с удачей
+                    adj_chances = [max(0.0, c * player_luck) for c in chances]
+                    bonus_item = random.choices(items, weights=adj_chances, k=1)[0]
+                    loot_items.append(LootDrop(bonus_item, 1))
 
         return BattleResult(
             victory=True,

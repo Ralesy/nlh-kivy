@@ -606,7 +606,7 @@ class Player(Creature):
         """Получить статистику сессии."""
         return {
             "name": self.name,
-            "class": self.CLASS_STATS[self.cls]["name"],
+            "class": self.background,
             "level": self.level,
             "experience": self.experience,
             "coins": self.coins,
