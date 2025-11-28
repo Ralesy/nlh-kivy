@@ -357,6 +357,15 @@ class MainMenuScreen(Screen):
         )
         btn_load.bind(on_press=self.on_load_game)
         button_layout.add_widget(btn_load)
+
+        btn_save = Button(
+            text='💾 Сохранить игру',
+            size_hint_y=None,
+            height=dp(60),
+            font_size=dp(24)
+        )
+        btn_save.bind(on_press=self.on_save_game)
+        button_layout.add_widget(btn_save)
         
         btn_exit = Button(
             text='← Выход',
@@ -370,8 +379,53 @@ class MainMenuScreen(Screen):
         layout.add_widget(button_layout)
         self.add_widget(layout)
     
+
     def on_new_game(self, instance):
         self.manager.current = 'character_creation'
+
+    def on_save_game(self, instance):
+        # Popup for entering save name
+        from kivy.uix.textinput import TextInput
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.button import Button
+        from kivy.uix.label import Label
+        from kivy.uix.popup import Popup
+        app = App.get_running_app()
+        layout = BoxLayout(orientation='vertical', spacing=12, padding=12)
+        label = Label(text='Введите имя сохранения:', size_hint_y=None, height=dp(32))
+        name_input = TextInput(text='', multiline=False, size_hint_y=None, height=dp(40))
+        layout.add_widget(label)
+        layout.add_widget(name_input)
+        btn_save = Button(text='Сохранить', size_hint_y=None, height=dp(40))
+        btn_cancel = Button(text='Отмена', size_hint_y=None, height=dp(40))
+        btns = BoxLayout(orientation='horizontal', spacing=8, size_hint_y=None, height=dp(40))
+        btns.add_widget(btn_save)
+        btns.add_widget(btn_cancel)
+        layout.add_widget(btns)
+        popup = Popup(title='Сохранение игры', content=layout, size_hint=(0.5, 0.35))
+
+        def do_save(instance):
+            save_name = name_input.text.strip()
+            if not save_name:
+                label.text = 'Имя не может быть пустым!'
+                return
+            try:
+                if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+                    from systems.save_system import save_game
+                    ok = save_game(app.game.player, save_name)
+                    if ok:
+                        popup.dismiss()
+                        Popup(title='Успех', content=Label(text=f'Игра сохранена как "{save_name}"'), size_hint=(0.5, 0.3)).open()
+                    else:
+                        label.text = 'Ошибка сохранения!'
+                else:
+                    label.text = 'Нет активной игры для сохранения.'
+            except Exception as e:
+                label.text = f'Ошибка: {e}'
+
+        btn_save.bind(on_press=do_save)
+        btn_cancel.bind(on_press=lambda x: popup.dismiss())
+        popup.open()
     
     def on_continue_game(self, instance):
         """Load the most recent save file."""
@@ -4242,31 +4296,48 @@ class LootWindowScreen(Screen):
         self.add_widget(main_layout)
     
     def show_loot(self, battle_result):
-        """Показать добычу."""
+        """Показать окно выбора лута (Mount & Blade style)."""
+        from ui.loot_window import LootWindow
         self.battle_result = battle_result
+        self.clear_widgets()
         app = App.get_running_app()
-        
-        # Статистика
-        self.stats_label.text = (
-            f"💰 Получено: {battle_result.gold_earned} монет\n"
-            f"✨ Опыт: {battle_result.xp_earned} XP"
+        player_inventory = (
+            app.game.player.inventory
+            if app and app.game and app.game.player
+            else None
         )
-        
-        # Предметы
-        self.loot_layout.clear_widgets()
-        
-        for loot in battle_result.loot:
-            loot_label = Label(
-                text=self._format_loot_item(loot),
-                size_hint_y=None,
-                height=dp(40),
-                text_size=(None, None),
-                halign='center',
-                valign='center',
-                font_size=dp(14),
-                color=(0.9, 0.9, 0.5, 1)
+        loot_items = (
+            battle_result.loot
+            if battle_result.loot
+            else []
+        )
+
+        def on_done(selected):
+            # Предметы уже добавлены при нажатии на
+            # каждую кнопку "Взять"
+            # Добавляем золото и опыт
+            app.game.player.coins += (
+                battle_result.gold_earned
             )
-            self.loot_layout.add_widget(loot_label)
+            app.game.player.add_experience(
+                battle_result.xp_earned
+            )
+            # Обновляем карту/списки перед переходом на глобальную карту
+            try:
+                if hasattr(app, 'location_select_screen'):
+                    app.location_select_screen.update_locations()
+            except Exception:
+                pass
+            # Переходим на глобальную карту
+            self.manager.current = 'location_select'
+
+        loot_window = LootWindow(
+            loot_items,
+            player_inventory,
+            on_done
+        )
+        self.add_widget(loot_window)
+
     
     def _format_loot_item(self, loot_drop):
         """Форматировать предмет добычи."""

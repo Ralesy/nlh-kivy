@@ -317,27 +317,76 @@ class Game:
             print("Неверный выбор.")
 
     def show_loot_window(self, result: BattleResult) -> None:
-        """Показать окно лута."""
-        print_section("ЛУТ")
-        print(f"💰 Получено: {result.gold_earned} золота")
-        print(f"⭐ Получено: {result.xp_earned} опыта\n")
 
-        if result.loot:
-            print("Предметы:")
-            for i, loot in enumerate(result.loot, 1):
-                print(f"  {i}) {loot.display()}")
-                # Автоматически берём лут если есть место
-                if self.player.inventory.has_space_for(loot.quantity):
-                    item = ItemDatabase.get(loot.item_id)
-                    if item:
-                        self.player.inventory.add(item, loot.quantity)
+        # Если есть Kivy UI, показываем графическое окно лута
+        try:
+            from kivy.uix.popup import Popup
+            from ui.loot_window import LootWindow
+            loot_items = result.loot if result.loot else []
+            def on_done(selected):
+                for loot in selected:
+                    if self.player.inventory.has_space_for(loot.quantity):
+                        item = ItemDatabase.get(loot.item_id)
+                        if item:
+                            self.player.inventory.add(item, loot.quantity)
+                self.player.coins += result.gold_earned
+                xp_msgs = self.player.add_experience(result.xp_earned)
+                # Можно добавить всплывающее сообщение о награде
+            popup = Popup(
+                title="Лут после боя",
+                content=LootWindow(loot_items, self.player.inventory, on_done),
+                size_hint=(0.95, 0.85)
+            )
+            popup.open()
+        except Exception:
+            # Текстовый режим (консоль)
+            print_section("ЛУТ")
+            print(f"💰 Получено: {result.gold_earned} золота")
+            print(f"⭐ Получено: {result.xp_earned} опыта\n")
 
-        self.player.coins += result.gold_earned
-        xp_msgs = self.player.add_experience(result.xp_earned)
-        for msg in xp_msgs:
-            print(f"  📈 {msg}")
+            loot_items = []
+            if result.loot:
+                print("Предметы:")
+                for i, loot in enumerate(result.loot, 1):
+                    print(f"  {i}) {loot.display()}")
+                    loot_items.append(loot)
 
-        pause(2)
+            if loot_items:
+                print("\nВведите номера предметов через запятую,")
+                print("которые хотите забрать (например: 1,3,4)")
+                print("Или нажмите Enter, чтобы оставить всё.")
+                choice = input("> ").strip()
+                taken_indices = set()
+                if choice:
+                    try:
+                        taken_indices = set(
+                            int(x)-1 for x in choice.split(",")
+                            if x.strip().isdigit()
+                        )
+                    except Exception:
+                        print("Некорректный ввод, ничего не взято.")
+                taken_loot = [
+                    loot_items[i] for i in taken_indices
+                    if 0 <= i < len(loot_items)
+                ]
+                if taken_loot:
+                    for loot in taken_loot:
+                        if self.player.inventory.has_space_for(loot.quantity):
+                            item = ItemDatabase.get(loot.item_id)
+                            if item:
+                                self.player.inventory.add(item, loot.quantity)
+                    print("\n✅ Выбранные предметы добавлены в инвентарь!")
+                else:
+                    print("\n❌ Все предметы оставлены!")
+            else:
+                print("\nНет предметов для получения.")
+
+            self.player.coins += result.gold_earned
+            xp_msgs = self.player.add_experience(result.xp_earned)
+            for msg in xp_msgs:
+                print(f"  📈 {msg}")
+
+            pause(2)
 
     def visit_tavern(self) -> None:
         """Посещение таверны."""
