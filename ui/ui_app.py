@@ -2704,8 +2704,10 @@ class InventoryScreen(Screen):
         layout.add_widget(scroll)
         
         self.add_widget(layout)
-        # add map return button in top-left (do not add city button here)
+        # add map and city return buttons in top-left
         _add_back_to_map_button(self, self.manager)
+        _add_back_to_city_button(self, self.manager)
+        _add_back_to_city_button(self, self.manager)
     
     def update_inventory(self):
         app = App.get_running_app()
@@ -3438,7 +3440,8 @@ class LocationSelectScreen(Screen):
         # Get the correct path relative to the script location
         script_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(script_dir)
-        map_src = os.path.join(project_root, 'assets', 'maps', 'Emberfall_global_map.png')
+        # New global map location (assets/backgrounds/global_map)
+        map_src = os.path.join(project_root, 'assets', 'backgrounds', 'global_map', 'Emberfall_global_map.png')
         # Ensure the map fills the container (don't preserve aspect ratio)
         self.map_image = Image(
             source=map_src,
