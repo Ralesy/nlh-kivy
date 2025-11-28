@@ -20,6 +20,8 @@ from pathlib import Path
 # Добавляем корень проекта в путь Python
 sys.path.insert(0, str(Path(__file__).parent))
 
+print("Hello world")
+
 # Проверяем, запущен ли с флагом --console для консольного режима
 if '--console' in sys.argv:
     from core.game import main

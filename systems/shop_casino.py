@@ -225,82 +225,75 @@ class Shop:
 
 
 class Casino:
-    """Казино."""
+    """Небольшая реализация казино с играми: coinflip, slots, wheel."""
 
     @staticmethod
     def coinflip(bet: int, choice: str) -> Tuple[bool, int, str]:
-        """Орёл-решка."""
+        """Орёл-решка.
+
+        Возвращает кортеж (won: bool, payout: int, message: str).
+        payout положителен при выигрыше, отрицателен при проигрыше.
+        """
         if bet <= 0:
             return False, 0, "Ставка должна быть положительной."
-        if choice not in ('h', 't'):
+        if choice not in ("h", "t"):
             return False, 0, "Выберите 'h' (орёл) или 't' (решка)."
 
-        flip = random.choice(('h', 't'))
-        flip_name = "орёл" if flip == 'h' else "решка"
+        flip = random.choice(("h", "t"))
+        flip_name = "орёл" if flip == "h" else "решка"
 
         if flip == choice:
-            return True, bet, (
-                f"Выпало {flip_name}. Вы выиграли {bet} монет! 🎉"
-            )
+            return True, bet, f"Выпало {flip_name}. Вы выиграли {bet} монет! 🎉"
         else:
-            return False, -bet, (
-                f"Выпало {flip_name}. Вы проиграли {bet} монет. 😞"
-            )
+            return False, -bet, f"Выпало {flip_name}. Вы проиграли {bet} монет. 😞"
 
     @staticmethod
     def slots(bet: int) -> Tuple[str, int]:
-        """Слот-машина."""
+        """Простые слоты: возвращает (result_text, payout).
+
+        Правила:
+        - Три одинаковых символа: выплата 5x ставки
+        - Два одинаковых символа: выплата 2x ставки
+        - Иначе: проигрыш (-bet)
+        """
         if bet <= 0:
-            return "Неверная ставка.", 0
+            return "Ставка должна быть положительной.", 0
 
-        symbols = ['🍒', '🍋', '🔔', '⭐', '7']
-        weights = [0.35, 0.25, 0.2, 0.15, 0.05]
-        res = [random.choices(symbols, weights)[0] for _ in range(3)]
+        symbols = ["🍒", "🔔", "⭐", "7", "🍋"]
+        reels = [random.choice(symbols) for _ in range(3)]
+        res = " | ".join(reels)
 
-        if res[0] == res[1] == res[2]:
-            mult = {
-                '🍒': 2, '🍋': 3, '🔔': 4,
-                '⭐': 6, '7': 10
-            }[res[0]]
-            return (f"Слоты: {' '.join(res)} - Джекпот! "
-                    f"Выигрыш: {bet * mult} монет! 🎊"), bet * mult
-
-        if (res[0] == res[1] or res[1] == res[2] or
-                res[0] == res[2]):
-            return (f"Слоты: {' '.join(res)} - Два совпадения! "
-                    f"Выигрыш: {bet // 2} монет."), bet // 2
-
-        return f"Слоты: {' '.join(res)} - Ничего. Проигрыш.", -bet
+        if reels[0] == reels[1] == reels[2]:
+            payout = bet * 5
+            return f"{res} — Три в ряд! Вы выиграли {payout} монет! 🎉", payout
+        # two of them equal
+        elif reels[0] == reels[1] or reels[0] == reels[2] or reels[1] == reels[2]:
+            payout = bet * 2
+            return f"{res} — Две одинаковых! Вы выиграли {payout} монет.", payout
+        else:
+            return f"{res} — Увы, вы проиграли {bet} монет.", -bet
 
     @staticmethod
     def wheel(bet: int) -> Tuple[str, int]:
-        """Колесо фортуны."""
-        if bet <= 0:
-            return "Неверная ставка.", 0
+        """Колесо фортуны: возвращает (label, payout).
 
+        Колесо имеет сектора с разными множителями.
+        """
+        if bet <= 0:
+            return "Ставка должна быть положительной.", 0
+
+        # sectors: (label, multiplier)
         sectors = [
-            ('big', 0.05),
-            ('medium', 0.15),
-            ('small', 0.3),
-            ('lose', 0.5)
+            ("Малое везение", 0),  # потеря
+            ("Малое везение", 0),
+            ("Нечто", 1),
+            ("Удача", 2),
+            ("Большая удача", 3),
+            ("Джекпот", 10),
         ]
 
-        def rnd_weighted(items):
-            total = sum(w for _, w in items)
-            r = random.random() * total
-            upto = 0.0
-            for item, weight in items:
-                if upto + weight >= r:
-                    return item
-                upto += weight
-            return items[-1][0]
-
-        s = rnd_weighted(sectors)
-
-        if s == 'big':
-            return f'Колесо: БИЙ-КУСК! Выигрыш {bet * 8}!', bet * 8
-        if s == 'medium':
-            return f'Колесо: СРЕДНЕЕ. Выигрыш {bet * 3}', bet * 3
-        if s == 'small':
-            return f'Колесо: МАЛЕНЬКОЕ. Выигрыш {bet}', bet
-        return 'Колесо: ПРОИГРЫШ!', -bet
+        label, mult = random.choice(sectors)
+        if mult == 0:
+            return f"{label} — вы проиграли {bet} монет.", -bet
+        payout = bet * mult
+        return f"{label} — вы выиграли {payout} монет!", payout

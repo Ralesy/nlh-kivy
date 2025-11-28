@@ -15,7 +15,7 @@ from systems.battle import (
     Battlefield, EnemyGenerator, EventSystem, BattleResult
 )
 from systems.quests import Tavern
-from systems.shop_casino import Shop, Casino
+from systems.shop_casino import Shop  # , Casino
 from systems.save_system import save_game, load_game, get_save_list
 from data.locations import LocationManager
 from systems.npcs import NPCManager, GeneratedQuest
@@ -111,11 +111,10 @@ class Game:
             print("1) Вход в локацию")
             print("2) 🏛️ Таверна (квесты/NPC)")
             print("3) 🛒 Магазин")
-            print("4) 🎰 Казино")
-            print("5) 🎒 Инвентарь")
-            print("6) 📊 Статус")
-            print("7) 💾 Сохранить игру")
-            print("8) 🚪 Выйти")
+            print("4) 🎒 Инвентарь")
+            print("5) 📊 Статус")
+            print("6) 💾 Сохранить игру")
+            print("7) 🚪 Выйти")
 
             ch = input("\nВыбор: ").strip()
 
@@ -126,14 +125,12 @@ class Game:
             elif ch == "3":
                 self.run_shop()
             elif ch == "4":
-                self.run_casino()
-            elif ch == "5":
                 self.manage_inventory()
-            elif ch == "6":
+            elif ch == "5":
                 self.show_status()
-            elif ch == "7":
+            elif ch == "6":
                 self.save_game_prompt()
-            elif ch == "8":
+            elif ch == "7":
                 self.quit_game()
             else:
                 print("Неверный выбор.")
@@ -459,40 +456,6 @@ class Game:
             qty = int(input("Количество: ") or "1")
             msg = self.shop.sell(self.player, item_id, qty)
             print(f"\n{msg}")
-
-        pause(1)
-
-    def run_casino(self) -> None:
-        """Казино."""
-        print_section("КАЗИНО")
-        print("1) Орёл-решка")
-        print("2) Слоты")
-        print("0) Выход")
-
-        ch = input("\n> ").strip()
-        if ch in ("1", "2"):
-            bet = int(input("Ставка (монет): ") or "0")
-            if bet <= 0 or bet > self.player.coins:
-                print("❌ Неверная ставка.")
-                return
-
-            if ch == "1":
-                choice_str = input("Орёл (h) или решка (t)? ")
-                result, winnings, msg = Casino.coinflip(bet, choice_str)
-                if result:
-                    self.player.coins += winnings
-                    print(f"✅ {msg}")
-                else:
-                    self.player.coins -= bet
-                    print(f"❌ {msg}")
-            elif ch == "2":
-                result, winnings, msg = Casino.slots(bet)
-                if result:
-                    self.player.coins += winnings
-                    print(f"✅ {msg}")
-                else:
-                    self.player.coins -= bet
-                    print(f"❌ {msg}")
 
         pause(1)
 

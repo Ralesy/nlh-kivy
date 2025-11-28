@@ -1653,23 +1653,33 @@ class TavernScreen(Screen):
         
         btn_npcs = Button(
             text='🧙 NPC',
-            size_hint_x=0.5,
+            size_hint_x=0.33,
             background_color=(0.5, 0.4, 0.3, 1),
-            font_size=dp(18)
+            font_size=dp(16)
         )
         btn_npcs.bind(on_press=lambda x: self.show_npcs())
         tab_layout.add_widget(btn_npcs)
         
         btn_companions = Button(
             text='🤝 Спутники',
-            size_hint_x=0.5,
+            size_hint_x=0.33,
             background_color=(0.3, 0.5, 0.7, 1),
-            font_size=dp(18)
+            font_size=dp(16)
         )
         btn_companions.bind(
             on_press=lambda x: self.show_companions()
         )
         tab_layout.add_widget(btn_companions)
+        
+        btn_games = Button(
+            text='🎲 Игры',
+            size_hint_x=0.34,
+            background_color=(0.6, 0.4, 0.2, 1),
+            font_size=dp(16)
+        )
+        btn_games.bind(on_press=lambda x: self.show_games())
+        tab_layout.add_widget(btn_games)
+        
         layout.add_widget(tab_layout)
         
         scroll = ScrollView()
@@ -1690,12 +1700,133 @@ class TavernScreen(Screen):
         _add_back_to_city_button(self, self.manager)
         self.current_tab = 'npcs'
         self.npc_manager = None
+        self.game_result_label = None
     
     def update_tavern(self):
         if not self.npc_manager:
             app = App.get_running_app()
             self.npc_manager = app.npc_manager
         self.show_npcs()
+    
+    def show_games(self):
+        """Показать игры в таверне (Орёл/Решка)."""
+        self.current_tab = 'games'
+        self.content_layout.clear_widgets()
+        
+        app = App.get_running_app()
+        if not app.game:
+            return
+        
+        # Заголовок
+        games_title = Label(
+            text='🎲 ИГРЫ В ТАВЕРНЕ',
+            font_size=dp(24),
+            size_hint_y=None,
+            height=dp(50),
+            color=(0.9, 0.7, 0.3, 1)
+        )
+        self.content_layout.add_widget(games_title)
+        
+        # Показываем монеты (сохраняем как атрибут, чтобы можно было обновлять)
+        self.coins_label = Label(
+            text=f'Ваши монеты: {app.game.player.coins} 💰',
+            font_size=dp(20),
+            size_hint_y=None,
+            height=dp(40),
+            color=(0.9, 0.9, 0.3, 1)
+        )
+        self.content_layout.add_widget(self.coins_label)
+        
+        # Результат последней игры
+        self.game_result_label = Label(
+            text='',
+            font_size=dp(16),
+            size_hint_y=None,
+            height=dp(80),
+            text_size=(None, None),
+            halign='center',
+            valign='middle',
+            color=(0.9, 0.9, 0.9, 1)
+        )
+        self.content_layout.add_widget(self.game_result_label)
+        
+        # Кнопка для игры Орёл/Решка
+        btn_coinflip = Button(
+            text='🪙 Орёл/Решка (1:1)',
+            size_hint_y=None,
+            height=dp(70),
+            font_size=dp(18),
+            background_color=(0.6, 0.4, 0.2, 1)
+        )
+        btn_coinflip.bind(on_press=self.on_tavern_coinflip)
+        self.content_layout.add_widget(btn_coinflip)
+    
+    def on_tavern_coinflip(self, instance):
+        """Запустить игру Орёл/Решка в таверне."""
+        self.show_bet_dialog('coinflip')
+    
+    def show_bet_dialog(self, game_type):
+        """Показать диалог ставки для игры."""
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
+        
+        bet_input = TextInput(text='10', multiline=False, input_filter='int')
+        content.add_widget(Label(text='Ставка:', font_size=dp(16)))
+        content.add_widget(bet_input)
+        
+        choice_layout = None
+        if game_type == 'coinflip':
+            choice_layout = BoxLayout(orientation='horizontal', spacing=dp(10), size_hint_y=None, height=dp(50))
+            btn_h = Button(text='🦅 Орёл', font_size=dp(14))
+            btn_t = Button(text='🪙 Решка', font_size=dp(14))
+            choice_layout.add_widget(btn_h)
+            choice_layout.add_widget(btn_t)
+            content.add_widget(choice_layout)
+        
+        btn_layout = BoxLayout(orientation='horizontal', spacing=dp(10), size_hint_y=None, height=dp(50))
+        
+        def play(choice=None):
+            try:
+                bet = int(bet_input.text)
+                app = App.get_running_app()
+                if not app.game:
+                    return
+                
+                from systems.shop_casino import Casino
+                
+                if game_type == 'coinflip':
+                    if choice is None:
+                        popup.dismiss()
+                        return
+                    ok, payout, msg = Casino.coinflip(bet, choice)
+                    app.game.player.coins += payout
+                    # обновляем результат и отображение монет
+                    if self.game_result_label:
+                        self.game_result_label.text = msg
+                    try:
+                        self.coins_label.text = f'Ваши монеты: {app.game.player.coins} 💰'
+                    except Exception:
+                        pass
+                
+                popup.dismiss()
+            except ValueError:
+                pass
+        
+        if game_type == 'coinflip':
+            btn_h.bind(on_press=lambda x: play('h'))
+            btn_t.bind(on_press=lambda x: play('t'))
+        
+        btn_cancel = Button(text='Отмена', font_size=dp(14))
+        btn_cancel.bind(on_press=lambda x: popup.dismiss())
+        btn_layout.add_widget(btn_cancel)
+        
+        content.add_widget(btn_layout)
+        
+        popup = Popup(
+            title='🎲 Ставка',
+            content=content,
+            size_hint=(0.7, 0.5)
+        )
+        popup.open()
     
     def show_npcs(self):
         """Показать список NPC в таверне."""
@@ -2113,177 +2244,6 @@ class ShopScreen(Screen):
         popup.open()
         self.show_sell()
     
-
-class CasinoScreen(Screen):
-    """Экран казино."""
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
-        
-        # Фон казино
-        with layout.canvas.before:
-            Color(0.2, 0.15, 0.25, 1)  # Темно-фиолетовый фон
-            self.bg_rect = Rectangle()
-            layout.bind(
-                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
-                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
-            )
-        
-        title = Label(
-            text='🎰 КАЗИНО',
-            font_size=dp(40),
-            size_hint_y=None,
-            height=dp(70),
-            color=(0.9, 0.8, 0.3, 1)
-        )
-        layout.add_widget(title)
-        
-        self.coins_label = Label(
-            text='',
-            font_size=dp(22),
-            size_hint_y=None,
-            height=dp(45),
-            color=(0.9, 0.9, 0.3, 1)
-        )
-        layout.add_widget(self.coins_label)
-        
-        self.result_label = Label(
-            text='',
-            font_size=dp(19),
-            size_hint_y=None,
-            height=dp(110),
-            text_size=(None, None),
-            halign='center',
-            valign='middle',
-            color=(0.9, 0.9, 0.9, 1)
-        )
-        layout.add_widget(self.result_label)
-        
-        games_layout = GridLayout(cols=1, spacing=dp(12), size_hint_y=None)
-        games_layout.bind(minimum_height=games_layout.setter('height'))
-        
-        btn_coinflip = Button(
-            text='🪙 Орёл/Решка (1:1)',
-            size_hint_y=None,
-            height=dp(65),
-            font_size=dp(22),
-            background_color=(0.6, 0.4, 0.2, 1)
-        )
-        btn_coinflip.bind(on_press=self.on_coinflip)
-        games_layout.add_widget(btn_coinflip)
-        
-        btn_slots = Button(
-            text='🎲 Слоты',
-            size_hint_y=None,
-            height=dp(65),
-            font_size=dp(22),
-            background_color=(0.7, 0.3, 0.5, 1)
-        )
-        btn_slots.bind(on_press=self.on_slots)
-        games_layout.add_widget(btn_slots)
-        
-        btn_wheel = Button(
-            text='🎡 Колесо Фортуны',
-            size_hint_y=None,
-            height=dp(65),
-            font_size=dp(22),
-            background_color=(0.5, 0.3, 0.7, 1)
-        )
-        btn_wheel.bind(on_press=self.on_wheel)
-        games_layout.add_widget(btn_wheel)
-        
-        layout.add_widget(games_layout)
-        
-        self.add_widget(layout)
-        # add map and city return buttons in top-left
-        _add_back_to_map_button(self, self.manager)
-        _add_back_to_city_button(self, self.manager)
-    
-    def update_casino(self):
-        app = App.get_running_app()
-        if app.game:
-            self.coins_label.text = f"Ваши монеты: {app.game.player.coins} 💰"
-        self.result_label.text = ''
-    
-    def on_coinflip(self, instance):
-        self.show_bet_dialog('coinflip')
-    
-    def on_slots(self, instance):
-        self.show_bet_dialog('slots')
-    
-    def on_wheel(self, instance):
-        self.show_bet_dialog('wheel')
-    
-    def show_bet_dialog(self, game_type):
-        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
-        
-        bet_input = TextInput(text='10', multiline=False, input_filter='int')
-        content.add_widget(Label(text='Ставка:'))
-        content.add_widget(bet_input)
-        
-        choice_layout = None
-        if game_type == 'coinflip':
-            choice_layout = BoxLayout(orientation='horizontal', spacing=dp(10))
-            btn_h = Button(text='Орёл (h)')
-            btn_t = Button(text='Решка (t)')
-            choice_layout.add_widget(btn_h)
-            choice_layout.add_widget(btn_t)
-            content.add_widget(choice_layout)
-        
-        btn_layout = BoxLayout(orientation='horizontal', spacing=dp(10), size_hint_y=None, height=dp(50))
-        
-        def play(choice=None):
-            try:
-                bet = int(bet_input.text)
-                app = App.get_running_app()
-                if not app.game:
-                    return
-                
-                from systems.shop_casino import Casino
-                
-                if game_type == 'coinflip':
-                    if choice is None:
-                        popup.dismiss()
-                        return
-                    ok, payout, msg = Casino.coinflip(bet, choice)
-                    app.game.player.coins += payout
-                    self.result_label.text = msg
-                elif game_type == 'slots':
-                    res, payout = Casino.slots(bet)
-                    app.game.player.coins += payout
-                    self.result_label.text = res
-                elif game_type == 'wheel':
-                    lab, payout = Casino.wheel(bet)
-                    app.game.player.coins += payout
-                    self.result_label.text = lab
-                
-                self.update_casino()
-                popup.dismiss()
-            except ValueError:
-                pass
-        
-        if game_type == 'coinflip':
-            btn_h.bind(on_press=lambda x: play('h'))
-            btn_t.bind(on_press=lambda x: play('t'))
-        else:
-            btn_play = Button(text='Играть')
-            btn_play.bind(on_press=lambda x: play())
-            btn_layout.add_widget(btn_play)
-        
-        btn_cancel = Button(text='Отмена')
-        btn_cancel.bind(on_press=lambda x: popup.dismiss())
-        btn_layout.add_widget(btn_cancel)
-        
-        if game_type != 'coinflip':
-            content.add_widget(btn_layout)
-        
-        popup = Popup(
-            title=f'🎰 {game_type}',
-            content=content,
-            size_hint=(0.7, 0.5)
-        )
-        popup.open()
 
 
 class InventoryScreen(Screen):
@@ -4691,15 +4651,7 @@ class CityMenuScreen(Screen):
         btn_shop.bind(on_press=self.on_shop)
         layout.add_widget(btn_shop)
         
-        btn_casino = Button(
-            text='🎰 Казино',
-            size_hint_y=None,
-            height=dp(60),
-            font_size=dp(22),
-            background_color=(0.8, 0.6, 0.2, 1)
-        )
-        btn_casino.bind(on_press=self.on_casino)
-        layout.add_widget(btn_casino)
+        # Казино было удалено — игры перенесены в таверну
         
         layout.add_widget(Widget(size_hint_y=1))
 
@@ -4720,11 +4672,6 @@ class CityMenuScreen(Screen):
             app.shop_screen.update_shop()
         self.manager.current = 'shop'
     
-    def on_casino(self, instance):
-        app = App.get_running_app()
-        if app.casino_screen:
-            app.casino_screen.update_casino()
-        self.manager.current = 'casino'
 
 
 class RPGApp(App):
@@ -4762,10 +4709,6 @@ class RPGApp(App):
         shop_screen = ShopScreen(name='shop')
         sm.add_widget(shop_screen)
         self.shop_screen = shop_screen
-        
-        casino_screen = CasinoScreen(name='casino')
-        sm.add_widget(casino_screen)
-        self.casino_screen = casino_screen
         
         city_menu_screen = CityMenuScreen(name='city_menu')
         sm.add_widget(city_menu_screen)
