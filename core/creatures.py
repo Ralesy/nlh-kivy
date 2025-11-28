@@ -28,8 +28,8 @@ class Creature:
         self.base_coins = base_coins
 
         self.max_health = self._scale_stat(self.base_health)
-        self.health = self.max_health
-        self.coins = self.base_coins + (self.level - 1) * (
+        self._health = self.max_health
+        self._coins = self.base_coins + (self.level - 1) * (
             self.base_coins // 2)
         self.temp_damage = 0
         self.temp_defense = 0
@@ -56,6 +56,14 @@ class Creature:
     def is_alive(self) -> bool:
         """Жив ли персонаж."""
         return self.health > 0
+
+    @property
+    def health(self) -> int:
+        return getattr(self, '_health', 0)
+
+    @health.setter
+    def health(self, value: int) -> None:
+        self._health = value
 
     @property
     def base_xp(self) -> int:
@@ -141,6 +149,14 @@ class Creature:
         return (f"{self.name} (Lv{self.level}) HP:{self.health}/"
                 f"{self.max_health} DMG:{self.damage} DEF:{self.defense} "
                 f"| {eqs}")
+
+    @property
+    def coins(self) -> int:
+        return getattr(self, '_coins', 0)
+
+    @coins.setter
+    def coins(self, value: int) -> None:
+        self._coins = value
 
     def to_dict(self) -> dict:
         """Для сохранения."""
@@ -258,6 +274,31 @@ class Player(Creature):
         self.total_damage_taken = 0
         self.enemies_defeated = 0
         self.battles_fought = 0
+        # --- Observer/listener support for event-driven UI updates ---
+        # Listeners receive calls like: callback(event_name: str, **kwargs)
+        self._listeners = []
+
+    # Listener management
+    def add_listener(self, callback):
+        try:
+            if callback not in self._listeners:
+                self._listeners.append(callback)
+        except Exception:
+            pass
+
+    def remove_listener(self, callback):
+        try:
+            if callback in self._listeners:
+                self._listeners.remove(callback)
+        except Exception:
+            pass
+
+    def notify_listeners(self, event: str, **payload):
+        for cb in list(getattr(self, '_listeners', [])):
+            try:
+                cb(event, **payload)
+            except Exception:
+                pass
 
     # ===== Equipment management with inventory integration =====
     def equip_weapon(self, weapon: Weapon) -> bool:
@@ -300,6 +341,10 @@ class Player(Creature):
         # Equip new
         self.weapon = weapon
         weapon.on_equip(self)
+        try:
+            self.notify_listeners('stats_changed')
+        except Exception:
+            pass
         return True
 
     def unequip_weapon(self) -> bool:
@@ -316,6 +361,10 @@ class Player(Creature):
             prev.on_unequip(self)
             self.inventory.add(prev, 1)
             self.weapon = None
+            try:
+                self.notify_listeners('stats_changed')
+            except Exception:
+                pass
             return True
         # cannot unequip because no space
         return False
@@ -347,6 +396,10 @@ class Player(Creature):
 
         self.armor = armor
         armor.on_equip(self)
+        try:
+            self.notify_listeners('stats_changed')
+        except Exception:
+            pass
         return True
 
     def unequip_armor(self) -> bool:
@@ -358,6 +411,10 @@ class Player(Creature):
             prev.on_unequip(self)
             self.inventory.add(prev, 1)
             self.armor = None
+            try:
+                self.notify_listeners('stats_changed')
+            except Exception:
+                pass
             return True
         return False
 
@@ -366,6 +423,8 @@ class Player(Creature):
         msgs = []
         if exp <= 0:
             return msgs
+        old_level = self.level
+        old_exp = self.experience
         self.experience += exp
         msgs.append(f"+{exp} XP")
         while self.experience >= self.level * 100:
@@ -378,6 +437,14 @@ class Player(Creature):
             )
             self.health = self.max_health
             msgs.append(f"🎉 Уровень! {self.name} Lv {self.level}")
+        # Notify UI listeners about experience/level changes
+        try:
+            if old_exp != self.experience:
+                self.notify_listeners('experience', old=old_exp, new=self.experience)
+            if old_level != self.level:
+                self.notify_listeners('level', old=old_level, new=self.level)
+        except Exception:
+            pass
         return msgs
 
     def attack(self, target: Creature) -> Tuple[int, int]:
@@ -452,6 +519,50 @@ class Player(Creature):
             # Log or handle unexpected errors (e.g., invalid item ID)
             print(f"Error adding loot {enemy_loot}: {e}")
             return False
+
+    # Override coins and health to emit events when changed
+    @property
+    def coins(self) -> int:
+        return super().coins
+
+    @coins.setter
+    def coins(self, value: int) -> None:
+        old = super().coins
+        # Set underlying value
+        try:
+            # assign to backing field directly
+            self._coins = value
+        except Exception:
+            # Fallback to base setter if available
+            try:
+                Creature.coins.fset(self, value)  # type: ignore
+            except Exception:
+                pass
+        try:
+            if old != value:
+                self.notify_listeners('coins', old=old, new=value)
+        except Exception:
+            pass
+
+    @property
+    def health(self) -> int:
+        return super().health
+
+    @health.setter
+    def health(self, value: int) -> None:
+        old = super().health
+        try:
+            self._health = value
+        except Exception:
+            try:
+                Creature.health.fset(self, value)  # type: ignore
+            except Exception:
+                pass
+        try:
+            if old != value:
+                self.notify_listeners('health', old=old, new=value)
+        except Exception:
+            pass
 
     def update_quest_progress(self, enemy_name: str):
         """Обновить прогресс квестов."""

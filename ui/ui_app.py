@@ -6,6 +6,16 @@ Kivy UI для RPG игры.
 """
 
 from kivy.app import App
+from kivy.config import Config
+# Set fullscreen mode and window size before importing Window
+Config.set('graphics', 'fullscreen', 'auto')
+Config.set('graphics', 'resizable', '0')
+Config.set('graphics', 'multisampling', '0')
+
+from kivy.core.window import Window
+# Disable the window padding/margins that cause black bars
+Window.clearcolor = (0, 0, 0, 1)
+
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
@@ -20,6 +30,169 @@ from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
 from kivy.metrics import dp
+
+
+class GameHUD(BoxLayout):
+    """Overlay HUD показывающий HP, DMG, DEF, монеты, XP и уровень игрока."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = (None, None)
+        self.width = dp(600)
+        self.height = dp(85)
+        # place HUD on the left side flush to the left edge
+        self.pos_hint = {'x': 0, 'top': 0.98}
+        self.orientation = 'vertical'
+        self.padding = dp(6)
+        self.spacing = dp(3)
+        # Initially hidden, will be shown when player is created/loaded
+        self.opacity = 0
+
+        # Background panel
+        # grey translucent background panel
+        with self.canvas.before:
+            Color(0.14, 0.14, 0.14, 0.92)
+            self._bg_rect = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=lambda i, v: setattr(self._bg_rect, 'pos', i.pos),
+                  size=lambda i, v: setattr(self._bg_rect, 'size', i.size))
+
+        # Top row: level label only
+        top = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(20), spacing=dp(6))
+        self.level_label = Label(text='Lvl: -', font_size=dp(13), size_hint_x=None, width=dp(70), halign='left')
+        top.add_widget(self.level_label)
+        self.add_widget(top)
+
+        # HP bar row with label on left
+        hp_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(22), spacing=dp(8))
+        self.hp_label = Label(text='HP: -/-', font_size=dp(11), size_hint_x=None, width=dp(90), halign='left')
+        hp_row.add_widget(self.hp_label)
+        # HP bar widget with red color
+        self._hp_bar_container = Widget(size_hint_x=1, size_hint_y=None, height=dp(18))
+        with self._hp_bar_container.canvas:
+            Color(0.12, 0.12, 0.12, 1)
+            self._hp_bar_bg = Rectangle(pos=self._hp_bar_container.pos, size=self._hp_bar_container.size)
+            Color(0.85, 0.1, 0.08, 1)
+            self._hp_bar_fg = Rectangle(pos=self._hp_bar_container.pos, size=(0, self._hp_bar_container.height))
+        self._hp_bar_container.bind(pos=lambda i, v: setattr(self._hp_bar_bg, 'pos', i.pos))
+        self._hp_bar_container.bind(size=lambda i, v: setattr(self._hp_bar_bg, 'size', i.size))
+        self._hp_bar_container.bind(pos=lambda i, v: setattr(self._hp_bar_fg, 'pos', (i.x, i.y)))
+        hp_row.add_widget(self._hp_bar_container)
+        self.add_widget(hp_row)
+
+        # XP bar row with label on left
+        xp_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(22), spacing=dp(8))
+        self.xp_label = Label(text='XP: -/-', font_size=dp(11), size_hint_x=None, width=dp(90), halign='left')
+        xp_row.add_widget(self.xp_label)
+        # XP bar widget with blue color
+        self._xp_bar_container = Widget(size_hint_x=1, size_hint_y=None, height=dp(18))
+        with self._xp_bar_container.canvas:
+            Color(0.12, 0.12, 0.12, 1)
+            self._xp_bar_bg = Rectangle(pos=self._xp_bar_container.pos, size=self._xp_bar_container.size)
+            Color(0.1, 0.3, 0.85, 1)
+            self._xp_bar_fg = Rectangle(pos=self._xp_bar_container.pos, size=(0, self._xp_bar_container.height))
+        self._xp_bar_container.bind(pos=lambda i, v: setattr(self._xp_bar_bg, 'pos', i.pos))
+        self._xp_bar_container.bind(size=lambda i, v: setattr(self._xp_bar_bg, 'size', i.size))
+        self._xp_bar_container.bind(pos=lambda i, v: setattr(self._xp_bar_fg, 'pos', (i.x, i.y)))
+        xp_row.add_widget(self._xp_bar_container)
+        self.add_widget(xp_row)
+
+        # Stats row: DMG | DEF | COINS (no emoji)
+        stats = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(20), spacing=dp(8))
+        self.dmg_label = Label(text='DMG: -', font_size=dp(11), size_hint_x=None, width=dp(70), halign='left')
+        self.def_label = Label(text='DEF: -', font_size=dp(11), size_hint_x=None, width=dp(70), halign='left')
+        self.coins_label_small = Label(text='COINS: -', font_size=dp(11), halign='left')
+        stats.add_widget(self.dmg_label)
+        stats.add_widget(self.def_label)
+        stats.add_widget(self.coins_label_small)
+        self.add_widget(stats)
+
+        # Internal reference to bound player
+        self._bound_player = None
+
+    def bind_to_player(self, player):
+        """Bind HUD to a `Player` instance to receive event-driven updates."""
+        try:
+            # Unbind previous
+            if getattr(self, '_bound_player', None):
+                try:
+                    self._bound_player.remove_listener(self._on_player_event)
+                except Exception:
+                    pass
+            self._bound_player = player
+            if player:
+                try:
+                    player.add_listener(self._on_player_event)
+                except Exception:
+                    pass
+            # Refresh display
+            self.update()
+            # Show HUD when bound to a player
+            self.opacity = 1
+        except Exception:
+            pass
+
+    def unbind_player(self):
+        try:
+            if getattr(self, '_bound_player', None):
+                self._bound_player.remove_listener(self._on_player_event)
+                self._bound_player = None
+            # Hide HUD when unbound
+            self.opacity = 0
+        except Exception:
+            pass
+
+    def _on_player_event(self, event, **kwargs):
+        # Schedule update on the main thread
+        try:
+            Clock.schedule_once(lambda dt: self.update(), 0)
+        except Exception:
+            try:
+                self.update()
+            except Exception:
+                pass
+
+    def update(self):
+        app = App.get_running_app()
+        if not app or not getattr(app, 'game', None) or not getattr(app.game, 'player', None):
+            return
+        p = app.game.player
+        try:
+            self.level_label.text = f"Lvl: {p.level}"
+            # HP text and bar
+            self.hp_label.text = f"HP: {p.health}/{p.max_health}"
+            try:
+                pct = float(p.health) / float(p.max_health) if p.max_health else 0.0
+            except Exception:
+                pct = 0.0
+            # update HP bar width
+            try:
+                container = self._hp_bar_container
+                full_w = max(1, container.width)
+                fg_w = max(0, int(full_w * pct))
+                self._hp_bar_fg.size = (fg_w, container.height)
+            except Exception:
+                pass
+            # XP text and bar
+            req = p.level * 100 if getattr(p, 'level', 0) else 0
+            self.xp_label.text = f"XP: {p.experience}/{req}"
+            try:
+                xp_pct = float(p.experience) / float(req) if req else 0.0
+            except Exception:
+                xp_pct = 0.0
+            # update XP bar width
+            try:
+                container = self._xp_bar_container
+                full_w = max(1, container.width)
+                fg_w = max(0, int(full_w * xp_pct))
+                self._xp_bar_fg.size = (fg_w, container.height)
+            except Exception:
+                pass
+            # Stats (no emoji)
+            self.dmg_label.text = f"DMG: {p.damage}"
+            self.def_label.text = f"DEF: {p.defense}"
+            self.coins_label_small.text = f"COINS: {p.coins}"
+        except Exception:
+            pass
 import sys
 import random
 
@@ -53,6 +226,19 @@ def _add_back_to_map_button(parent_widget, manager):
 
     def _go_map(btn):
         app2 = App.get_running_app()
+        # Auto-save the game when returning to map
+        try:
+            if getattr(app2, 'game', None) and getattr(app2.game, 'player', None):
+                from systems.save_system import save_game
+                # Auto-save to a well-known autosave slot
+                try:
+                    save_game(app2.game.player, 'autosave')
+                except Exception:
+                    # fallback: try saving player directly if structure differs
+                    save_game(app2.game.player, 'autosave')
+        except Exception as e:
+            print(f"[DEBUG] Failed to auto-save: {e}")
+        
         if getattr(app2, 'location_select_screen', None):
             try:
                 app2.location_select_screen.update_locations()
@@ -73,7 +259,7 @@ def _add_back_to_map_button(parent_widget, manager):
         text='🗺️',
         size_hint=(None, None),
         size=(dp(56), dp(56)),
-        pos_hint={'x': 0.02, 'y': 0.88},
+        pos_hint={'right': 0.98, 'y': 0.88},
         background_normal='',
         background_color=(0.25, 0.25, 0.35, 0.95)
     )
@@ -112,7 +298,7 @@ def _add_back_to_city_button(parent_widget, manager):
         text='🏛️',
         size_hint=(None, None),
         size=(dp(56), dp(56)),
-        pos_hint={'x': 0.12, 'y': 0.88},
+        pos_hint={'right': 0.88, 'y': 0.88},
         background_normal='',
         background_color=(0.35, 0.25, 0.25, 0.95)
     )
@@ -144,6 +330,15 @@ class MainMenuScreen(Screen):
         
         button_layout = BoxLayout(orientation='vertical', spacing=dp(15), size_hint_y=None)
         button_layout.bind(minimum_height=button_layout.setter('height'))
+        
+        btn_continue = Button(
+            text='▶️ Продолжить',
+            size_hint_y=None,
+            height=dp(60),
+            font_size=dp(24)
+        )
+        btn_continue.bind(on_press=self.on_continue_game)
+        button_layout.add_widget(btn_continue)
         
         btn_new = Button(
             text='🆕 Новая игра',
@@ -177,6 +372,22 @@ class MainMenuScreen(Screen):
     
     def on_new_game(self, instance):
         self.manager.current = 'character_creation'
+    
+    def on_continue_game(self, instance):
+        """Load the most recent save file."""
+        saves = get_save_list()
+        if not saves:
+            popup = Popup(
+                title='Ошибка',
+                content=Label(text='Нет сохранений.'),
+                size_hint=(0.6, 0.3)
+            )
+            popup.open()
+            return
+        
+        # Load the most recent save (first in the list)
+        most_recent_save = saves[0]
+        self.manager.get_screen('load_game').load_save(most_recent_save)
     
     def on_load_game(self, instance):
         saves = get_save_list()
@@ -252,6 +463,14 @@ class LoadGameScreen(Screen):
 
             app = App.get_running_app()
             app.game = game
+            # Bind HUD to loaded player if HUD exists
+            try:
+                if getattr(app, 'hud', None):
+                    app.hud.bind_to_player(game.player)
+                    # Immediately update HUD to show initial stats
+                    app.hud.update()
+            except Exception:
+                pass
             # Open global map instead of old game menu
             try:
                 if getattr(app, 'location_select_screen', None):
@@ -268,6 +487,16 @@ class LoadGameScreen(Screen):
             popup.open()
     
     def on_back(self, instance):
+        # Hide/unbind HUD when returning to main menu
+        try:
+            app = App.get_running_app()
+            if getattr(app, 'hud', None):
+                try:
+                    app.hud.unbind_player()
+                except Exception:
+                    app.hud.opacity = 0
+        except Exception:
+            pass
         self.manager.current = 'main_menu'
 
 
@@ -448,6 +677,14 @@ class CharacterCreationScreen(Screen):
         
         app = App.get_running_app()
         app.game = game
+        # Bind HUD to the new player if HUD is present
+        try:
+            if getattr(app, 'hud', None):
+                app.hud.bind_to_player(game.player)
+                # Immediately update HUD to show initial stats
+                app.hud.update()
+        except Exception:
+            pass
         
         # Показываем приветственное сообщение
         weapon_name = (
@@ -493,6 +730,16 @@ class CharacterCreationScreen(Screen):
         self.manager.current = 'location_select'
     
     def on_back(self, instance):
+        # Ensure HUD is hidden when returning to main menu
+        try:
+            app = App.get_running_app()
+            if getattr(app, 'hud', None):
+                try:
+                    app.hud.unbind_player()
+                except Exception:
+                    app.hud.opacity = 0
+        except Exception:
+            pass
         self.manager.current = 'main_menu'
 
 
@@ -3053,19 +3300,7 @@ class LocationSelectScreen(Screen):
 
         main_layout.add_widget(self.map_container)
 
-        # bottom controls (status button occupies full width on map)
-        btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None)
-        btn_layout.height = dp(50)
-
-        btn_stats = Button(
-            text='📊 Статус',
-            size_hint_x=1,
-            background_color=(0.5, 0.5, 0.7, 1)
-        )
-        btn_stats.bind(on_press=self.on_status)
-        btn_layout.add_widget(btn_stats)
-
-        main_layout.add_widget(btn_layout)
+        # bottom controls removed (status button relocated to map overlay)
         self.add_widget(main_layout)
     
     def update_locations(self):
@@ -3145,6 +3380,38 @@ class LocationSelectScreen(Screen):
         city_btn.bind(on_press=_open_city)
         self.map_overlay.add_widget(city_btn)
 
+        # Exit to main menu button (top-right corner)
+        def _exit_to_menu(*args):
+            app = App.get_running_app()
+            # Save the game before exiting to menu
+            try:
+                if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+                    from systems.save_system import save_game
+                    save_game(app.game.player, 'autosave')
+            except Exception as e:
+                print(f"[DEBUG] Failed to auto-save: {e}")
+            # Hide HUD then return to main menu
+            try:
+                if getattr(app, 'hud', None):
+                    try:
+                        app.hud.unbind_player()
+                    except Exception:
+                        app.hud.opacity = 0
+            except Exception:
+                pass
+            self.manager.current = 'main_menu'
+
+        exit_menu_btn = Button(
+            text='MENU',
+            size_hint=(None, None),
+            size=(dp(56), dp(56)),
+            pos_hint={'right': 0.98, 'top': 0.98},
+            background_normal='',
+            background_color=(0.7, 0.2, 0.2, 0.9)
+        )
+        exit_menu_btn.bind(on_press=_exit_to_menu)
+        self.map_overlay.add_widget(exit_menu_btn)
+
         # Inventory quick-access button on the map (bottom-right)
         def _open_inventory(*args):
             app = App.get_running_app()
@@ -3160,19 +3427,19 @@ class LocationSelectScreen(Screen):
                 except Exception:
                     pass
 
-        # Move inventory to left-bottom, make it larger
+        # Move inventory to left-bottom (standardized size, horizontal stack)
         inv_btn = Button(
-            text='🎒',
+            text='INVENTORY',
             size_hint=(None, None),
-            size=(dp(96), dp(96)),
-            pos_hint={'x': 0.01, 'y': 0.12},
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.01, 'y': 0.01},
             background_normal='',
             background_color=(0.2, 0.35, 0.7, 0.9)
         )
         inv_btn.bind(on_press=_open_inventory)
         self.map_overlay.add_widget(inv_btn)
 
-        # Status button above inventory
+        # Status button to the right of inventory (left-bottom horizontal stack)
         def _open_status(*args):
             app = App.get_running_app()
             if getattr(app, 'status_screen', None):
@@ -3187,17 +3454,17 @@ class LocationSelectScreen(Screen):
                     pass
 
         status_btn = Button(
-            text='📊',
+            text='STATUS',
             size_hint=(None, None),
             size=(dp(72), dp(72)),
-            pos_hint={'x': 0.01, 'y': 0.30},
+            pos_hint={'x': 0.12, 'y': 0.01},
             background_normal='',
             background_color=(0.5, 0.5, 0.7, 0.95)
         )
         status_btn.bind(on_press=_open_status)
         self.map_overlay.add_widget(status_btn)
 
-        # Companions management button above status
+        # Companions management button (left-bottom horizontal stack)
         def _open_companions(*args):
             app = App.get_running_app()
             if getattr(app, 'companion_management_screen', None):
@@ -3212,17 +3479,17 @@ class LocationSelectScreen(Screen):
                     pass
 
         comp_btn = Button(
-            text='🤝',
+            text='COMPANIONS',
             size_hint=(None, None),
             size=(dp(72), dp(72)),
-            pos_hint={'x': 0.01, 'y': 0.44},
+            pos_hint={'x': 0.23, 'y': 0.01},
             background_normal='',
             background_color=(0.4, 0.65, 0.8, 0.95)
         )
         comp_btn.bind(on_press=_open_companions)
         self.map_overlay.add_widget(comp_btn)
 
-        # Active quests button to the right of the inventory
+        # Active quests button (left-bottom horizontal stack)
         def _open_active_quests(*args):
             app = App.get_running_app()
             if getattr(app, 'active_quests_screen', None):
@@ -3237,10 +3504,10 @@ class LocationSelectScreen(Screen):
                     pass
 
         quests_btn = Button(
-            text='📋',
+            text='QUESTS',
             size_hint=(None, None),
             size=(dp(72), dp(72)),
-            pos_hint={'x': 0.18, 'y': 0.12},
+            pos_hint={'x': 0.34, 'y': 0.01},
             background_normal='',
             background_color=(0.6, 0.5, 0.2, 0.95)
         )
@@ -4679,6 +4946,9 @@ class RPGApp(App):
     
     def build(self):
         sm = ScreenManager()
+        # Make ScreenManager fill the entire window
+        sm.size_hint = (1, 1)
+        sm.pos_hint = {'x': 0, 'y': 0}
         
         # Создаём экраны
         main_menu = MainMenuScreen(name='main_menu')
@@ -4759,7 +5029,30 @@ class RPGApp(App):
         self.npc_manager = NPCManager()
         self.game = None
 
-        return sm
+        # Wrap ScreenManager in a FloatLayout so we can overlay a persistent HUD
+        root = FloatLayout()
+        root.size_hint = (1, 1)
+        root.pos_hint = {'x': 0, 'y': 0}
+        root.add_widget(sm)
+
+        # HUD in top-right with player stats (event-driven)
+        try:
+            self.hud = GameHUD()
+            root.add_widget(self.hud)
+            # Update HUD on screen change as well
+            sm.bind(current=self.on_screen_change)
+        except Exception:
+            pass
+
+        return root
+
+    def on_screen_change(self, instance, value):
+        """Called when the ScreenManager current screen changes; refresh HUD."""
+        try:
+            if getattr(self, 'hud', None):
+                self.hud.update()
+        except Exception:
+            pass
 
 
 if __name__ == '__main__':

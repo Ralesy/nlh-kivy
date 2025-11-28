@@ -67,10 +67,17 @@ def load_game(filename: str) -> Optional[Player]:
 def get_save_list() -> List[str]:
     """Получить список всех сохранений."""
     ensure_saves_dir()
+    # Return saves sorted by modification time (newest first)
     saves = []
     for file in SAVES_DIR.glob("*.json"):
-        saves.append(file.stem)
-    return sorted(saves)
+        try:
+            mtime = file.stat().st_mtime
+        except Exception:
+            mtime = 0
+        saves.append((file.stem, mtime))
+    # sort by mtime descending
+    saves.sort(key=lambda x: x[1], reverse=True)
+    return [s[0] for s in saves]
 
 
 def delete_save(filename: str) -> bool:
