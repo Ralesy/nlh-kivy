@@ -2704,10 +2704,8 @@ class InventoryScreen(Screen):
         layout.add_widget(scroll)
         
         self.add_widget(layout)
-        # add map and city return buttons in top-left
+        # add map return button in top-left (do not add city button here)
         _add_back_to_map_button(self, self.manager)
-        _add_back_to_city_button(self, self.manager)
-        _add_back_to_city_button(self, self.manager)
     
     def update_inventory(self):
         app = App.get_running_app()

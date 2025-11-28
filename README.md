@@ -13,6 +13,8 @@
 - [Быстрый старт](#быстрый-старт)
 - [Геймплей](#геймплей)
 - [Разработка](#разработка)
+- [Документация](#документация)
+- [Service Layer](#service-layer)
 
 ## ✨ Особенности
 
@@ -34,6 +36,7 @@
 - ✅ 25/25 тестов проходят ✓
 - ✅ Разделение логики и UI
 - ✅ Кроссплатформенная поддержка
+- ✅ **NEW:** Service Layer для чистой архитектуры (v1.1)
 
 ## 🏗️ Архитектура
 
@@ -52,6 +55,8 @@ NLH_remake/
 │   └── weapon_abilities.py # Способности
 ├── systems/                 # Игровые системы
 │   ├── battle.py           # Боевая система
+│   ├── battle_service.py   # Service Layer для боя (NEW)
+│   ├── location_service.py # Service Layer для локаций (NEW)
 │   ├── quests.py           # Квесты
 │   ├── npcs.py             # NPC
 │   ├── shop_casino.py      # Магазин и казино
@@ -180,14 +185,76 @@ python -m pytest tests/test_full_playthrough.py -v
 2. Написать тесты
 3. Обновить документацию
 
-## 📞 Контакты
+## 📖 Документация
 
-Вопросы? Откройте Issue в репозитории.
+Три файла в папке `docs/`:
+
+1. **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Как устроен проект ⭐
+   - Структура папок и модулей (Data, Core, Systems, UI)
+   - Ключевые классы (Creature, Player, Battlefield, Item)
+   - Как добавить новую фичу
+
+2. **[GAME_MECHANICS.md](docs/GAME_MECHANICS.md)** - Все механики игры ⭐
+   - Боевая система (урон, критические удары, способности)
+   - Враги и боссы по локациям
+   - Система предметов, опыта, локаций
+   - Спутники, магазин, квесты
+
+3. **[ADDING_CONTENT.md](docs/ADDING_CONTENT.md)** - Гайд по добавлению контента ⭐
+   - Как добавить врага (step by step)
+   - Как добавить предмет и оружие
+   - Как добавить локацию
+   - Как добавить квест, спутника, буфф
+   - Примеры кода для каждого
 
 ---
 
 **✅ Status:** Production Ready  
-**📌 Version:** 1.0.0  
+**📌 Version:** 1.1 (with Service Layer)
 **📅 Last Updated:** November 2025  
 **🐍 Python:** 3.13+  
 **🎨 UI:** Kivy 2.3.1
+
+**Начни отсюда:**
+- 📚 [docs/INDEX.md](docs/INDEX.md) - Полный указатель документации
+- ⚡ [docs/QUICKSTART.txt](docs/QUICKSTART.txt) - Быстрый старт для разработчиков
+
+**Архитектура и дизайн:**
+- 🏗️ [docs/ARCHITECTURE_CURRENT.md](docs/ARCHITECTURE_CURRENT.md) - Текущая архитектура
+- 🎯 [docs/OOP_PRINCIPLES.md](docs/OOP_PRINCIPLES.md) - ООП принципы в проекте
+- 🔧 [docs/REFACTORING_GUIDE.md](docs/REFACTORING_GUIDE.md) - Как рефакторить безопасно
+
+**Новые сервисы (v1.1):**
+- 💡 [docs/SERVICE_LAYER_GUIDE.md](docs/SERVICE_LAYER_GUIDE.md) - Как использовать Service Layer
+- 📝 [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md) - Практические примеры кода
+- 📋 [docs/REFACTORING_SUMMARY.md](docs/REFACTORING_SUMMARY.md) - Что было сделано в v1.1
+
+**Справки:**
+- ⚔️ [docs/WEAPON_ABILITIES.md](docs/WEAPON_ABILITIES.md) - Система способностей
+- 📚 [docs/API_REFERENCE.md](docs/API_REFERENCE.md) - API справка
+- 📝 [docs/CHANGELOG.md](docs/CHANGELOG.md) - История изменений
+
+## 🔧 Service Layer (NEW в v1.1)
+
+### BattleService
+Управляет логикой боя, инкапсулирует Battlefield:
+
+```python
+from systems.battle_service import BattleService
+
+service = BattleService(battlefield)
+status = service.get_battle_status()
+log, killed = service.player_attack_enemy()
+```
+
+### LocationService  
+Управляет логикой локаций, генерацией врагов:
+
+```python
+from systems.location_service import LocationService
+
+service = LocationService(location_manager, player)
+success, battlefield, error = service.start_battle_for_location('forest')
+```
+
+**Подробнее:** [docs/SERVICE_LAYER_GUIDE.md](docs/SERVICE_LAYER_GUIDE.md)
