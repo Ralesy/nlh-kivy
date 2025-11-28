@@ -164,12 +164,42 @@ class LootWindow(BoxLayout):
         if item in self.loot_items:
             self.loot_items.remove(item)
             self.selected.append(item)
-            if self.player_inventory and item.item:
-                # item это LootDrop, item.item это Item объект
-                self.player_inventory.add(
-                    item.item,
-                    item.quantity
+            # Проверяем вместимость перед добавлением
+            if not self.player_inventory:
+                # нет инвентаря — просто возвращаем
+                self.refresh_display()
+                return
+
+            if not self.player_inventory.has_space_for(item.quantity):
+                # Показываем предупреждение о местe
+                from kivy.uix.popup import Popup
+                popup = Popup(
+                    title='Ошибка',
+                    content=Label(text='Недостаточно места в инвентаре.'),
+                    size_hint=(0.6, 0.3)
                 )
+                popup.open()
+                # вернём предмет обратно в лут (он уже был удалён из списка)
+                self.loot_items.append(item)
+                self.selected.remove(item)
+                return
+
+            # item это LootDrop, item.item это Item объект
+            if item.item:
+                success = self.player_inventory.add(item.item, item.quantity)
+                if not success:
+                    # На случай если add() всё же вернул False
+                    from kivy.uix.popup import Popup
+                    popup = Popup(
+                        title='Ошибка',
+                        content=Label(text='Недостаточно места в инвентаре.'),
+                        size_hint=(0.6, 0.3)
+                    )
+                    popup.open()
+                    # вернём предмет обратно в лут
+                    self.loot_items.append(item)
+                    self.selected.remove(item)
+                    return
             # Обновляем отображение лута и инвентаря
             self.refresh_display()
 

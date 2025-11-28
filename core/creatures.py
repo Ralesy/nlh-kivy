@@ -254,7 +254,7 @@ class Player(Creature):
             level=1
         )
         self.cls = cls
-        self.inventory = Inventory(capacity=40)
+        self.inventory = Inventory(capacity=20)
 
         # Стартовое оборудование
         starter_w = ItemDatabase.get("w_iron_sword")
@@ -651,7 +651,7 @@ class TestPlayer(Player):
         self.coins = 10000  # Много монет для тестирования
 
         # Очищаем инвентарь и добавляем тестовое снаряжение
-        self.inventory = Inventory(capacity=100)  # Большой инвентарь
+        self.inventory = Inventory(capacity=20)
 
         # Добавляем мощное оружие и броню
         # Лучшее оружие
@@ -667,4 +667,4 @@ class TestPlayer(Player):
         # Много зелий
         test_potion = ItemDatabase.get("p_mega")
         if test_potion:
-            self.inventory.add(test_potion, 50)
+            self.inventory.add(test_potion, 10)

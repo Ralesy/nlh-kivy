@@ -305,7 +305,7 @@ class Potion(Item):
 class Inventory:
     """Система инвентаря."""
     
-    def __init__(self, capacity: int = 40):
+    def __init__(self, capacity: int = 20):
         # mapping: item_id -> (Item, qty)
         self.items: Dict[str, Tuple[Item, int]] = {}
         self.capacity = capacity
