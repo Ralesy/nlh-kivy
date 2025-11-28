@@ -56,14 +56,14 @@ class Game:
         print_header("Создание персонажа")
         name = input("Введите имя персонажа: ").strip() or "Герой"
         print("\nВыберите класс:")
-        print("1) Воин (Макс HP, средний урон)")
-        print("2) Маг (Макс урон, меньше HP)")
-        print("3) Лучник (Баланс)")
+        print("1) Обедневший дворянин (Много денег)")
+        print("2) Оруженосец (Хорошее снаряжение)")
+        print("3) Охотник (Среднее кол-во денег)")
         c = input("\n> ").strip()
-        cls = {"1": "warrior", "2": "mage", "3": "archer"}.get(
-            c, "warrior"
+        background = {"1": "noble", "2": "squire", "3": "hunter"}.get(
+            c, "squire"
         )
-        self.player = Player(name, cls)
+        self.player = Player(name, background)
 
         # Начальные ресурсы
         self.player.coins += 200
@@ -81,7 +81,7 @@ class Game:
             self.player.inventory.add(potion, 3)
 
         print(f"\nПерсонаж создан: {self.player.name} "
-              f"({self.player.cls})")
+              f"({self.player.background})")
         print(f"HP: {self.player.health} | DMG: {self.player.damage} "
               f"| DEF: {self.player.defense}")
         pause(1)

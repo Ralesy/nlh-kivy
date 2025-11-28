@@ -28,7 +28,7 @@ def test_basic_save_load():
     ItemDatabase.initialize()
     
     # Create a player
-    player = Player("TestHero", "warrior")
+    player = Player("TestHero", "squire")
     player.coins = 500
     player.experience = 250
     player.level = 2
@@ -76,7 +76,7 @@ def test_player_reconstruction():
     ItemDatabase.initialize()
     
     # Create and save
-    player1 = Player("Adventurer", "archer")
+    player1 = Player("Adventurer", "squire")
     player1.coins = 1000
     player1.experience = 500
     player1.health = 45  # Reduce from max
@@ -128,7 +128,7 @@ def test_inventory_persistence():
     ItemDatabase.initialize()
     
     # Create player and add items
-    player = Player("Collector", "warrior")
+    player = Player("Collector", "squire")
     
     # Get some items from database
     iron_sword = ItemDatabase.get("w_iron_sword")
@@ -183,7 +183,7 @@ def test_equipped_items():
     
     ItemDatabase.initialize()
     
-    player = Player("Warrior", "warrior")
+    player = Player("Warrior", "squire")
     
     # Equip items
     sword = ItemDatabase.get("w_steel_sword")
@@ -232,7 +232,7 @@ def test_save_list():
     ItemDatabase.initialize()
     
     # Create multiple saves
-    player = Player("Tester", "warrior")
+    player = Player("Tester", "squire")
     
     filenames = ["test_list_1", "test_list_2", "test_list_3"]
     for fname in filenames:
@@ -264,7 +264,7 @@ def test_delete_save():
     
     ItemDatabase.initialize()
     
-    player = Player("Deleter", "warrior")
+    player = Player("Deleter", "squire")
     filename = "test_delete_me"
     
     save_game(player, filename)

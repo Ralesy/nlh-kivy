@@ -233,39 +233,102 @@ class Companion(Creature):
 class Player(Creature):
     """Игровой персонаж."""
 
-    CLASS_STATS = {
-        "warrior": {"hp": 140, "dmg": 12, "coins": 80,
-                    "name": "Воин"},
-        "mage": {"hp": 100, "dmg": 16, "coins": 60,
-                 "name": "Маг"},
-        "archer": {"hp": 120, "dmg": 11, "coins": 70,
-                   "name": "Лучник"}
+    # Фоновые истории персонажа
+    BACKGROUNDS = {
+        "noble": {
+            "name": "Обедневший дворянин",
+            "coins": 500,
+            "weapon_id": "w_iron_dagger",
+            "armor_id": "a_leather_armor",
+            "starting_items": [("p_small", 3)]
+        },
+        "squire": {
+            "name": "Оруженосец",
+            "coins": 50,
+            "weapon_id": "w_iron_sword",
+            "armor_id": "a_leather_armor",
+            "starting_items": [("p_small", 2)]
+        },
+        "hunter": {
+            "name": "Охотник",
+            "coins": 200,
+            "weapon_id": "w_iron_bow",
+            "armor_id": "a_leather_armor",
+            "starting_items": [("p_small", 2)]
+        }
     }
 
-    def __init__(self, name: str, cls: str):
-        if cls not in self.CLASS_STATS:
-            cls = "warrior"
-        stats = self.CLASS_STATS[cls]
+    # Базовые статы до распределения очков
+    BASE_STATS = {
+        "health": 100,
+        "damage": 10,
+        "critical_chance": 0.05,  # 5%
+        "luck": 1.0,  # Множитель качества лута
+        "selling_multiplier": 1.0  # Множитель цены при продаже
+    }
+
+    # Коэффициенты для очков характеристик
+    STAT_COEFFICIENTS = {
+        "endurance": {"health": 15},  # +15 HP за очко
+        "strength": {"damage": 2, "inventory_capacity": 5},  # +2 урона и +5 мест в инвентаре
+        "agility": {"critical_chance": 0.05},  # +5% крита за очко
+        "luck": {"luck": 0.15},  # +15% качество лута за очко
+        "trade": {"selling_multiplier": 0.1}  # +10% к цене продажи за очко
+    }
+
+    # Начальное количество очков для распределения (на уровне 1)
+    STARTING_SKILL_POINTS = 5
+
+    def __init__(self, name: str, background: str = "squire"):
+        if background not in self.BACKGROUNDS:
+            background = "squire"
+        
+        bg = self.BACKGROUNDS[background]
+        
+        # Инициализируем базовыми статами
         super().__init__(
             name,
-            stats["hp"],
-            stats["dmg"],
-            stats["coins"],
+            self.BASE_STATS["health"],
+            self.BASE_STATS["damage"],
+            bg["coins"],
             level=1
         )
-        self.cls = cls
+        
+        self.background = background
         self.inventory = Inventory(capacity=20)
+        
+        # Система распределения очков (для каждой характеристики текущее значение очков)
+        self.skill_points_available = self.STARTING_SKILL_POINTS
+        self.skill_points_allocated = {
+            "endurance": 0,
+            "strength": 0,
+            "agility": 0,
+            "luck": 0,
+            "trade": 0
+        }
+        
+        # Специальные характеристики (вычисляются из очков и базовых статов)
+        self._critical_chance = self.BASE_STATS["critical_chance"]
+        self._luck = self.BASE_STATS["luck"]
+        self._selling_multiplier = self.BASE_STATS["selling_multiplier"]
 
-        # Стартовое оборудование
-        starter_w = ItemDatabase.get("w_iron_sword")
-        starter_a = ItemDatabase.get("a_leather_armor")
-        if starter_w:
-            self.equip_weapon(starter_w)
-        if starter_a:
-            self.equip_armor(starter_a)
+        # Стартовое оборудование согласно фону
+        if bg["weapon_id"]:
+            starter_w = ItemDatabase.get(bg["weapon_id"])
+            if starter_w:
+                self.equip_weapon(starter_w)
+        
+        if bg["armor_id"]:
+            starter_a = ItemDatabase.get(bg["armor_id"])
+            if starter_a:
+                self.equip_armor(starter_a)
 
-        # Стартовые зелья
-        self.inventory.add(ItemDatabase.get("p_small"), 2)
+        # Стартовые предметы (по желанию)
+        if bg["starting_items"]:
+            for item_id, qty in bg["starting_items"]:
+                item = ItemDatabase.get(item_id)
+                if item:
+                    self.inventory.add(item, qty)
 
         self.experience = 0
         self.companions: List[Companion] = []
@@ -277,6 +340,70 @@ class Player(Creature):
         # --- Observer/listener support for event-driven UI updates ---
         # Listeners receive calls like: callback(event_name: str, **kwargs)
         self._listeners = []
+    
+    # ===== Система распределения очков =====
+    def allocate_skill_point(self, skill: str) -> bool:
+        """Распределить один очко в характеристику. Возвращает True если успешно."""
+        if skill not in self.skill_points_allocated:
+            return False
+        if self.skill_points_available <= 0:
+            return False
+        
+        self.skill_points_allocated[skill] += 1
+        self.skill_points_available -= 1
+        self._recalculate_derived_stats()
+        return True
+    
+    def deallocate_skill_point(self, skill: str) -> bool:
+        """Вернуть один очко из характеристики."""
+        if skill not in self.skill_points_allocated:
+            return False
+        if self.skill_points_allocated[skill] <= 0:
+            return False
+        
+        self.skill_points_allocated[skill] -= 1
+        self.skill_points_available += 1
+        self._recalculate_derived_stats()
+        return True
+    
+    def _recalculate_derived_stats(self):
+        """Пересчитать производные характеристики на основе очков."""
+        # Здоровье: базовое + (выносливость * коэфф)
+        new_health = self.BASE_STATS["health"] + self.skill_points_allocated["endurance"] * self.STAT_COEFFICIENTS["endurance"]["health"]
+        self.base_health = new_health
+        self.max_health = self._scale_stat(self.base_health)
+        
+        # Урон: базовый + (сила * коэфф)
+        new_damage = self.BASE_STATS["damage"] + self.skill_points_allocated["strength"] * self.STAT_COEFFICIENTS["strength"]["damage"]
+        self.base_damage = new_damage
+        
+        # Вместимость инвентаря: базовая 20 + (сила * коэфф)
+        new_capacity = 20 + self.skill_points_allocated["strength"] * self.STAT_COEFFICIENTS["strength"]["inventory_capacity"]
+        self.inventory.capacity = int(new_capacity)
+        
+        # Крит: базовый + (ловкость * коэфф)
+        self._critical_chance = self.BASE_STATS["critical_chance"] + self.skill_points_allocated["agility"] * self.STAT_COEFFICIENTS["agility"]["critical_chance"]
+        
+        # Удача: базовая + (удача * коэфф)
+        self._luck = self.BASE_STATS["luck"] + self.skill_points_allocated["luck"] * self.STAT_COEFFICIENTS["luck"]["luck"]
+        
+        # Торговля: базовая + (торговля * коэфф)
+        self._selling_multiplier = self.BASE_STATS["selling_multiplier"] + self.skill_points_allocated["trade"] * self.STAT_COEFFICIENTS["trade"]["selling_multiplier"]
+    
+    @property
+    def critical_chance(self) -> float:
+        """Шанс на критический удар (0.0-1.0)."""
+        return clamp(self._critical_chance, 0.0, 1.0)
+    
+    @property
+    def luck(self) -> float:
+        """Удача (множитель качества лута)."""
+        return max(0.0, self._luck)
+    
+    @property
+    def selling_multiplier(self) -> float:
+        """Множитель цены при продаже."""
+        return max(0.0, self._selling_multiplier)
 
     # Listener management
     def add_listener(self, callback):
@@ -436,7 +563,10 @@ class Player(Creature):
                 (self.base_damage * 0.05)
             )
             self.health = self.max_health
+            # Даём +1 очко при повышении уровня
+            self.skill_points_available += 1
             msgs.append(f"🎉 Уровень! {self.name} Lv {self.level}")
+            msgs.append(f"📊 +1 очко для распределения")
         # Notify UI listeners about experience/level changes
         try:
             if old_exp != self.experience:
@@ -573,9 +703,11 @@ class Player(Creature):
         """Для сохранения."""
         data = super().to_dict()
         data["type"] = "player"
-        data["cls"] = self.cls
+        data["background"] = self.background
         data["inventory"] = self.inventory.to_dict()
         data["experience"] = self.experience
+        data["skill_points_available"] = self.skill_points_available
+        data["skill_points_allocated"] = self.skill_points_allocated
         data["companions"] = [c.to_dict() for c in self.companions]
         data["accepted_quests"] = [quest.to_dict() for quest in self.accepted_quests]
         data["session_stats"] = self.get_session_stats()
@@ -584,8 +716,9 @@ class Player(Creature):
     @classmethod
     def from_dict(cls, data: dict) -> 'Player':
         """Загрузка из словаря."""
-        # Создаём базового игрока
-        player = cls(data["name"], data["cls"])
+        # Создаём базового игрока с сохранённым фоном
+        background = data.get("background", "squire")
+        player = cls(data["name"], background)
 
         # Восстанавливаем базовые атрибуты
         player.level = data["level"]
@@ -595,6 +728,12 @@ class Player(Creature):
         player.health = data["health"]
         player.coins = data["coins"]
         player.experience = data.get("experience", 0)
+
+        # Восстанавливаем распределённые очки навыков
+        if "skill_points_allocated" in data:
+            player.skill_points_allocated = data["skill_points_allocated"]
+            player.skill_points_available = data.get("skill_points_available", 0)
+            player._recalculate_derived_stats()
 
         # Масштабируем здоровье
         player.max_health = player._scale_stat(player.base_health)
@@ -640,8 +779,8 @@ class TestPlayer(Player):
         from data.items import ItemDatabase
         ItemDatabase.initialize()
         
-        # Создаём базового игрока с классом warrior
-        super().__init__(name, "warrior")
+        # Создаём базового игрока с фоном squire
+        super().__init__(name, "squire")
 
         # Переопределяем характеристики для тестирования
         self.base_health = 1000
@@ -667,4 +806,4 @@ class TestPlayer(Player):
         # Много зелий
         test_potion = ItemDatabase.get("p_mega")
         if test_potion:
-            self.inventory.add(test_potion, 10)
+            self.inventory.add(test_potion, 19)

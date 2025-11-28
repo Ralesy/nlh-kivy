@@ -606,41 +606,41 @@ class CharacterCreationScreen(Screen):
         class_layout = GridLayout(cols=1, spacing=dp(12), size_hint_y=None)
         class_layout.bind(minimum_height=class_layout.setter('height'))
         
-        self.selected_class = 'warrior'
-        self.class_buttons = {}
+        self.selected_background = 'squire'
+        self.background_buttons = {}
         
-        btn_warrior = Button(
-            text='⚔️ Воин (Макс HP, средний урон)',
+        btn_noble = Button(
+            text='👑 Обедневший дворянин\n(Много денег, кинжал, кожаная броня)',
             size_hint_y=None,
-            height=dp(60),
-            font_size=dp(22),
+            height=dp(70),
+            font_size=dp(18),
+            background_color=(0.8, 0.7, 0.3, 1)
+        )
+        btn_noble.bind(on_press=lambda x: self.select_background('noble', btn_noble))
+        class_layout.add_widget(btn_noble)
+        self.background_buttons['noble'] = btn_noble
+        
+        btn_squire = Button(
+            text='⚔️ Оруженосец\n(Мало денег, хорошее снаряжение)',
+            size_hint_y=None,
+            height=dp(70),
+            font_size=dp(18),
             background_color=(0.3, 0.5, 0.7, 1)
         )
-        btn_warrior.bind(on_press=lambda x: self.select_class('warrior', btn_warrior))
-        class_layout.add_widget(btn_warrior)
-        self.class_buttons['warrior'] = btn_warrior
+        btn_squire.bind(on_press=lambda x: self.select_background('squire', btn_squire))
+        class_layout.add_widget(btn_squire)
+        self.background_buttons['squire'] = btn_squire
         
-        btn_mage = Button(
-            text='🔮 Маг (Макс урон, меньше HP)',
+        btn_hunter = Button(
+            text='🏹 Охотник\n(Среднее количество денег, железный лук)',
             size_hint_y=None,
-            height=dp(60),
-            font_size=dp(22),
-            background_color=(0.5, 0.3, 0.7, 1)
-        )
-        btn_mage.bind(on_press=lambda x: self.select_class('mage', btn_mage))
-        class_layout.add_widget(btn_mage)
-        self.class_buttons['mage'] = btn_mage
-        
-        btn_archer = Button(
-            text='🏹 Лучник (Баланс)',
-            size_hint_y=None,
-            height=dp(60),
-            font_size=dp(22),
+            height=dp(70),
+            font_size=dp(18),
             background_color=(0.3, 0.7, 0.5, 1)
         )
-        btn_archer.bind(on_press=lambda x: self.select_class('archer', btn_archer))
-        class_layout.add_widget(btn_archer)
-        self.class_buttons['archer'] = btn_archer
+        btn_hunter.bind(on_press=lambda x: self.select_background('hunter', btn_hunter))
+        class_layout.add_widget(btn_hunter)
+        self.background_buttons['hunter'] = btn_hunter
 
         btn_test = Button(
             text='🧪 ТЕСТ (1000 HP/1000 DMG)',
@@ -649,9 +649,9 @@ class CharacterCreationScreen(Screen):
             font_size=dp(22),
             background_color=(1.0, 0.5, 0.0, 1)
         )
-        btn_test.bind(on_press=lambda x: self.select_class('test', btn_test))
+        btn_test.bind(on_press=lambda x: self.select_background('test', btn_test))
         class_layout.add_widget(btn_test)
-        self.class_buttons['test'] = btn_test
+        self.background_buttons['test'] = btn_test
         
         layout.add_widget(class_layout)
 
@@ -679,10 +679,10 @@ class CharacterCreationScreen(Screen):
 
         self.add_widget(layout)
     
-    def select_class(self, cls, button):
-        self.selected_class = cls
+    def select_background(self, background, button):
+        self.selected_background = background
         # Визуальная индикация выбора
-        for btn in self.class_buttons.values():
+        for btn in self.background_buttons.values():
             r, g, b, a = btn.background_color
             btn.background_color = (r * 0.7, g * 0.7, b * 0.7, a)
         r, g, b, a = button.background_color
@@ -708,26 +708,11 @@ class CharacterCreationScreen(Screen):
             return
         
         game = Game()
-        if self.selected_class == 'test':
+        if self.selected_background == 'test':
             from core.creatures import TestPlayer
             game.player = TestPlayer(name)
         else:
-            game.player = Player(name, self.selected_class)
-        
-        # Начальные ресурсы
-        game.player.coins += 100
-        
-        w = ItemDatabase.get("w_iron_sword")
-        if w:
-            game.player.inventory.add(w, 1)
-        
-        a = ItemDatabase.get("a_leather_armor")
-        if a:
-            game.player.inventory.add(a, 1)
-        
-        p = ItemDatabase.get("p_small")
-        if p:
-            game.player.inventory.add(p, 3)
+            game.player = Player(name, self.selected_background)
         
         app = App.get_running_app()
         app.game = game

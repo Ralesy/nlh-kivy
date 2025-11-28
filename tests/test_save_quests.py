@@ -15,7 +15,7 @@ def run():
     g = Game()
     # create a simple player (avoid interactive create_character)
     from creatures import Player
-    p = Player("Saver", "warrior")
+    p = Player("Saver", "squire")
     g.player = p
 
     tav = g.cities['Rivertown'].tavern
