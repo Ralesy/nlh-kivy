@@ -4334,7 +4334,9 @@ class LootWindowScreen(Screen):
         loot_window = LootWindow(
             loot_items,
             player_inventory,
-            on_done
+            on_done,
+            gold=battle_result.gold_earned,
+            xp=battle_result.xp_earned
         )
         self.add_widget(loot_window)
 

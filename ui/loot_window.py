@@ -15,7 +15,7 @@ class LootWindow(BoxLayout):
     - Правая колонка: инвентарь игрока
     - Снизу кнопка "Готово"
     """
-    def __init__(self, loot_items, player_inventory, on_done, **kwargs):
+    def __init__(self, loot_items, player_inventory, on_done, gold: int = 0, xp: int = 0, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.spacing = dp(10)
@@ -23,6 +23,8 @@ class LootWindow(BoxLayout):
         self.loot_items = loot_items.copy() if loot_items else []
         self.player_inventory = player_inventory
         self.on_done = on_done
+        self.gold = gold
+        self.xp = xp
         self.selected = []
 
         # Заголовок
@@ -33,6 +35,15 @@ class LootWindow(BoxLayout):
             height=dp(40)
         )
         self.add_widget(title)
+
+        # Статистика награды (золото и опыт)
+        stats = Label(
+            text=f"💰 +{self.gold}   ✨ +{self.xp} XP",
+            font_size=dp(16),
+            size_hint_y=None,
+            height=dp(28)
+        )
+        self.add_widget(stats)
 
         # Две колонки (лут слева, инвентарь справа)
         columns_layout = BoxLayout(
