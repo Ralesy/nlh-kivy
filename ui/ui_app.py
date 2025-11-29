@@ -328,6 +328,9 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Path to UI button images (assets/ui/buttons)
+BUTTONS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'ui', 'buttons')
+
 from core.game import Game
 from core.creatures import Player
 from data.items import (
@@ -384,12 +387,13 @@ def _add_back_to_map_button(parent_widget, manager):
 
     # place the map button in the top-left area so it's consistent across screens
     btn = Button(
-        text='🗺️',
+        text='',
         size_hint=(None, None),
         size=(dp(56), dp(56)),
         pos_hint={'right': 0.98, 'y': 0.88},
-        background_normal='',
-        background_color=(0.25, 0.25, 0.35, 0.95)
+        background_normal=os.path.join(BUTTONS_DIR, 'global_map.png'),
+        background_down=os.path.join(BUTTONS_DIR, 'global_map.png'),
+        background_color=(1, 1, 1, 1)
     )
     btn.bind(on_press=_go_map)
     try:
@@ -423,12 +427,13 @@ def _add_back_to_city_button(parent_widget, manager):
 
     # place city button just to the right of the map button in top-left
     btn = Button(
-        text='🏛️',
+        text='',
         size_hint=(None, None),
         size=(dp(56), dp(56)),
         pos_hint={'right': 0.88, 'y': 0.88},
-        background_normal='',
-        background_color=(0.35, 0.25, 0.25, 0.95)
+        background_normal=os.path.join(BUTTONS_DIR, 'city.png'),
+        background_down=os.path.join(BUTTONS_DIR, 'city.png'),
+        background_color=(1, 1, 1, 1)
     )
     btn.bind(on_press=_go_city)
     try:
@@ -918,31 +923,31 @@ class MapWidget(BoxLayout):
             'name': '🌲 Лес Криволесье',
             'desc': 'Легкие враги\nСобытия',
             'difficulty': 'Легко',
-            'color': (0.2, 0.5, 0.2, 1)
+            'color': (0.45, 0.33, 0.20, 1)
         },
         'swamp': {
             'name': '🏞️ Болота Гниющие Топи',
             'desc': 'Средние враги\nТопи',
             'difficulty': 'Средне',
-            'color': (0.3, 0.4, 0.6, 1)
+            'color': (0.40, 0.30, 0.20, 1)
         },
         'mines': {
             'name': '⛏️ Шахты Подскальные Гроты',
             'desc': 'Сложные враги\nСокровища',
             'difficulty': 'Сложно',
-            'color': (0.4, 0.3, 0.2, 1)
+            'color': (0.38, 0.28, 0.18, 1)
         },
         'mountains': {
             'name': '⛰️ Горы Хребет Драконов',
             'desc': 'Очень сложные враги\nДраконы',
             'difficulty': 'Очень сложно',
-            'color': (0.5, 0.4, 0.3, 1)
+            'color': (0.47, 0.34, 0.22, 1)
         },
         'ancient_cave': {
             'name': '🏰 Пещера Древних',
             'desc': 'Уникальные враги\nДревние артефакты',
             'difficulty': 'Легендарно',
-            'color': (0.6, 0.4, 0.2, 1)
+            'color': (0.50, 0.36, 0.22, 1)
         }
     }
     
@@ -1053,7 +1058,9 @@ class GameScreen(Screen):
             size_hint_y=None,
             height=dp(55),
             font_size=dp(21),
-            background_color=(0.7, 0.5, 0.2, 1)
+            background_normal=os.path.join(BUTTONS_DIR, 'city.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'city.png'),
+            background_color=(1, 1, 1, 1)
         )
         btn_city.bind(on_press=self.on_city)
         menu_layout.add_widget(btn_city)
@@ -1063,7 +1070,9 @@ class GameScreen(Screen):
             size_hint_y=None,
             height=dp(55),
             font_size=dp(21),
-            background_color=(0.3, 0.7, 0.5, 1)
+            background_normal=os.path.join(BUTTONS_DIR, 'inventory.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'inventory.png'),
+            background_color=(1, 1, 1, 1)
         )
         btn_inventory.bind(on_press=self.on_inventory)
         menu_layout.add_widget(btn_inventory)
@@ -1073,7 +1082,9 @@ class GameScreen(Screen):
             size_hint_y=None,
             height=dp(55),
             font_size=dp(21),
-            background_color=(0.25, 0.55, 0.6, 1)
+            background_normal=os.path.join(BUTTONS_DIR, 'global_map.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'global_map.png'),
+            background_color=(1, 1, 1, 1)
         )
         btn_locations.bind(on_press=self.on_locations)
         menu_layout.add_widget(btn_locations)
@@ -1083,7 +1094,9 @@ class GameScreen(Screen):
             size_hint_y=None,
             height=dp(55),
             font_size=dp(21),
-            background_color=(0.5, 0.5, 0.7, 1)
+            background_normal=os.path.join(BUTTONS_DIR, 'status.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'status.png'),
+            background_color=(1, 1, 1, 1)
         )
         btn_status.bind(on_press=self.on_status)
         menu_layout.add_widget(btn_status)
@@ -1093,7 +1106,9 @@ class GameScreen(Screen):
             size_hint_y=None,
             height=dp(55),
             font_size=dp(21),
-            background_color=(0.4, 0.6, 0.8, 1)
+            background_normal=os.path.join(BUTTONS_DIR, 'companion.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'companion.png'),
+            background_color=(1, 1, 1, 1)
         )
         btn_companions.bind(on_press=self.on_companions)
         menu_layout.add_widget(btn_companions)
@@ -1103,7 +1118,9 @@ class GameScreen(Screen):
             size_hint_y=None,
             height=dp(55),
             font_size=dp(21),
-            background_color=(0.6, 0.5, 0.2, 1)
+            background_normal=os.path.join(BUTTONS_DIR, 'active_quests.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'active_quests.png'),
+            background_color=(1, 1, 1, 1)
         )
         btn_quests.bind(on_press=self.on_active_quests)
         menu_layout.add_widget(btn_quests)
@@ -1468,7 +1485,9 @@ class BattleScreen(Screen):
         self.btn_inventory = Button(
             text='🎒 Инвентарь',
             font_size=dp(18),
-            background_color=(0.2, 0.6, 0.8, 1)
+            background_normal=os.path.join(BUTTONS_DIR, 'inventory.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'inventory.png'),
+            background_color=(1, 1, 1, 1)
         )
         self.btn_inventory.bind(on_press=self.on_open_inventory)
         actions_layout.add_widget(self.btn_inventory)
@@ -3483,7 +3502,32 @@ class LocationSelectScreen(Screen):
         # Clear previous overlay widgets
         try:
             print(f"[DEBUG] map_overlay present={hasattr(self, 'map_overlay')}")
+            # Clear previous widgets and hotspot markers (canvas.before instructions)
             self.map_overlay.clear_widgets()
+            try:
+                if getattr(self, '_hotspot_markers', None):
+                    for entry in list(self._hotspot_markers):
+                        try:
+                            btn, col, ell = entry
+                        except Exception:
+                            try:
+                                col, ell = entry
+                                btn = None
+                            except Exception:
+                                continue
+                        try:
+                            if ell in self.map_overlay.canvas.before:
+                                self.map_overlay.canvas.before.remove(ell)
+                        except Exception:
+                            pass
+                        try:
+                            if col in self.map_overlay.canvas.before:
+                                self.map_overlay.canvas.before.remove(col)
+                        except Exception:
+                            pass
+                    self._hotspot_markers = []
+            except Exception:
+                pass
         except Exception:
             print("[DEBUG] map_overlay clearing failed, falling back to list layout")
             # If map_overlay isn't present (older UI), fall back to list behavior
@@ -3499,8 +3543,8 @@ class LocationSelectScreen(Screen):
                     height=dp(80),
                     font_size=dp(15),
                     background_color=(
-                        (0.2, 0.5, 0.3, 1) if not location.is_locked
-                        else (0.5, 0.2, 0.2, 1)
+                        (0.48, 0.35, 0.22, 1) if not location.is_locked
+                        else (0.55, 0.28, 0.20, 1)
                     )
                 )
                 if not location.is_locked:
@@ -3512,41 +3556,183 @@ class LocationSelectScreen(Screen):
 
         print("[DEBUG] map_overlay cleared, creating hotspots...")
 
+        # Track visible hotspots for hover detection
+        self._hotspot_buttons = []
+        if not getattr(self, '_hotspot_markers', None):
+            self._hotspot_markers = []
+
         for loc_id, location in self.location_manager.locations.items():
             pos = self._map_positions.get(loc_id)
             if not pos:
                 continue
             x, y = pos
-            # small circular translucent button
+            # Invisible large hotspot button (acts like a big area to click)
+            # Allow per-location adjustments: move or resize specific hotspots
+            size_dp = dp(120)
+            adj_x = x
+            adj_y = y
+            # forest: lower and twice bigger
+            if loc_id == 'forest':
+                size_dp = dp(120) * 2
+                adj_y = max(0.05, y - 0.08)
+            # swamp: twice bigger
+            elif loc_id == 'swamp':
+                size_dp = dp(120) * 2
+            # mines: move right and twice bigger
+            elif loc_id == 'mines':
+                size_dp = dp(120) * 2
+                adj_x = min(0.95, x + 0.06)
+            # mountains: slightly left and twice bigger
+            elif loc_id == 'mountains':
+                size_dp = dp(120) * 2
+                adj_x = max(0.05, x - 0.05)
+            # ancient cave: just lower
+            elif loc_id == 'ancient_cave':
+                adj_y = max(0.05, y - 0.06)
+
             btn = Button(
                 text='',
                 size_hint=(None, None),
-                size=(dp(48), dp(48)),
-                pos_hint={'center_x': x, 'center_y': y},
+                size=(size_dp, size_dp),
+                pos_hint={'center_x': adj_x, 'center_y': adj_y},
                 background_normal='',
-                background_color=(0.18, 0.6, 0.18, 0.45) if not location.is_locked else (0.6, 0.18, 0.18, 0.45)
+                background_down='',
+                background_color=(0, 0, 0, 0)
             )
+            # store metadata for tooltip
+            btn._loc_id = loc_id
+            btn._loc_name = getattr(location, 'name', loc_id)
+            self._hotspot_buttons.append(btn)
+
+            # Create a faint circular marker behind the hotspot (canvas.before)
+            try:
+                from kivy.graphics import Color, Ellipse
+                col = Color(0.35, 0.22, 0.10, 0.16)
+                ell = Ellipse(pos=(0, 0), size=(size_dp, size_dp))
+                # add to canvas.before so it appears under widgets
+                self.map_overlay.canvas.before.add(col)
+                self.map_overlay.canvas.before.add(ell)
+                self._hotspot_markers.append((btn, col, ell))
+
+                def _update_marker(*args):
+                    try:
+                        ell.pos = btn.pos
+                        ell.size = btn.size
+                    except Exception:
+                        pass
+
+                btn.bind(pos=_update_marker, size=_update_marker)
+                # trigger initial placement after layout; small delay
+                Clock.schedule_once(lambda dt: _update_marker(), 0.05)
+            except Exception:
+                pass
+
             if not location.is_locked:
                 btn.bind(on_press=lambda b, lid=loc_id: self.on_select_location(lid))
             else:
                 btn.bind(on_press=lambda b, loc=location: self.on_locked_location(loc))
             self.map_overlay.add_widget(btn)
 
-        # Add city hotspot that opens city menu
-        def _open_city(*args):
-            self.manager.current = 'city_menu'
+        # Add an invisible hotspot for the city so player can click the city area
+        try:
+            city_pos = self._map_positions.get('city') or (0.28, 0.9)
+            cx, cy = city_pos
+            # city: lower and twice bigger
+            size_dp = dp(120) * 2
+            adj_cx = cx
+            adj_cy = max(0.05, cy - 0.08)
+            city_btn = Button(
+                text='',
+                size_hint=(None, None),
+                size=(size_dp, size_dp),
+                pos_hint={'center_x': adj_cx, 'center_y': adj_cy},
+                background_normal='',
+                background_down='',
+                background_color=(0, 0, 0, 0)
+            )
+            city_btn._loc_id = 'city'
+            city_btn._loc_name = 'Город'
 
-        # City hotspot: make it a slightly larger square and move right
-        city_btn = Button(
-            text='',
-            size_hint=(None, None),
-            size=(dp(64), dp(64)),
-            pos_hint={'center_x': 0.28, 'center_y': 0.9},
-            background_normal='',
-            background_color=(0.82, 0.7, 0.28, 0.6)
-        )
-        city_btn.bind(on_press=_open_city)
-        self.map_overlay.add_widget(city_btn)
+            def _open_city(btn):
+                try:
+                    self.manager.current = 'city_menu'
+                except Exception:
+                    pass
+
+            city_btn.bind(on_press=_open_city)
+            # Add faint circular marker behind the city hotspot
+            try:
+                from kivy.graphics import Color, Ellipse
+                col = Color(0.35, 0.22, 0.10, 0.16)
+                ell = Ellipse(pos=(0, 0), size=(size_dp, size_dp))
+                self.map_overlay.canvas.before.add(col)
+                self.map_overlay.canvas.before.add(ell)
+                self._hotspot_markers.append((btn, col, ell))
+
+                def _update_city_marker(*args):
+                    try:
+                        ell.pos = city_btn.pos
+                        ell.size = city_btn.size
+                    except Exception:
+                        pass
+
+                city_btn.bind(pos=_update_city_marker, size=_update_city_marker)
+                Clock.schedule_once(lambda dt: _update_city_marker(), 0.05)
+            except Exception:
+                pass
+
+            self._hotspot_buttons.append(city_btn)
+            self.map_overlay.add_widget(city_btn)
+        except Exception:
+            pass
+
+        # Create hover tooltip widget (once) and bind mouse movement
+        if not hasattr(self, '_hover_widget'):
+            hw = BoxLayout(size_hint=(None, None), size=(dp(180), dp(40)))
+            with hw.canvas.before:
+                Color(0.12, 0.07, 0.03, 0.9)
+                hw._rect = Rectangle(pos=hw.pos, size=hw.size)
+            lbl = Label(text='', halign='center', valign='middle', color=(1, 1, 1, 1))
+            lbl.text_size = (hw.width, hw.height)
+            hw.add_widget(lbl)
+            hw.label = lbl
+            hw.opacity = 0
+            self.map_overlay.add_widget(hw)
+            hw.bind(pos=lambda inst, val: setattr(hw._rect, 'pos', val))
+            hw.bind(size=lambda inst, val: setattr(hw._rect, 'size', val))
+            self._hover_widget = hw
+
+        # bind mouse position for hover only once
+        try:
+            from kivy.core.window import Window
+            if not getattr(self, '_mouse_bound', False):
+                Window.bind(mouse_pos=self._on_mouse_pos)
+                self._mouse_bound = True
+        except Exception:
+            pass
+        # ensure markers are refreshed when overlay resizes
+        try:
+            def _refresh_all_markers(*args):
+                try:
+                    if not getattr(self, '_hotspot_markers', None):
+                        return
+                    for entry in self._hotspot_markers:
+                        try:
+                            btn, col, ell = entry
+                        except Exception:
+                            continue
+                        try:
+                            ell.pos = btn.pos
+                            ell.size = btn.size
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            self.map_overlay.bind(size=_refresh_all_markers, pos=_refresh_all_markers)
+            Clock.schedule_once(lambda dt: _refresh_all_markers(), 0.1)
+        except Exception:
+            pass
 
         # Exit to main menu button (top-right corner)
         def _exit_to_menu(*args):
@@ -3570,12 +3756,13 @@ class LocationSelectScreen(Screen):
             self.manager.current = 'main_menu'
 
         exit_menu_btn = Button(
-            text='MENU',
+            text='',
             size_hint=(None, None),
             size=(dp(56), dp(56)),
             pos_hint={'right': 0.98, 'top': 0.98},
-            background_normal='',
-            background_color=(0.7, 0.2, 0.2, 0.9)
+            background_normal=os.path.join(BUTTONS_DIR, 'menu.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'menu.png'),
+            background_color=(1, 1, 1, 1)
         )
         exit_menu_btn.bind(on_press=_exit_to_menu)
         self.map_overlay.add_widget(exit_menu_btn)
@@ -3597,12 +3784,13 @@ class LocationSelectScreen(Screen):
 
         # Move inventory to left-bottom (standardized size, horizontal stack)
         inv_btn = Button(
-            text='INVENTORY',
+            text='',
             size_hint=(None, None),
             size=(dp(72), dp(72)),
             pos_hint={'x': 0.01, 'y': 0.01},
-            background_normal='',
-            background_color=(0.2, 0.35, 0.7, 0.9)
+            background_normal=os.path.join(BUTTONS_DIR, 'inventory.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'inventory.png'),
+            background_color=(1, 1, 1, 1)
         )
         inv_btn.bind(on_press=_open_inventory)
         self.map_overlay.add_widget(inv_btn)
@@ -3622,12 +3810,13 @@ class LocationSelectScreen(Screen):
                     pass
 
         status_btn = Button(
-            text='STATUS',
+            text='',
             size_hint=(None, None),
             size=(dp(72), dp(72)),
             pos_hint={'x': 0.12, 'y': 0.01},
-            background_normal='',
-            background_color=(0.5, 0.5, 0.7, 0.95)
+            background_normal=os.path.join(BUTTONS_DIR, 'status.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'status.png'),
+            background_color=(1, 1, 1, 1)
         )
         status_btn.bind(on_press=_open_status)
         self.map_overlay.add_widget(status_btn)
@@ -3647,12 +3836,13 @@ class LocationSelectScreen(Screen):
                     pass
 
         comp_btn = Button(
-            text='COMPANIONS',
+            text='',
             size_hint=(None, None),
             size=(dp(72), dp(72)),
             pos_hint={'x': 0.23, 'y': 0.01},
-            background_normal='',
-            background_color=(0.4, 0.65, 0.8, 0.95)
+            background_normal=os.path.join(BUTTONS_DIR, 'companion.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'companion.png'),
+            background_color=(1, 1, 1, 1)
         )
         comp_btn.bind(on_press=_open_companions)
         self.map_overlay.add_widget(comp_btn)
@@ -3672,12 +3862,13 @@ class LocationSelectScreen(Screen):
                     pass
 
         quests_btn = Button(
-            text='QUESTS',
+            text='',
             size_hint=(None, None),
             size=(dp(72), dp(72)),
             pos_hint={'x': 0.34, 'y': 0.01},
-            background_normal='',
-            background_color=(0.6, 0.5, 0.2, 0.95)
+            background_normal=os.path.join(BUTTONS_DIR, 'active_quests.png'),
+            background_down=os.path.join(BUTTONS_DIR, 'active_quests.png'),
+            background_color=(1, 1, 1, 1)
         )
         quests_btn.bind(on_press=_open_active_quests)
         self.map_overlay.add_widget(quests_btn)
@@ -3701,6 +3892,52 @@ class LocationSelectScreen(Screen):
             text += f"\n✅ Враги: {len(location.enemy_types)}"
         
         return text
+
+    def _on_mouse_pos(self, window, pos):
+        """Handle global mouse movement to show hover tooltip for hotspots.
+
+        `pos` is window coordinates (x, y).
+        """
+        try:
+            if not getattr(self, 'map_overlay', None) or not getattr(self, '_hotspot_buttons', None):
+                return
+            found = None
+            for btn in self._hotspot_buttons:
+                try:
+                    if btn.collide_point(*btn.to_widget(*pos)):
+                        found = btn
+                        break
+                except Exception:
+                    continue
+
+            if found and getattr(self, '_hover_widget', None):
+                hw = self._hover_widget
+                try:
+                    hw.label.text = found._loc_name
+                except Exception:
+                    hw.label.text = str(found._loc_id)
+                # Position tooltip slightly above the hotspot center
+                try:
+                    cx, cy = found.center_x, found.center_y
+                    x = cx - hw.width / 2
+                    y = cy + dp(10)
+                    parent = self.map_overlay
+                    max_x = max(0, parent.width - hw.width)
+                    x = max(0, min(x, max_x))
+                    max_y = max(0, parent.height - hw.height)
+                    y = max(0, min(y, max_y))
+                    hw.pos = (x, y)
+                except Exception:
+                    pass
+                hw.opacity = 1
+            else:
+                try:
+                    if getattr(self, '_hover_widget', None):
+                        self._hover_widget.opacity = 0
+                except Exception:
+                    pass
+        except Exception:
+            pass
     
     def on_select_location(self, loc_id):
         """Выбор локации для входа."""
