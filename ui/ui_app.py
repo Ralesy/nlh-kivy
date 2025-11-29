@@ -3417,6 +3417,12 @@ class LocationSelectScreen(Screen):
         self.current_location = None
         self.location_manager = None
         self.game = None
+        # Player marker on the global map (widget that moves)
+        self._player_marker = None
+        self._destination = None
+        self._move_ev = None
+        self._move_speed = dp(220)  # pixels per second
+        self._enter_btn = None
         # positions on the map (normalized 0..1) for location hotspots
         self._map_positions = {
             'forest': (0.18, 0.58),
@@ -3627,10 +3633,11 @@ class LocationSelectScreen(Screen):
             except Exception:
                 pass
 
-            if not location.is_locked:
-                btn.bind(on_press=lambda b, lid=loc_id: self.on_select_location(lid))
-            else:
-                btn.bind(on_press=lambda b, loc=location: self.on_locked_location(loc))
+            # Do NOT bind hotspot buttons to clicks — entrance should occur
+            # only when the player marker reaches the hotspot and the
+            # enter-button appears. Hotspots remain visible for hover
+            # and proximity checks but don't handle touch events.
+            # (They are still added to the overlay so hover/proximity works.)
             self.map_overlay.add_widget(btn)
 
         # Add an invisible hotspot for the city so player can click the city area
@@ -3659,8 +3666,10 @@ class LocationSelectScreen(Screen):
                 except Exception:
                     pass
 
-            city_btn.bind(on_press=_open_city)
-            # Add city button to the widget tree first
+            # City entry should also be triggered by the player marker
+            # (showing the enter button) rather than direct clicks, so do
+            # not bind a click handler here. Add the widget so proximity
+            # detection and tooltip still work.
             self._hotspot_buttons.append(city_btn)
             self.map_overlay.add_widget(city_btn)
             
@@ -3713,6 +3722,16 @@ class LocationSelectScreen(Screen):
                 self._mouse_bound = True
         except Exception:
             pass
+        # Bind map clicks to move player marker
+        try:
+            if not getattr(self, '_map_touch_bound', False):
+                try:
+                    self.map_overlay.bind(on_touch_down=self._on_map_touch)
+                except Exception:
+                    pass
+                self._map_touch_bound = True
+        except Exception:
+            pass
         # ensure markers are refreshed when overlay resizes
         try:
             def _refresh_all_markers(*args):
@@ -3734,6 +3753,56 @@ class LocationSelectScreen(Screen):
 
             self.map_overlay.bind(size=_refresh_all_markers, pos=_refresh_all_markers)
             Clock.schedule_once(lambda dt: _refresh_all_markers(), 0.1)
+        except Exception:
+            pass
+
+        # Create player marker if missing: a more visible circle slightly below the city
+        try:
+            if not getattr(self, '_player_marker', None):
+                # Make the marker larger and high-contrast so it's visible on most maps
+                size_px = dp(40)
+                city_pos = self._map_positions.get('city') or (0.28, 0.9)
+                cx, cy = city_pos
+                adj_cx = cx
+                adj_cy = max(0.03, cy - 0.06)
+                pm = Widget(size_hint=(None, None), size=(size_px, size_px))
+                # draw circular representation (two concentric ellipses: outline + fill)
+                from kivy.graphics import Color, Ellipse
+                with pm.canvas:
+                    # outline (thin, semi-dark) so the marker is visible on any background
+                    Color(0.12, 0.08, 0.03, 1)
+                    pm._outline = Ellipse(pos=(pm.x - dp(2), pm.y - dp(2)), size=(pm.width + dp(4), pm.height + dp(4)))
+                    # fill (bright yellow-green)
+                    Color(1.0, 0.85, 0.05, 1)
+                    pm._ell = Ellipse(pos=pm.pos, size=pm.size)
+                # keep ellipses synced and place marker explicitly based on overlay size
+                def _update_pm(*args):
+                    try:
+                        pm._ell.pos = pm.pos
+                        pm._ell.size = pm.size
+                        pm._outline.pos = (pm.x - dp(2), pm.y - dp(2))
+                        pm._outline.size = (pm.width + dp(4), pm.height + dp(4))
+                    except Exception:
+                        pass
+                pm.bind(pos=_update_pm, size=_update_pm)
+                self.map_overlay.add_widget(pm)
+                self._player_marker = pm
+
+                # place the player marker explicitly (convert normalized coords to pixels)
+                def _place_pm(dt=None):
+                    try:
+                        w = max(1, self.map_overlay.width)
+                        h = max(1, self.map_overlay.height)
+                        x = int(w * adj_cx - pm.width / 2)
+                        y = int(h * adj_cy - pm.height / 2)
+                        pm.pos = (x, y)
+                        _update_pm()
+                    except Exception:
+                        pass
+
+                # initial placement after layout and on resize
+                Clock.schedule_once(_place_pm, 0.06)
+                self.map_overlay.bind(size=lambda i, v: _place_pm())
         except Exception:
             pass
 
@@ -3875,6 +3944,20 @@ class LocationSelectScreen(Screen):
         )
         quests_btn.bind(on_press=_open_active_quests)
         self.map_overlay.add_widget(quests_btn)
+        # Ensure player marker is above these controls so it's always visible
+        try:
+            if getattr(self, '_player_marker', None):
+                try:
+                    # remove and re-add to bring to top of widget stack
+                    try:
+                        self.map_overlay.remove_widget(self._player_marker)
+                    except Exception:
+                        pass
+                    self.map_overlay.add_widget(self._player_marker)
+                except Exception:
+                    pass
+        except Exception:
+            pass
     
     def _get_location_text(self, location):
         """Получить текст кнопки локации."""
@@ -3992,6 +4075,183 @@ class LocationSelectScreen(Screen):
                     pass
         except Exception as e:
             pass
+
+    # --- Movement & map interaction for player marker ---
+    def _on_map_touch(self, instance, touch):
+        """Handle clicks/touches on the map overlay to set destination."""
+        try:
+            if not getattr(self, 'map_overlay', None):
+                return False
+            # Only react to left mouse button or simple touch
+            tb = getattr(touch, 'button', None)
+            if tb and tb != 'left':
+                return False
+            # Convert touch pos (window coords) to map_overlay local coordinates
+            # so movement and marker positioning use the same coordinate space.
+            try:
+                local = self.map_overlay.to_widget(touch.x, touch.y)
+                local_x, local_y = local[0], local[1]
+                # If the click landed on an interactive child (buttons, hotspots, etc.),
+                # don't treat it as a map-move — allow the child to handle the event.
+                try:
+                    for child in list(self.map_overlay.children):
+                        # ignore the player marker and hover widget when checking
+                        if child is getattr(self, '_player_marker', None) or child is getattr(self, '_hover_widget', None):
+                            continue
+                        # ignore hotspot widgets (they should not block map-move clicks)
+                        # hotspot buttons carry a `_loc_id` attribute
+                        try:
+                            if hasattr(child, '_loc_id'):
+                                continue
+                        except Exception:
+                            pass
+                        try:
+                            if child.collide_point(local_x, local_y):
+                                return False
+                        except Exception:
+                            continue
+                except Exception:
+                    pass
+                self._destination = (local_x, local_y)
+            except Exception:
+                # fallback: use raw window coords if conversion fails
+                self._destination = touch.pos
+            # start movement loop
+            print(f"[DEBUG _on_map_touch] destination set -> {self._destination}")
+            self._start_moving()
+            return True
+        except Exception:
+            return False
+
+    def _start_moving(self):
+        try:
+            if getattr(self, '_move_ev', None):
+                return
+            print("[DEBUG _start_moving] scheduling movement event")
+            self._move_ev = Clock.schedule_interval(self._move_player, 1.0 / 60.0)
+        except Exception:
+            pass
+
+    def _stop_moving(self):
+        try:
+            if getattr(self, '_move_ev', None):
+                self._move_ev.cancel()
+                self._move_ev = None
+        except Exception:
+            pass
+
+    def _move_player(self, dt):
+        """Move the player marker towards destination each frame."""
+        try:
+            if not getattr(self, '_player_marker', None) or not getattr(self, '_destination', None):
+                self._stop_moving()
+                return
+            # current center of player marker in window coords
+            pm = self._player_marker
+            cur_x = pm.pos[0] + pm.size[0] / 2
+            cur_y = pm.pos[1] + pm.size[1] / 2
+            dest_x, dest_y = self._destination
+            dx = dest_x - cur_x
+            dy = dest_y - cur_y
+            dist = (dx * dx + dy * dy) ** 0.5
+            if dist < 4:
+                # reached destination
+                self._destination = None
+                self._stop_moving()
+                # update enter button state
+                self._update_enter_button()
+                return
+            # move toward destination
+            step = self._move_speed * dt
+            if step >= dist:
+                nx, ny = dest_x, dest_y
+            else:
+                nx = cur_x + dx / dist * step
+                ny = cur_y + dy / dist * step
+            # set marker pos such that center matches nx,ny
+            pm.pos = (nx - pm.size[0] / 2, ny - pm.size[1] / 2)
+            print(f"[DEBUG _move_player] pm.pos={pm.pos} center=({nx:.1f},{ny:.1f}) dest=({dest_x:.1f},{dest_y:.1f}) dist={dist:.1f}")
+            # after moving, check proximity to hotspots
+            self._update_enter_button()
+        except Exception:
+            pass
+
+    def _update_enter_button(self):
+        """Show enter button if player is near a hotspot, hide otherwise."""
+        try:
+            if not getattr(self, '_player_marker', None):
+                return
+            pm = self._player_marker
+            cx = pm.pos[0] + pm.size[0] / 2
+            cy = pm.pos[1] + pm.size[1] / 2
+            nearest = None
+            nearest_dist = 1e9
+            # Find the truly nearest hotspot without duplication
+            for btn in getattr(self, '_hotspot_buttons', []):
+                try:
+                    bx = btn.pos[0] + btn.size[0] / 2
+                    by = btn.pos[1] + btn.size[1] / 2
+                    d = ((bx - cx) ** 2 + (by - cy) ** 2) ** 0.5
+                    if d < nearest_dist:
+                        nearest_dist = d
+                        nearest = btn
+                except Exception:
+                    continue
+            # threshold: within 42 pixels + half hotspot smaller dimension
+            show = False
+            loc_id = None
+            if nearest:
+                radius = min(nearest.size[0], nearest.size[1]) / 2
+                if nearest_dist <= max(42, radius * 0.6):
+                    show = True
+                    loc_id = getattr(nearest, '_loc_id', None)
+            if show:
+                # create or reuse enter button
+                if not getattr(self, '_enter_btn', None):
+                    eb = Button(text='Войти', size_hint=(None, None), size=(dp(92), dp(40)))
+                    def _enter(b):
+                        try:
+                            # Get loc_id from button's property, not from closure
+                            entered_loc = getattr(b, '_target_loc_id', 'city')
+                            if entered_loc == 'city':
+                                self.manager.current = 'city_menu'
+                            else:
+                                self.on_select_location(entered_loc)
+                        except Exception:
+                            pass
+                    eb.bind(on_press=_enter)
+                    self._enter_btn = eb
+                    # add to root so it's above other UI
+                    try:
+                        root = App.get_running_app().root
+                        root.add_widget(eb)
+                    except Exception:
+                        try:
+                            self.map_overlay.add_widget(eb)
+                        except Exception:
+                            pass
+                # Update button's target location and position
+                try:
+                    eb = self._enter_btn
+                    # Store current loc_id in button so callback uses correct location
+                    eb._target_loc_id = loc_id
+                    win = App.get_running_app().root
+                    ex = cx - eb.width / 2
+                    ey = cy - pm.size[1] / 2 - eb.height - dp(6)
+                    ex = max(0, min(ex, max(0, win.width - eb.width)))
+                    ey = max(0, min(ey, max(0, win.height - eb.height)))
+                    eb.pos = (ex, ey)
+                    eb.opacity = 1
+                except Exception:
+                    pass
+            else:
+                if getattr(self, '_enter_btn', None):
+                    try:
+                        self._enter_btn.opacity = 0
+                    except Exception:
+                        pass
+        except Exception:
+            pass
     
     def on_select_location(self, loc_id):
         """Выбор локации для входа."""
@@ -4005,6 +4265,23 @@ class LocationSelectScreen(Screen):
             )
             popup.open()
             return
+
+        # Check if location is available (not locked)
+        try:
+            location_mgr = app.game.location_manager
+            if not location_mgr.is_location_available(loc_id):
+                location = location_mgr.get_location(loc_id)
+                unlock_msg = location.unlock_description() if location else "Локация заблокирована"
+                popup = Popup(
+                    title='Локация закрыта',
+                    content=Label(text=unlock_msg),
+                    size_hint=(0.7, 0.3)
+                )
+                popup.open()
+                return
+        except Exception as e:
+            print(f"[DEBUG] Error checking location availability: {e}")
+            pass
 
         # Determine location and handle appropriately
         if loc_id == 'ancient_cave':
@@ -4070,7 +4347,7 @@ class LocationSelectScreen(Screen):
             pass
 
     def on_leave(self):
-        """Cleanup when leaving screen: hide tooltip and unbind mouse handler."""
+        """Cleanup when leaving screen: hide tooltip, unbind mouse handler, remove enter button."""
         try:
             if getattr(self, '_hover_widget', None):
                 try:
@@ -4085,6 +4362,15 @@ class LocationSelectScreen(Screen):
                 Window.unbind(mouse_pos=self._on_mouse_pos)
             except Exception:
                 pass
+        except Exception:
+            pass
+        # Remove enter button from root so it doesn't appear on other screens
+        try:
+            if getattr(self, '_enter_btn', None):
+                root = App.get_running_app().root
+                if self._enter_btn in root.children:
+                    root.remove_widget(self._enter_btn)
+                self._enter_btn = None
         except Exception:
             pass
 
