@@ -3660,29 +3660,32 @@ class LocationSelectScreen(Screen):
                     pass
 
             city_btn.bind(on_press=_open_city)
-            # Add faint circular marker behind the city hotspot
+            # Add city button to the widget tree first
+            self._hotspot_buttons.append(city_btn)
+            self.map_overlay.add_widget(city_btn)
+            
+            # Add faint circular marker behind the city hotspot (after widget is added)
             try:
                 from kivy.graphics import Color, Ellipse
                 col = Color(0.35, 0.22, 0.10, 0.16)
-                ell = Ellipse(pos=(0, 0), size=(size_dp, size_dp))
+                ell = Ellipse(pos=city_btn.pos, size=city_btn.size)
                 self.map_overlay.canvas.before.add(col)
                 self.map_overlay.canvas.before.add(ell)
-                self._hotspot_markers.append((btn, col, ell))
+                self._hotspot_markers.append((city_btn, col, ell))
 
-                def _update_city_marker(*args):
+                def _update_city_marker(btn, *args):
                     try:
-                        ell.pos = city_btn.pos
-                        ell.size = city_btn.size
+                        ell.pos = btn.pos
+                        ell.size = btn.size
                     except Exception:
                         pass
 
-                city_btn.bind(pos=_update_city_marker, size=_update_city_marker)
-                Clock.schedule_once(lambda dt: _update_city_marker(), 0.05)
-            except Exception:
-                pass
-
-            self._hotspot_buttons.append(city_btn)
-            self.map_overlay.add_widget(city_btn)
+                # Bind with the button as first argument to avoid stale closure
+                city_btn.bind(pos=lambda inst, val: _update_city_marker(city_btn),
+                              size=lambda inst, val: _update_city_marker(city_btn))
+                Clock.schedule_once(lambda dt: _update_city_marker(city_btn), 0.05)
+            except Exception as e:
+                print(f"[DEBUG] Failed to add city marker: {e}")
         except Exception:
             pass
 
@@ -3901,32 +3904,83 @@ class LocationSelectScreen(Screen):
         try:
             if not getattr(self, 'map_overlay', None) or not getattr(self, '_hotspot_buttons', None):
                 return
+            
             found = None
+            mouse_x, mouse_y = pos
+            
+            # Debug: log first call with info about hotspot buttons
+            if not getattr(self, '_debug_logged_mouse', False):
+                print(f"[DEBUG _on_mouse_pos] _hotspot_buttons count: {len(self._hotspot_buttons)}")
+                for i, btn in enumerate(self._hotspot_buttons):
+                    print(f"  [{i}] {btn._loc_id}: pos={btn.pos}, size={btn.size}")
+                self._debug_logged_mouse = True
+            
+            # Check collision in screen/window space directly
             for btn in self._hotspot_buttons:
                 try:
-                    if btn.collide_point(*btn.to_widget(*pos)):
+                    # Get button's bounding box in window/screen coordinates
+                    btn_x = btn.pos[0]
+                    btn_y = btn.pos[1]
+                    btn_right = btn_x + btn.size[0]
+                    btn_top = btn_y + btn.size[1]
+                    
+                    # Check if mouse is within button bounds
+                    if btn_x <= mouse_x <= btn_right and btn_y <= mouse_y <= btn_top:
                         found = btn
                         break
-                except Exception:
+                except Exception as e:
                     continue
 
             if found and getattr(self, '_hover_widget', None):
                 hw = self._hover_widget
                 try:
+                    print(f"[DEBUG _on_mouse_pos] Hover found: {getattr(found, '_loc_id', 'unknown')} at {found.pos} size={found.size}")
                     hw.label.text = found._loc_name
                 except Exception:
                     hw.label.text = str(found._loc_id)
-                # Position tooltip slightly above the hotspot center
+                # Position tooltip slightly above the mouse cursor (window coords)
                 try:
-                    cx, cy = found.center_x, found.center_y
-                    x = cx - hw.width / 2
-                    y = cy + dp(10)
-                    parent = self.map_overlay
-                    max_x = max(0, parent.width - hw.width)
-                    x = max(0, min(x, max_x))
-                    max_y = max(0, parent.height - hw.height)
-                    y = max(0, min(y, max_y))
-                    hw.pos = (x, y)
+                    from kivy.core.window import Window
+                    # Use window mouse coords so tooltip can be reparented to root and remain visible
+                    x = mouse_x - hw.width / 2
+                    y = mouse_y + dp(10)
+                    # Clamp to window/root bounds
+                    try:
+                        root = App.get_running_app().root
+                        max_x = max(0, root.width - hw.width)
+                        max_y = max(0, root.height - hw.height)
+                        x = max(0, min(x, max_x))
+                        y = max(0, min(y, max_y))
+                        # Reparent tooltip to root so it's drawn above HUD and other overlays
+                        try:
+                            if hw.parent is not root:
+                                try:
+                                    hw.parent.remove_widget(hw)
+                                except Exception:
+                                    pass
+                                try:
+                                    root.add_widget(hw)
+                                    print("[DEBUG _on_mouse_pos] reparented hover widget to root")
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        hw.pos = (x, y)
+                    except Exception:
+                        # fallback: position relative to map_overlay
+                        try:
+                            cx = found.pos[0] + found.size[0] / 2
+                            cy = found.pos[1] + found.size[1] / 2
+                            x = cx - hw.width / 2
+                            y = cy + dp(10)
+                            parent = self.map_overlay
+                            max_x = max(0, parent.width - hw.width)
+                            x = max(0, min(x, max_x))
+                            max_y = max(0, parent.height - hw.height)
+                            y = max(0, min(y, max_y))
+                            hw.pos = (x, y)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
                 hw.opacity = 1
@@ -3936,7 +3990,7 @@ class LocationSelectScreen(Screen):
                         self._hover_widget.opacity = 0
                 except Exception:
                     pass
-        except Exception:
+        except Exception as e:
             pass
     
     def on_select_location(self, loc_id):
@@ -3992,6 +4046,43 @@ class LocationSelectScreen(Screen):
             popup.open()
             try:
                 Clock.schedule_once(lambda dt: popup.dismiss(), 1.4)
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # Ensure hotspots are up-to-date when entering the screen
+        try:
+            self.update_locations()
+        except Exception:
+            pass
+        # Re-bind mouse_pos to our handler (safe to unbind first)
+        try:
+            from kivy.core.window import Window
+            try:
+                Window.unbind(mouse_pos=self._on_mouse_pos)
+            except Exception:
+                pass
+            try:
+                Window.bind(mouse_pos=self._on_mouse_pos)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def on_leave(self):
+        """Cleanup when leaving screen: hide tooltip and unbind mouse handler."""
+        try:
+            if getattr(self, '_hover_widget', None):
+                try:
+                    self._hover_widget.opacity = 0
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            from kivy.core.window import Window
+            try:
+                Window.unbind(mouse_pos=self._on_mouse_pos)
             except Exception:
                 pass
         except Exception:
