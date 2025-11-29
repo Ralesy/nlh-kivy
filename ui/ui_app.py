@@ -3500,7 +3500,7 @@ class LocationSelectScreen(Screen):
         self._player_marker = None
         self._destination = None
         self._move_ev = None
-        self._move_speed = dp(220)  # pixels per second
+        self._move_speed = dp(147)  # pixels per second (1.5x slower than 220)
         self._enter_btn = None
         # positions on the map (normalized 0..1) for location hotspots
         self._map_positions = {
@@ -3530,7 +3530,7 @@ class LocationSelectScreen(Screen):
 
         # Заголовок
         title_label = Label(
-            text='🗺️ ВЫБОР ЛОКАЦИИ',
+            text='🗺️ Карта региона',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(48),
@@ -3545,7 +3545,7 @@ class LocationSelectScreen(Screen):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(script_dir)
         # New global map location (assets/backgrounds/global_map)
-        map_src = os.path.join(project_root, 'assets', 'backgrounds', 'global_map', 'Emberfall_global_map.png')
+        map_src = os.path.join(project_root, 'assets', 'backgrounds', 'global_map', 'Emberfall_global_map_sunset.png')
         # Ensure the map fills the container (don't preserve aspect ratio)
         self.map_image = Image(
             source=map_src,
@@ -3834,15 +3834,16 @@ class LocationSelectScreen(Screen):
         except Exception:
             pass
 
-        # Create player marker if missing: a more visible circle slightly below the city
+        # Create player marker if missing: a more visible circle on the road below the city
         try:
             if not getattr(self, '_player_marker', None):
-                # Make the marker larger and high-contrast so it's visible on most maps
-                size_px = dp(40)
-                city_pos = self._map_positions.get('city') or (0.28, 0.9)
+                # Make the marker 2x smaller: dp(20) instead of dp(40)
+                size_px = dp(20)
+                # Start on the road below the city (0.28, 0.75 instead of 0.28, 0.9)
+                city_pos = (0.28, 0.28)
                 cx, cy = city_pos
                 adj_cx = cx
-                adj_cy = max(0.03, cy - 0.06)
+                adj_cy = cy
                 pm = Widget(size_hint=(None, None), size=(size_px, size_px))
                 # draw circular representation (two concentric ellipses: outline + fill)
                 from kivy.graphics import Color, Ellipse
@@ -4248,7 +4249,14 @@ class LocationSelectScreen(Screen):
                 ny = cur_y + dy / dist * step
             # set marker pos such that center matches nx,ny
             pm.pos = (nx - pm.size[0] / 2, ny - pm.size[1] / 2)
-            pass
+            # Move label with marker - center it above the marker
+            if getattr(self, '_player_label', None):
+                player_label = self._player_label
+                # Center label horizontally above marker center
+                label_x = nx - player_label.size[0] / 2
+                # Position label above marker
+                label_y = ny + pm.size[1] + dp(5)
+                player_label.pos = (label_x, label_y)
             # after moving, check proximity to hotspots
             self._update_enter_button()
         except Exception:
@@ -4410,6 +4418,44 @@ class LocationSelectScreen(Screen):
             self.update_locations()
         except Exception:
             pass
+        
+        # Update/create player name label when entering the map screen
+        try:
+            if hasattr(self, 'map_overlay') and hasattr(self, '_player_marker'):
+                app = App.get_running_app()
+                if app.game and app.game.player:
+                    # Remove old label if exists
+                    if hasattr(self, '_player_label') and self._player_label:
+                        try:
+                            self.map_overlay.remove_widget(self._player_label)
+                        except Exception:
+                            pass
+                    
+                    # Create new label with player name
+                    player_name = app.game.player.name
+                    player_label = Label(
+                        text=player_name,
+                        size_hint=(None, None),
+                        size=(dp(100), dp(25)),
+                        font_size=dp(14),
+                        color=COLORS['gold'],
+                        bold=True
+                    )
+                    self.map_overlay.add_widget(player_label)
+                    self._player_label = player_label
+                    
+                    # Position it above the player marker, centered horizontally
+                    pm = self._player_marker
+                    # Get marker center coordinates
+                    marker_center_x = pm.x + pm.width / 2
+                    marker_top_y = pm.y + pm.height
+                    # Position label centered above marker
+                    label_x = marker_center_x - player_label.width / 2
+                    label_y = marker_top_y + dp(5)
+                    player_label.pos = (label_x, label_y)
+        except Exception as e:
+            print(f"[ERROR] Failed to create player label: {e}")
+        
         # Re-bind mouse_pos to our handler (safe to unbind first)
         try:
             from kivy.core.window import Window
