@@ -27,9 +27,20 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, Line
 from kivy.clock import Clock
 from kivy.metrics import dp
+from kivy.animation import Animation
+
+# Import styled components
+try:
+    from ui.ui_styles import (
+        StyledButton, StyledLabel, StyledPanel, StatRow, CustomProgressBar,
+        COLORS, create_styled_popup
+    )
+except ImportError:
+    # Fallback if import fails
+    pass
 
 
 class GameHUD(BoxLayout):
@@ -71,7 +82,7 @@ class GameHUD(BoxLayout):
         with self._hp_bar_container.canvas:
             Color(0.12, 0.12, 0.12, 1)
             self._hp_bar_bg = Rectangle(pos=self._hp_bar_container.pos, size=self._hp_bar_container.size)
-            Color(0.85, 0.1, 0.08, 1)
+            Color(*COLORS['hp_red'])
             self._hp_bar_fg = Rectangle(pos=self._hp_bar_container.pos, size=(0, self._hp_bar_container.height))
         self._hp_bar_container.bind(pos=lambda i, v: setattr(self._hp_bar_bg, 'pos', i.pos))
         self._hp_bar_container.bind(size=lambda i, v: setattr(self._hp_bar_bg, 'size', i.size))
@@ -88,7 +99,7 @@ class GameHUD(BoxLayout):
         with self._xp_bar_container.canvas:
             Color(0.12, 0.12, 0.12, 1)
             self._xp_bar_bg = Rectangle(pos=self._xp_bar_container.pos, size=self._xp_bar_container.size)
-            Color(0.1, 0.3, 0.85, 1)
+            Color(*COLORS['xp_purple'])
             self._xp_bar_fg = Rectangle(pos=self._xp_bar_container.pos, size=(0, self._xp_bar_container.height))
         self._xp_bar_container.bind(pos=lambda i, v: setattr(self._xp_bar_bg, 'pos', i.pos))
         self._xp_bar_container.bind(size=lambda i, v: setattr(self._xp_bar_bg, 'size', i.size))
@@ -453,58 +464,74 @@ class MainMenuScreen(Screen):
         super().__init__(**kwargs)
         layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(20))
         
-        title = Label(
+        # Тёмный фон
+        with layout.canvas.before:
+            Color(*COLORS['dark_bg'])
+            self.bg_rect = Rectangle()
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
+        
+        title = StyledLabel(
             text='⚔️ MINI RPG ⚔️',
             font_size=dp(48),
             size_hint_y=None,
-            height=dp(100)
+            height=dp(100),
+            color=COLORS['gold'],
+            bold=True
         )
         layout.add_widget(title)
         
         button_layout = BoxLayout(orientation='vertical', spacing=dp(15), size_hint_y=None)
         button_layout.bind(minimum_height=button_layout.setter('height'))
         
-        btn_continue = Button(
-            text='▶️ Продолжить',
+        btn_continue = StyledButton(
+            text='▶️ ПРОДОЛЖИТЬ',
+            color=COLORS['hp_green'],
             size_hint_y=None,
             height=dp(60),
-            font_size=dp(24)
+            font_size=dp(20)
         )
         btn_continue.bind(on_press=self.on_continue_game)
         button_layout.add_widget(btn_continue)
         
-        btn_new = Button(
-            text='🆕 Новая игра',
+        btn_new = StyledButton(
+            text='🆕 НОВАЯ ИГРА',
+            color=COLORS['gold'],
             size_hint_y=None,
             height=dp(60),
-            font_size=dp(24)
+            font_size=dp(20)
         )
         btn_new.bind(on_press=self.on_new_game)
         button_layout.add_widget(btn_new)
         
-        btn_load = Button(
-            text='💾 Загрузить игру',
+        btn_load = StyledButton(
+            text='📂 ЗАГРУЗИТЬ',
+            color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(60),
-            font_size=dp(24)
+            font_size=dp(20)
         )
         btn_load.bind(on_press=self.on_load_game)
         button_layout.add_widget(btn_load)
 
-        btn_save = Button(
-            text='💾 Сохранить игру',
+        btn_save = StyledButton(
+            text='💾 СОХРАНИТЬ',
+            color=COLORS['hp_green'],
             size_hint_y=None,
             height=dp(60),
-            font_size=dp(24)
+            font_size=dp(20)
         )
         btn_save.bind(on_press=self.on_save_game)
         button_layout.add_widget(btn_save)
         
-        btn_exit = Button(
-            text='← Выход',
+        btn_exit = StyledButton(
+            text='❌ ВЫХОД',
+            color=COLORS['hp_red'],
             size_hint_y=None,
             height=dp(60),
-            font_size=dp(24)
+            font_size=dp(20)
         )
         btn_exit.bind(on_press=self.on_exit)
         button_layout.add_widget(btn_exit)
@@ -634,7 +661,7 @@ class LoadGameScreen(Screen):
                 size_hint_y=None,
                 height=dp(55),
                 font_size=dp(21),
-                background_color=(0.3, 0.5, 0.7, 1)
+                background_color=COLORS['stone_light']
             )
             btn.bind(on_press=lambda x, name=save_name: self.load_save(name))
             self.save_list.add_widget(btn)
@@ -708,21 +735,21 @@ class CharacterCreationScreen(Screen):
             font_size=dp(42),
             size_hint_y=None,
             height=dp(90),
-            color=(0.9, 0.8, 0.3, 1)
+            color=COLORS['gold']
         )
         layout.add_widget(title)
         
         name_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(55))
         name_label = Label(text='Имя:', size_hint_x=0.3, font_size=dp(20),
-                           color=(0.9, 0.9, 0.9, 1))
+                           color=COLORS['text_light'])
         name_layout.add_widget(name_label)
         self.name_input = TextInput(
             text='Герой',
             multiline=False,
             size_hint_x=0.7,
             font_size=dp(18),
-            background_color=(0.2, 0.2, 0.3, 1),
-            foreground_color=(1, 1, 1, 1)
+            background_color=COLORS['panel'],
+            foreground_color=COLORS['text_light']
         )
         name_layout.add_widget(self.name_input)
         layout.add_widget(name_layout)
@@ -732,7 +759,7 @@ class CharacterCreationScreen(Screen):
             font_size=dp(26),
             size_hint_y=None,
             height=dp(55),
-            color=(0.9, 0.9, 0.9, 1)
+            color=COLORS['text_light']
         )
         layout.add_widget(class_label)
         
@@ -747,7 +774,7 @@ class CharacterCreationScreen(Screen):
             size_hint_y=None,
             height=dp(70),
             font_size=dp(18),
-            background_color=(0.8, 0.7, 0.3, 1)
+            background_color=COLORS['stone_light']
         )
         btn_noble.bind(on_press=lambda x: self.select_background('noble', btn_noble))
         class_layout.add_widget(btn_noble)
@@ -758,7 +785,7 @@ class CharacterCreationScreen(Screen):
             size_hint_y=None,
             height=dp(70),
             font_size=dp(18),
-            background_color=(0.3, 0.5, 0.7, 1)
+            background_color=COLORS['stone_light']
         )
         btn_squire.bind(on_press=lambda x: self.select_background('squire', btn_squire))
         class_layout.add_widget(btn_squire)
@@ -769,7 +796,7 @@ class CharacterCreationScreen(Screen):
             size_hint_y=None,
             height=dp(70),
             font_size=dp(18),
-            background_color=(0.3, 0.7, 0.5, 1)
+            background_color=COLORS['stone_light']
         )
         btn_hunter.bind(on_press=lambda x: self.select_background('hunter', btn_hunter))
         class_layout.add_widget(btn_hunter)
@@ -780,7 +807,7 @@ class CharacterCreationScreen(Screen):
             size_hint_y=None,
             height=dp(60),
             font_size=dp(22),
-            background_color=(1.0, 0.5, 0.0, 1)
+            background_color=COLORS['stone_light']
         )
         btn_test.bind(on_press=lambda x: self.select_background('test', btn_test))
         class_layout.add_widget(btn_test)
@@ -794,7 +821,7 @@ class CharacterCreationScreen(Screen):
             size_hint_y=None,
             height=dp(70),
             font_size=dp(24),
-            background_color=(0.2, 0.8, 0.2, 1)
+            background_color=COLORS['hp_green']
         )
         btn_create.bind(on_press=self.create_character)
         layout.add_widget(btn_create)
@@ -805,7 +832,7 @@ class CharacterCreationScreen(Screen):
             size_hint_y=None,
             height=dp(50),
             font_size=dp(20),
-            background_color=(0.5, 0.5, 0.5, 1)
+            background_color=COLORS['stone_light']
         )
         btn_back.bind(on_press=self.on_back)
         layout.add_widget(btn_back)
@@ -970,7 +997,7 @@ class MapWidget(BoxLayout):
             font_size=dp(20),
             size_hint_y=None,
             height=dp(35),
-            color=(0.9, 0.8, 0.3, 1)
+            color=COLORS['gold']
         )
         self.add_widget(map_title)
         
@@ -1010,9 +1037,9 @@ class GameScreen(Screen):
         
         main_layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
         
-        # Фон игрового экрана
+        # Фон игрового экрана - тёмный с коричневым оттенком
         with main_layout.canvas.before:
-            Color(0.15, 0.2, 0.25, 1)  # Темно-серый фон
+            Color(*COLORS['dark_bg'])
             self.bg_rect = Rectangle()
             main_layout.bind(
                 size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
@@ -1023,8 +1050,11 @@ class GameScreen(Screen):
         stats_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(110), padding=dp(10))
         stats_box.canvas.before.clear()
         with stats_box.canvas.before:
-            Color(0.2, 0.25, 0.3, 1)  # Темная панель
+            Color(*COLORS['panel'])
             rect = Rectangle(pos=stats_box.pos, size=stats_box.size)
+            # Граница
+            Color(*COLORS['border_gold'])
+            Line(rectangle=(stats_box.x, stats_box.y, stats_box.width, stats_box.height), width=dp(1.5))
             stats_box.bind(
                 pos=lambda i, v: setattr(rect, 'pos', i.pos),
                 size=lambda i, v: setattr(rect, 'size', i.size)
@@ -1038,7 +1068,7 @@ class GameScreen(Screen):
             text_size=(None, None),
             halign='left',
             valign='top',
-            color=(0.95, 0.95, 0.95, 1)
+            color=COLORS['text_light']
         )
         stats_box.add_widget(self.stats_label)
         main_layout.add_widget(stats_box)
@@ -1053,84 +1083,72 @@ class GameScreen(Screen):
         # Кнопки меню с улучшенным дизайном
         menu_layout = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_x=0.4)
         
-        btn_city = Button(
-            text='🏛️ Город',
+        btn_city = StyledButton(
+            text='🏛️ ГОРОД',
+            color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
-            font_size=dp(21),
-            background_normal=os.path.join(BUTTONS_DIR, 'city.png'),
-            background_down=os.path.join(BUTTONS_DIR, 'city.png'),
-            background_color=(1, 1, 1, 1)
+            font_size=dp(18)
         )
         btn_city.bind(on_press=self.on_city)
         menu_layout.add_widget(btn_city)
         
-        btn_inventory = Button(
-            text='🎒 Инвентарь',
+        btn_inventory = StyledButton(
+            text='🎒 ИНВЕНТАРЬ',
+            color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
-            font_size=dp(21),
-            background_normal=os.path.join(BUTTONS_DIR, 'inventory.png'),
-            background_down=os.path.join(BUTTONS_DIR, 'inventory.png'),
-            background_color=(1, 1, 1, 1)
+            font_size=dp(18)
         )
         btn_inventory.bind(on_press=self.on_inventory)
         menu_layout.add_widget(btn_inventory)
 
-        btn_locations = Button(
-            text='🗺️ Локации',
+        btn_locations = StyledButton(
+            text='🗺️ ЛОКАЦИИ',
+            color=COLORS['gold'],
             size_hint_y=None,
             height=dp(55),
-            font_size=dp(21),
-            background_normal=os.path.join(BUTTONS_DIR, 'global_map.png'),
-            background_down=os.path.join(BUTTONS_DIR, 'global_map.png'),
-            background_color=(1, 1, 1, 1)
+            font_size=dp(18)
         )
         btn_locations.bind(on_press=self.on_locations)
         menu_layout.add_widget(btn_locations)
         
-        btn_status = Button(
-            text='📊 Статус',
+        btn_status = StyledButton(
+            text='📊 СТАТУС',
+            color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
-            font_size=dp(21),
-            background_normal=os.path.join(BUTTONS_DIR, 'status.png'),
-            background_down=os.path.join(BUTTONS_DIR, 'status.png'),
-            background_color=(1, 1, 1, 1)
+            font_size=dp(18)
         )
         btn_status.bind(on_press=self.on_status)
         menu_layout.add_widget(btn_status)
 
-        btn_companions = Button(
-            text='🤝 Спутники',
+        btn_companions = StyledButton(
+            text='🤝 СПУТНИКИ',
+            color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
-            font_size=dp(21),
-            background_normal=os.path.join(BUTTONS_DIR, 'companion.png'),
-            background_down=os.path.join(BUTTONS_DIR, 'companion.png'),
-            background_color=(1, 1, 1, 1)
+            font_size=dp(18)
         )
         btn_companions.bind(on_press=self.on_companions)
         menu_layout.add_widget(btn_companions)
 
-        btn_quests = Button(
-            text='📋 Активные квесты',
+        btn_quests = StyledButton(
+            text='📋 КВЕСТЫ',
+            color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
-            font_size=dp(21),
-            background_normal=os.path.join(BUTTONS_DIR, 'active_quests.png'),
-            background_down=os.path.join(BUTTONS_DIR, 'active_quests.png'),
-            background_color=(1, 1, 1, 1)
+            font_size=dp(18)
         )
         btn_quests.bind(on_press=self.on_active_quests)
         menu_layout.add_widget(btn_quests)
 
-        btn_save = Button(
-            text='💾 Сохранить',
+        btn_save = StyledButton(
+            text='💾 СОХРАНИТЬ',
+            color=COLORS['hp_green'],
             size_hint_y=None,
             height=dp(55),
-            font_size=dp(21),
-            background_color=(0.4, 0.4, 0.4, 1)
+            font_size=dp(18)
         )
         btn_save.bind(on_press=self.on_save)
         menu_layout.add_widget(btn_save)
@@ -1315,7 +1333,7 @@ class GameScreen(Screen):
             font_size=dp(16),
             text_size=(None, None),
             halign='center',
-            color=(0.9, 0.9, 0.9, 1)
+            color=COLORS['text_light']
         )
         content.add_widget(info_label)
         
@@ -1380,7 +1398,7 @@ class GameScreen(Screen):
         
         btn_save = Button(
             text='💾 Сохранить',
-            background_color=(0.2, 0.7, 0.3, 1),
+            background_color=COLORS['hp_green'],
             font_size=dp(18)
         )
         btn_save.bind(on_press=save_confirm)
@@ -1388,7 +1406,7 @@ class GameScreen(Screen):
         
         btn_cancel = Button(
             text='Отмена',
-            background_color=(0.5, 0.5, 0.5, 1),
+            background_color=COLORS['stone'],
             font_size=dp(18)
         )
         btn_cancel.bind(on_press=lambda x: popup.dismiss())
@@ -1431,7 +1449,7 @@ class BattleScreen(Screen):
             size_hint_y=None,
             height=dp(50),
             text_size=(None, None),
-            color=(0.9, 0.9, 0.3, 1)  # Желтый цвет для событий
+            color=COLORS['gold']  # Желтый цвет для событий
         )
         layout.add_widget(self.event_label)
         
@@ -1444,7 +1462,7 @@ class BattleScreen(Screen):
             text_size=(None, None),
             halign='left',
             valign='top',
-            color=(0.9, 0.9, 0.9, 1)  # Светлый цвет текста
+            color=COLORS['text_light']  # Светлый цвет текста
         )
         layout.add_widget(self.battle_info)
         
@@ -1461,7 +1479,7 @@ class BattleScreen(Screen):
             font_size=dp(16),
             size_hint_y=None,
             height=dp(30),
-            color=(0.8, 0.8, 0.8, 1)
+            color=COLORS['stone']
         )
         layout.add_widget(log_header)
         
@@ -1473,7 +1491,7 @@ class BattleScreen(Screen):
             text_size=(None, None),
             halign='left',
             valign='top',
-            color=(0.9, 0.9, 0.9, 1)
+            color=COLORS['text_light']
         )
         self.log_label.bind(texture_size=self.log_label.setter('size'))
         scroll_log.add_widget(self.log_label)
@@ -1495,7 +1513,7 @@ class BattleScreen(Screen):
         self.btn_ability = Button(
             text='⚔️ Способность',
             font_size=dp(18),
-            background_color=(0.8, 0.2, 0.2, 1)
+            background_color=COLORS['hp_red']
         )
         self.btn_ability.bind(on_press=self.on_ability_use)
         actions_layout.add_widget(self.btn_ability)
@@ -1503,7 +1521,7 @@ class BattleScreen(Screen):
         self.btn_escape = Button(
             text='🏃 Убежать',
             font_size=dp(18),
-            background_color=(0.8, 0.6, 0.2, 1)
+            background_color=COLORS['gold']
         )
         self.btn_escape.bind(on_press=self.on_escape)
         actions_layout.add_widget(self.btn_escape)
@@ -1511,7 +1529,7 @@ class BattleScreen(Screen):
         self.btn_surrender = Button(
             text='🏳️ Сдаться',
             font_size=dp(18),
-            background_color=(0.7, 0.3, 0.3, 1)
+            background_color=COLORS['hp_red']
         )
         self.btn_surrender.bind(on_press=self.on_surrender)
         actions_layout.add_widget(self.btn_surrender)
@@ -2087,7 +2105,7 @@ class TavernScreen(Screen):
         btn_npcs = Button(
             text='🧙 NPC',
             size_hint_x=0.33,
-            background_color=(0.5, 0.4, 0.3, 1),
+            background_color=COLORS['stone_light'],
             font_size=dp(16)
         )
         btn_npcs.bind(on_press=lambda x: self.show_npcs())
@@ -2096,7 +2114,7 @@ class TavernScreen(Screen):
         btn_companions = Button(
             text='🤝 Спутники',
             size_hint_x=0.33,
-            background_color=(0.3, 0.5, 0.7, 1),
+            background_color=COLORS['stone_light'],
             font_size=dp(16)
         )
         btn_companions.bind(
@@ -2107,7 +2125,7 @@ class TavernScreen(Screen):
         btn_games = Button(
             text='🎲 Игры',
             size_hint_x=0.34,
-            background_color=(0.6, 0.4, 0.2, 1),
+            background_color=COLORS['stone_light'],
             font_size=dp(16)
         )
         btn_games.bind(on_press=lambda x: self.show_games())
@@ -2189,7 +2207,7 @@ class TavernScreen(Screen):
             size_hint_y=None,
             height=dp(70),
             font_size=dp(18),
-            background_color=(0.6, 0.4, 0.2, 1)
+            background_color=COLORS['stone_light']
         )
         btn_coinflip.bind(on_press=self.on_tavern_coinflip)
         self.content_layout.add_widget(btn_coinflip)
@@ -2313,7 +2331,7 @@ class TavernScreen(Screen):
                 text='💬 Разговор',
                 size_hint_y=None,
                 height=dp(45),
-                background_color=(0.4, 0.6, 0.8, 1),
+                background_color=COLORS['stone_light'],
                 font_size=dp(16)
             )
             btn_talk.bind(
@@ -2387,7 +2405,7 @@ class TavernScreen(Screen):
             btn_hire = Button(
                 text='Нанять',
                 size_hint_x=0.3,
-                background_color=(0.2, 0.7, 0.3, 1)
+                background_color=COLORS['hp_green']
             )
             btn_hire.bind(on_press=lambda x, n=name, r=role: self.hire_companion(n, r))
             comp_layout.add_widget(btn_hire)
@@ -2486,20 +2504,52 @@ class ShopScreen(Screen):
         super().__init__(**kwargs)
         layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
         
-        title = Label(text='🛒 МАГАЗИН', font_size=dp(36), size_hint_y=None, height=dp(60))
+        # Тёмный фон
+        with layout.canvas.before:
+            Color(*COLORS['dark_bg'])
+            self.bg_rect = Rectangle()
+            layout.bind(
+                size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
+                pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
+            )
+        
+        title = StyledLabel(
+            text='🛒 МАГАЗИН',
+            font_size=dp(36),
+            size_hint_y=None,
+            height=dp(60),
+            color=COLORS['gold'],
+            bold=True
+        )
         layout.add_widget(title)
         
-        coins_label = Label(text='', font_size=dp(20), size_hint_y=None, height=dp(40))
+        coins_label = StyledLabel(
+            text='',
+            font_size=dp(18),
+            size_hint_y=None,
+            height=dp(40),
+            color=COLORS['gold']
+        )
         layout.add_widget(coins_label)
         self.coins_label = coins_label
         
         # Вкладки
-        tab_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(50))
-        btn_buy = Button(text='📦 Купить', size_hint_x=0.5)
+        tab_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(50), spacing=dp(5))
+        btn_buy = StyledButton(
+            text='📦 КУПИТЬ',
+            color=COLORS['stone_light'],
+            size_hint_x=0.5,
+            font_size=dp(16)
+        )
         btn_buy.bind(on_press=lambda x: self.show_buy())
         tab_layout.add_widget(btn_buy)
         
-        btn_sell = Button(text='💵 Продать', size_hint_x=0.5)
+        btn_sell = StyledButton(
+            text='💵 ПРОДАТЬ',
+            color=COLORS['gold'],
+            size_hint_x=0.5,
+            font_size=dp(16)
+        )
         btn_sell.bind(on_press=lambda x: self.show_sell())
         tab_layout.add_widget(btn_sell)
         layout.add_widget(tab_layout)
@@ -2536,19 +2586,30 @@ class ShopScreen(Screen):
             
             q = "∞" if qty is None else str(qty)
             
-            item_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60))
-            item_label = Label(
-                text=f"{item.display_name()} — {item.price} монет (в наличии: {q})",
-                font_size=dp(16),
-                size_hint_x=0.7
+            item_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60), spacing=dp(5))
+            item_label = StyledLabel(
+                text=f"{item.display_name()} — {item.price} 💰 (осталось: {q})",
+                font_size=dp(14),
+                size_hint_x=0.65,
+                color=COLORS['text_light']
             )
             item_layout.add_widget(item_label)
             
-            btn_info = Button(text='ℹ️', size_hint_x=0.1, font_size=dp(16))
+            btn_info = StyledButton(
+                text='ℹ️',
+                color=COLORS['stone_light'],
+                size_hint_x=0.1,
+                font_size=dp(14)
+            )
             btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
             item_layout.add_widget(btn_info)
             
-            btn_buy = Button(text='Купить', size_hint_x=0.2)
+            btn_buy = StyledButton(
+                text='КУПИТЬ',
+                color=COLORS['hp_green'],
+                size_hint_x=0.25,
+                font_size=dp(12)
+            )
             btn_buy.bind(on_press=lambda x, item_id=iid: self.buy_item(item_id))
             item_layout.add_widget(btn_buy)
             
@@ -2566,21 +2627,32 @@ class ShopScreen(Screen):
         
         items = app.game.player.inventory.list_items()
         for item, qty in items:
-            item_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60))
+            item_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60), spacing=dp(5))
             # Use the same sell calculation as Shop.sell(): 20% of base price
             price = (item.price * qty) // 5
-            item_label = Label(
-                text=f"{item.display_name()} x{qty} — продать за {price} монет",
-                font_size=dp(16),
-                size_hint_x=0.7
+            item_label = StyledLabel(
+                text=f"{item.display_name()} x{qty} → {price} 💰",
+                font_size=dp(14),
+                size_hint_x=0.65,
+                color=COLORS['text_light']
             )
             item_layout.add_widget(item_label)
             
-            btn_info = Button(text='ℹ️', size_hint_x=0.1, font_size=dp(16))
+            btn_info = StyledButton(
+                text='ℹ️',
+                color=COLORS['stone_light'],
+                size_hint_x=0.1,
+                font_size=dp(14)
+            )
             btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
             item_layout.add_widget(btn_info)
             
-            btn_sell = Button(text='Продать', size_hint_x=0.2)
+            btn_sell = StyledButton(
+                text='ПРОДАТЬ',
+                color=COLORS['stone_light'],
+                size_hint_x=0.25,
+                font_size=dp(12)
+            )
             btn_sell.bind(on_press=lambda x, item_id=item.id: self.sell_item(item_id))
             item_layout.add_widget(btn_sell)
             
@@ -2762,7 +2834,7 @@ class InventoryScreen(Screen):
             btn_info = Button(
                 text='ℹ️',
                 size_hint_x=0.1,
-                background_color=(0.3, 0.5, 0.7, 1)
+                background_color=COLORS['stone_light']
             )
             btn_info.bind(on_press=lambda x, it=item: self.show_item_info(it))
             top_layout.add_widget(btn_info)
@@ -2772,18 +2844,18 @@ class InventoryScreen(Screen):
             btn_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(40), spacing=dp(5))
             
             if isinstance(item, Weapon) or isinstance(item, Armor):
-                btn_equip = Button(text='Экипировать', size_hint_x=0.5, font_size=dp(12))
+                btn_equip = Button(text='Экипировать', size_hint_x=0.5, font_size=dp(12), background_color=COLORS['stone_light'])
                 btn_equip.bind(on_press=lambda x, it=item: self.equip_item(it))
                 btn_layout.add_widget(btn_equip)
             
             if (p.weapon and p.weapon.id == item.id) or (p.armor and p.armor.id == item.id):
-                btn_unequip = Button(text='Снять', size_hint_x=0.5, font_size=dp(12))
+                btn_unequip = Button(text='Снять', size_hint_x=0.5, font_size=dp(12), background_color=COLORS['stone_light'])
                 btn_unequip.bind(on_press=lambda x, it=item: self.unequip_item(it))
                 btn_layout.add_widget(btn_unequip)
             
             # Для зелий - кнопка "Использовать"
             if isinstance(item, Potion):
-                btn_use = Button(text='Использовать', size_hint_x=0.5, font_size=dp(12))
+                btn_use = Button(text='Использовать', size_hint_x=0.5, font_size=dp(12), background_color=COLORS['stone_light'])
                 btn_use.bind(on_press=lambda x, it=item: self.use_potion(it))
                 btn_layout.add_widget(btn_use)
 
@@ -2843,7 +2915,7 @@ class InventoryScreen(Screen):
         scroll.add_widget(info_label)
         content.add_widget(scroll)
         
-        btn_close = Button(text='Закрыть', size_hint_y=None, height=dp(48))
+        btn_close = Button(text='Закрыть', size_hint_y=None, height=dp(48), background_color=COLORS['stone_light'])
         content.add_widget(btn_close)
         
         popup = Popup(
@@ -3282,49 +3354,56 @@ class BattleInventoryScreen(Screen):
 
 
 class StatusScreen(Screen):
-    """Экран статуса."""
+    """Экран статуса с красивым дизайном."""
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
         
-        # Фон статуса
-        with layout.canvas.before:
-            Color(0.15, 0.2, 0.25, 1)
+        # Основной layout
+        main_layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
+        
+        # Тёмный фон
+        with main_layout.canvas.before:
+            Color(*COLORS['dark_bg'])
             self.bg_rect = Rectangle()
-            layout.bind(
+            main_layout.bind(
                 size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
                 pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos)
             )
         
-        title = Label(
-            text='📊 СТАТУС',
+        # Заголовок
+        title = StyledLabel(
+            text='⚔️ ПЕРСОНАЖ',
             font_size=dp(40),
             size_hint_y=None,
-            height=dp(70),
-            color=(0.9, 0.8, 0.3, 1)
+            height=dp(60),
+            color=COLORS['gold'],
+            bold=True
         )
-        layout.add_widget(title)
+        main_layout.add_widget(title)
         
+        # Прокручиваемая область
         scroll = ScrollView()
-        self.status_label = Label(
+        self.status_label = StyledLabel(
             text='',
-            font_size=dp(19),
+            font_size=dp(15),
             size_hint_y=None,
             text_size=(None, None),
             halign='left',
             valign='top',
-            color=(0.9, 0.9, 0.9, 1)
+            color=COLORS['text_light']
         )
         self.status_label.bind(texture_size=self.status_label.setter('size'))
         scroll.add_widget(self.status_label)
-        layout.add_widget(scroll)
+        main_layout.add_widget(scroll)
         
-        self.add_widget(layout)
-        # remove old back button; add edge 'Back to Map' button
+        self.add_widget(main_layout)
+        
+        # Добавить кнопку назад
         _add_back_to_map_button(self, self.manager)
     
     def update_status(self):
+        """Обновить информацию статуса."""
         app = App.get_running_app()
         if not app.game:
             return
@@ -3344,7 +3423,7 @@ class StatusScreen(Screen):
             f"Уровень: {p.level} ⭐\n"
             f"День: {app.game.day} 📅\n\n"
             f"═══════════════════════════════════\n"
-            f"💚 ХАРАКТЕРИСТИКИ\n"
+            f"💪 ХАРАКТЕРИСТИКИ\n"
             f"═══════════════════════════════════\n"
             f"HP: {p.health}/{p.max_health}\n"
             f"Урон: {p.damage} ⚔️\n"
@@ -3357,8 +3436,8 @@ class StatusScreen(Screen):
         )
         
         # Экипировка
-        weapon_name = p.weapon.name if p.weapon else "Нет"
-        armor_name = p.armor.name if p.armor else "Нет"
+        weapon_name = p.weapon.name if p.weapon else "—"
+        armor_name = p.armor.name if p.armor else "—"
         text += (
             f"═══════════════════════════════════\n"
             f"⚔️ ЭКИПИРОВКА\n"
@@ -3500,14 +3579,13 @@ class LocationSelectScreen(Screen):
         """Обновление списка локаций."""
         app = App.get_running_app()
         self.game = app.game
-        print(f"[DEBUG] LocationSelectScreen.update_locations() called - game={'set' if self.game else 'None'}")
-        print(f"[DEBUG] player_exists={bool(getattr(self.game, 'player', None)) if self.game else False}")
+        pass
         # Use shared LocationManager from game when available
         self.location_manager = self.game.location_manager if (self.game and getattr(self.game, 'location_manager', None)) else LocationManager()
         # Render small translucent hotspots over the map image
         # Clear previous overlay widgets
         try:
-            print(f"[DEBUG] map_overlay present={hasattr(self, 'map_overlay')}")
+            pass
             # Clear previous widgets and hotspot markers (canvas.before instructions)
             self.map_overlay.clear_widgets()
             try:
@@ -3535,12 +3613,12 @@ class LocationSelectScreen(Screen):
             except Exception:
                 pass
         except Exception:
-            print("[DEBUG] map_overlay clearing failed, falling back to list layout")
+            pass
             # If map_overlay isn't present (older UI), fall back to list behavior
             try:
                 self.locations_layout.clear_widgets()
             except Exception:
-                print("[DEBUG] locations_layout not present either")
+                pass
             for loc_id, location in self.location_manager.locations.items():
                 btn_text = self._get_location_text(location)
                 btn = Button(
@@ -3560,7 +3638,7 @@ class LocationSelectScreen(Screen):
                 self.locations_layout.add_widget(btn)
             return
 
-        print("[DEBUG] map_overlay cleared, creating hotspots...")
+        pass
 
         # Track visible hotspots for hover detection
         self._hotspot_buttons = []
@@ -3694,7 +3772,7 @@ class LocationSelectScreen(Screen):
                               size=lambda inst, val: _update_city_marker(city_btn))
                 Clock.schedule_once(lambda dt: _update_city_marker(city_btn), 0.05)
             except Exception as e:
-                print(f"[DEBUG] Failed to add city marker: {e}")
+                pass
         except Exception:
             pass
 
@@ -3815,7 +3893,7 @@ class LocationSelectScreen(Screen):
                     from systems.save_system import save_game
                     save_game(app.game.player, 'autosave')
             except Exception as e:
-                print(f"[DEBUG] Failed to auto-save: {e}")
+                pass
             # Hide HUD then return to main menu
             try:
                 if getattr(app, 'hud', None):
@@ -4017,7 +4095,7 @@ class LocationSelectScreen(Screen):
             if found and getattr(self, '_hover_widget', None):
                 hw = self._hover_widget
                 try:
-                    print(f"[DEBUG _on_mouse_pos] Hover found: {getattr(found, '_loc_id', 'unknown')} at {found.pos} size={found.size}")
+                    pass
                     hw.label.text = found._loc_name
                 except Exception:
                     hw.label.text = str(found._loc_id)
@@ -4043,7 +4121,7 @@ class LocationSelectScreen(Screen):
                                     pass
                                 try:
                                     root.add_widget(hw)
-                                    print("[DEBUG _on_mouse_pos] reparented hover widget to root")
+                                    pass
                                 except Exception:
                                     pass
                         except Exception:
@@ -4117,7 +4195,7 @@ class LocationSelectScreen(Screen):
                 # fallback: use raw window coords if conversion fails
                 self._destination = touch.pos
             # start movement loop
-            print(f"[DEBUG _on_map_touch] destination set -> {self._destination}")
+            pass
             self._start_moving()
             return True
         except Exception:
@@ -4127,7 +4205,7 @@ class LocationSelectScreen(Screen):
         try:
             if getattr(self, '_move_ev', None):
                 return
-            print("[DEBUG _start_moving] scheduling movement event")
+            pass
             self._move_ev = Clock.schedule_interval(self._move_player, 1.0 / 60.0)
         except Exception:
             pass
@@ -4170,7 +4248,7 @@ class LocationSelectScreen(Screen):
                 ny = cur_y + dy / dist * step
             # set marker pos such that center matches nx,ny
             pm.pos = (nx - pm.size[0] / 2, ny - pm.size[1] / 2)
-            print(f"[DEBUG _move_player] pm.pos={pm.pos} center=({nx:.1f},{ny:.1f}) dest=({dest_x:.1f},{dest_y:.1f}) dist={dist:.1f}")
+            pass
             # after moving, check proximity to hotspots
             self._update_enter_button()
         except Exception:
@@ -4528,7 +4606,7 @@ class AncientCaveBossSelectScreen(Screen):
                     size_hint_y=None,
                     height=dp(100),
                     font_size=dp(16),
-                    background_color=(0.5, 0.2, 0.2, 1)
+                    background_color=COLORS['hp_red']
                 )
                 btn.bind(on_press=lambda x, bi=boss_info: (
                     self.on_locked_boss(bi)
@@ -4681,7 +4759,7 @@ class NPCDialogueScreen(Screen):
             text='✅ Принять квест',
             size_hint_y=None,
             height=dp(50),
-            background_color=(0.2, 0.6, 0.2, 1)
+            background_color=COLORS['hp_green']
         )
         self.btn_accept_quest.bind(
             on_press=self.on_accept_quest
@@ -4692,7 +4770,7 @@ class NPCDialogueScreen(Screen):
             text='🎁 Получить награду',
             size_hint_y=None,
             height=dp(50),
-            background_color=(0.8, 0.6, 0.2, 1)
+            background_color=COLORS['gold']
         )
         self.btn_claim_reward.bind(
             on_press=self.on_claim_reward
@@ -4703,7 +4781,7 @@ class NPCDialogueScreen(Screen):
             text='❌ Отклонить',
             size_hint_y=None,
             height=dp(50),
-            background_color=(0.6, 0.2, 0.2, 1)
+            background_color=COLORS['hp_red']
         )
         self.btn_reject_quest.bind(
             on_press=self.on_reject_quest
@@ -4714,7 +4792,7 @@ class NPCDialogueScreen(Screen):
             text='← Вернуться',
             size_hint_y=None,
             height=dp(50),
-            background_color=(0.4, 0.4, 0.4, 1)
+            background_color=COLORS['stone_light']
         )
         btn_back.bind(on_press=self.on_back)
         btn_layout.add_widget(btn_back)
@@ -5015,7 +5093,7 @@ class LootWindowScreen(Screen):
         
         btn_continue = Button(
             text='➜ Продолжить',
-            background_color=(0.2, 0.5, 0.3, 1)
+            background_color=COLORS['hp_green']
         )
         btn_continue.bind(on_press=self.on_continue)
         btn_layout.add_widget(btn_continue)
@@ -5155,7 +5233,7 @@ class CompanionManagementScreen(Screen):
         self.btn_heal = Button(
             text='💚 Лечить зельем',
             font_size=dp(18),
-            background_color=(0.2, 0.7, 0.3, 1)
+            background_color=COLORS['hp_green']
         )
         self.btn_heal.bind(on_press=self.on_heal)
         actions_layout.add_widget(self.btn_heal)
@@ -5163,7 +5241,7 @@ class CompanionManagementScreen(Screen):
         self.btn_equip_weapon = Button(
             text='⚔️ Экипировать оружие',
             font_size=dp(18),
-            background_color=(0.6, 0.4, 0.2, 1)
+            background_color=COLORS['stone_light']
         )
         self.btn_equip_weapon.bind(on_press=self.on_equip_weapon)
         actions_layout.add_widget(self.btn_equip_weapon)
@@ -5171,7 +5249,7 @@ class CompanionManagementScreen(Screen):
         self.btn_equip_armor = Button(
             text='🛡️ Экипировать броню',
             font_size=dp(18),
-            background_color=(0.4, 0.4, 0.6, 1)
+            background_color=COLORS['stone_light']
         )
         self.btn_equip_armor.bind(on_press=self.on_equip_armor)
         actions_layout.add_widget(self.btn_equip_armor)
@@ -5179,7 +5257,7 @@ class CompanionManagementScreen(Screen):
         self.btn_unequip_weapon = Button(
             text='⚔️ Снять оружие',
             font_size=dp(18),
-            background_color=(0.7, 0.3, 0.3, 1)
+            background_color=COLORS['stone_light']
         )
         self.btn_unequip_weapon.bind(on_press=self.on_unequip_weapon)
         actions_layout.add_widget(self.btn_unequip_weapon)
@@ -5187,7 +5265,7 @@ class CompanionManagementScreen(Screen):
         self.btn_unequip_armor = Button(
             text='🛡️ Снять броню',
             font_size=dp(18),
-            background_color=(0.7, 0.3, 0.3, 1)
+            background_color=COLORS['stone_light']
         )
         self.btn_unequip_armor.bind(on_press=self.on_unequip_armor)
         actions_layout.add_widget(self.btn_unequip_armor)
@@ -5195,7 +5273,7 @@ class CompanionManagementScreen(Screen):
         self.btn_dismiss = Button(
             text='❌ Отпустить',
             font_size=dp(18),
-            background_color=(0.8, 0.2, 0.2, 1)
+            background_color=COLORS['hp_red']
         )
         self.btn_dismiss.bind(on_press=self.on_dismiss)
         actions_layout.add_widget(self.btn_dismiss)
@@ -5704,7 +5782,7 @@ class CityMenuScreen(Screen):
             size_hint_y=None,
             height=dp(60),
             font_size=dp(22),
-            background_color=(0.6, 0.4, 0.2, 1)
+            background_color=COLORS['stone_light']
         )
         btn_tavern.bind(on_press=self.on_tavern)
         layout.add_widget(btn_tavern)
@@ -5714,7 +5792,7 @@ class CityMenuScreen(Screen):
             size_hint_y=None,
             height=dp(60),
             font_size=dp(22),
-            background_color=(0.2, 0.6, 0.8, 1)
+            background_color=COLORS['stone_light']
         )
         btn_shop.bind(on_press=self.on_shop)
         layout.add_widget(btn_shop)
