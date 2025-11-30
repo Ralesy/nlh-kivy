@@ -474,7 +474,7 @@ class MainMenuScreen(Screen):
             )
         
         title = StyledLabel(
-            text='⚔️ MINI RPG ⚔️',
+            text='Nameless Hero: Fears of Emberfall',
             font_size=dp(48),
             size_hint_y=None,
             height=dp(100),
@@ -755,7 +755,7 @@ class CharacterCreationScreen(Screen):
         layout.add_widget(name_layout)
         
         class_label = Label(
-            text='Выберите класс:',
+            text='Выберите ваше прошлое(от него зависит стартовый инвентарь):',
             font_size=dp(26),
             size_hint_y=None,
             height=dp(55),
@@ -770,7 +770,7 @@ class CharacterCreationScreen(Screen):
         self.background_buttons = {}
         
         btn_noble = Button(
-            text='👑 Обедневший дворянин\n(Много денег, кинжал, кожаная броня)',
+            text='Обедневший дворянин',
             size_hint_y=None,
             height=dp(70),
             font_size=dp(18),
@@ -781,7 +781,7 @@ class CharacterCreationScreen(Screen):
         self.background_buttons['noble'] = btn_noble
         
         btn_squire = Button(
-            text='⚔️ Оруженосец\n(Мало денег, хорошее снаряжение)',
+            text='Оруженосец',
             size_hint_y=None,
             height=dp(70),
             font_size=dp(18),
@@ -792,7 +792,7 @@ class CharacterCreationScreen(Screen):
         self.background_buttons['squire'] = btn_squire
         
         btn_hunter = Button(
-            text='🏹 Охотник\n(Среднее количество денег, железный лук)',
+            text='Охотник',
             size_hint_y=None,
             height=dp(70),
             font_size=dp(18),
@@ -803,7 +803,7 @@ class CharacterCreationScreen(Screen):
         self.background_buttons['hunter'] = btn_hunter
 
         btn_test = Button(
-            text='🧪 ТЕСТ (1000 HP/1000 DMG)',
+            text='ТЕСТ (1000 HP/1000 DMG)',
             size_hint_y=None,
             height=dp(60),
             font_size=dp(22),
@@ -3504,13 +3504,14 @@ class LocationSelectScreen(Screen):
         self._enter_btn = None
         # positions on the map (normalized 0..1) for location hotspots
         self._map_positions = {
-            'forest': (0.18, 0.58),
+            'forest': (0.16, 0.55),
+            'city': (0.22, 0.86),
             # swamp: a bit higher
             'swamp': (0.48, 0.62),
-            'mines': (0.72, 0.45),
-            'mountains': (0.86, 0.78),
+            'mines': (0.75, 0.41),
+            'mountains': (0.83, 0.78),
             # ancient cave: lower and to the left
-            'ancient_cave': (0.72, 0.26)
+            'ancient_cave': (0.67, 0.25)
         }
 
         main_layout = BoxLayout(
@@ -3720,7 +3721,7 @@ class LocationSelectScreen(Screen):
 
         # Add an invisible hotspot for the city so player can click the city area
         try:
-            city_pos = self._map_positions.get('city') or (0.28, 0.9)
+            city_pos = self._map_positions.get('city') 
             cx, cy = city_pos
             # city: lower and twice bigger
             size_dp = dp(120) * 2
