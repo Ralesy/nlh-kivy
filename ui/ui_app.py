@@ -42,6 +42,9 @@ except ImportError:
     # Fallback if import fails
     pass
 
+# Local location screen
+from ui.local_location_screen import LocalLocationScreen
+
 
 class GameHUD(BoxLayout):
     """Overlay HUD показывающий HP, DMG, DEF, монеты, XP и уровень игрока."""
@@ -1424,12 +1427,13 @@ class GameScreen(Screen):
 
 class BattleScreen(Screen):
     """Экран боя."""
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.battlefield = None
         self.event_message = None
         self.is_processing_turn = False  # Флаг блокировки действий во время обработки хода
+        self.from_local_location = False
         
         layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
         
@@ -1993,7 +1997,11 @@ class BattleScreen(Screen):
 
         def return_to_main_menu(instance):
             popup.dismiss()
-            self.manager.current = 'location_select'
+            if getattr(app, '_battle_from_local_location', False):
+                self.manager.current = 'local_location'
+                app._battle_from_local_location = False
+            else:
+                self.manager.current = 'location_select'
 
         btn_continue = Button(text='Продолжить', size_hint_y=None, height=dp(50))
         btn_continue.bind(on_press=return_to_main_menu)
@@ -2075,7 +2083,18 @@ class BattleScreen(Screen):
                 popup.content.add_widget(btn_continue)
                 popup.open()
 
-        self.manager.current = 'location_select'
+        # Return to appropriate screen after battle
+        app = App.get_running_app()
+        if getattr(app, '_battle_from_local_location', False):
+            try:
+                if getattr(app, 'local_location_screen', None):
+                    app.local_location_screen.on_return_from_battle()
+            except Exception as e:
+                print(f"[DEBUG] Failed to call on_return_from_battle: {e}")
+            self.manager.current = 'local_location'
+            app._battle_from_local_location = False
+        else:
+            self.manager.current = 'location_select'
 
 
 class TavernScreen(Screen):
@@ -4374,24 +4393,58 @@ class LocationSelectScreen(Screen):
         if loc_id == 'ancient_cave':
             # Boss selection for ancient cave
             self.manager.current = 'ancient_cave_boss'
-        else:
-            # Start normal battle for other locations: generate enemies
+            return
+        
+        # Forest uses local location screen
+        if loc_id == 'forest' and LocalLocationScreen:
             try:
-                player = app.game.player
-                # generate 1-3 enemies depending on location difficulty
-                import random as _rand
-                count = _rand.randint(1, 3)
-                enemies = EnemyGenerator.generate_for_location(loc_id, player.level, count=count)
-                if not enemies:
-                    popup = Popup(title='Ошибка', content=Label(text='Нет доступных врагов для этой локации.'), size_hint=(0.6, 0.3))
-                    popup.open()
-                    return
-                battlefield = Battlefield(player, enemies)
-                app.battle_screen.start_battle(battlefield, None)
-                self.manager.current = 'battle'
+                print(f"[DEBUG] Routing {loc_id} to local_location screen")
+                if not hasattr(app, 'local_location_screen') or not app.local_location_screen:
+                    screen = LocalLocationScreen(name='local_location')
+                    self.manager.add_widget(screen)
+                    app.local_location_screen = screen
+                screen = app.local_location_screen
+                screen.location_id = 'forest'
+                screen.location_name = 'Forest'
+                screen._defeated_enemies = set()
+                screen._current_enemy = None
+                # store normalized global map player position so we can restore on exit
+                try:
+                    lss = app.location_select_screen
+                    if getattr(lss, '_player_marker', None) and getattr(lss, 'map_overlay', None):
+                        pm = lss._player_marker
+                        w = max(1, lss.map_overlay.width)
+                        h = max(1, lss.map_overlay.height)
+                        # center coords normalized
+                        nx = (pm.x + pm.width / 2) / float(w)
+                        ny = (pm.y + pm.height / 2) / float(h)
+                        screen._entry_map_norm = (nx, ny)
+                except Exception:
+                    screen._entry_map_norm = None
+                self.manager.current = 'local_location'
+                return
             except Exception as e:
-                print(f"[DEBUG] failed to start battle for {loc_id}: {e}")
-                pass
+                print(f"[DEBUG] Failed to open local location for {loc_id}: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Start normal battle for other locations: generate enemies
+        try:
+            player = app.game.player
+            # generate 1-3 enemies depending on location difficulty
+            import random as _rand
+            count = _rand.randint(1, 3)
+            enemies = EnemyGenerator.generate_for_location(loc_id, player.level, count=count)
+            if not enemies:
+                popup = Popup(title='Ошибка', content=Label(text='Нет доступных врагов для этой локации.'), size_hint=(0.6, 0.3))
+                popup.open()
+                return
+            battlefield = Battlefield(player, enemies)
+            app.battle_screen.start_battle(battlefield, None)
+            self.manager.current = 'battle'
+        except Exception as e:
+            print(f"[DEBUG] failed to start battle for {loc_id}: {e}")
+            pass
     
     def on_status(self, instance):
         """Открыть статус."""
@@ -5175,10 +5228,23 @@ class LootWindowScreen(Screen):
             app.game.player.add_experience(
                 battle_result.xp_earned
             )
-            # Обновляем карту/списки перед переходом на глобальную карту
+            # Обновляем карту/списки перед переходом
             try:
                 if hasattr(app, 'location_select_screen'):
                     app.location_select_screen.update_locations()
+            except Exception:
+                pass
+            # If this battle originated from a local location, return to that local map
+            try:
+                if getattr(app, '_battle_from_local_location', False) and getattr(app, 'local_location_screen', None):
+                    # notify local screen about return so it can mark defeated enemy and resume
+                    try:
+                        app.local_location_screen.on_return_from_battle()
+                    except Exception:
+                        pass
+                    app._battle_from_local_location = False
+                    self.manager.current = 'local_location'
+                    return
             except Exception:
                 pass
             # Переходим на глобальную карту
@@ -5232,6 +5298,20 @@ class LootWindowScreen(Screen):
             except Exception:
                 pass
         
+        # If this battle originated from a local location, return to that local map
+        try:
+            if getattr(app, '_battle_from_local_location', False) and getattr(app, 'local_location_screen', None):
+                # notify local screen about return so it can mark defeated enemy and resume
+                try:
+                    app.local_location_screen.on_return_from_battle()
+                except Exception:
+                    pass
+                app._battle_from_local_location = False
+                self.manager.current = 'local_location'
+                return
+        except Exception:
+            pass
+
         self.manager.current = 'location_select'
 
 
@@ -5951,6 +6031,10 @@ class RPGApp(App):
         )
         sm.add_widget(active_quests_screen)
         self.active_quests_screen = active_quests_screen
+
+        local_location_screen = LocalLocationScreen(name='local_location')
+        sm.add_widget(local_location_screen)
+        self.local_location_screen = local_location_screen
 
         self.npc_manager = NPCManager()
         self.game = None
