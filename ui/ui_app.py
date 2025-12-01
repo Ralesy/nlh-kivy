@@ -1695,27 +1695,36 @@ class BattleScreen(Screen):
         """Попытка побега."""
         if self.is_processing_turn:
             return
-        
+
         if not self.battlefield:
             return
-        
+
         # Устанавливаем флаг обработки
         self.is_processing_turn = True
         self.update_battle_display()
-        
+
         success, logs = self.battlefield.attempt_escape()
         for log in logs:
             self.add_log(f"→ {log}")
-        
+
         if success:
             self.add_log("\nВы успешно сбежали!")
             self.is_processing_turn = False
             Clock.schedule_once(lambda dt: self.return_to_game(), 1.5)
         else:
-            if not self.battlefield.is_over():
-                Clock.schedule_once(lambda dt: self.enemy_turn(), 1.0)
+            # Проверяем, закончился ли бой после урона от неудачного побега
+            if self.battlefield.is_over():
+                if not self.battlefield.player.is_alive:
+                    self.add_log("\n💀 Вы были повержены!")
+                    self.is_processing_turn = False
+                    Clock.schedule_once(lambda dt: self.return_to_game(False), 2.0)
+                else:
+                    # Все враги мертвы (редкий случай)
+                    self.is_processing_turn = False
+                    self.end_battle()
             else:
-                self.is_processing_turn = False
+                # Бой продолжается, враги атакуют
+                Clock.schedule_once(lambda dt: self.enemy_turn(), 1.0)
     
     def on_surrender(self, instance):
         """Сдача."""
