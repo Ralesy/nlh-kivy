@@ -384,18 +384,23 @@ def _add_back_to_map_button(parent_widget, manager):
         except Exception as e:
             print(f"[DEBUG] Failed to auto-save: {e}")
         
-        if getattr(app2, 'location_select_screen', None):
-            try:
-                app2.location_select_screen.update_locations()
-            except Exception:
-                pass
+        if getattr(app2, 'return_to_local_location', False):
+            target_screen = 'local_location'
+        else:
+            target_screen = 'location_select'
+            if getattr(app2, 'location_select_screen', None):
+                try:
+                    app2.location_select_screen.update_locations()
+                except Exception:
+                    pass
+
         try:
-            parent_widget.manager.current = 'location_select'
+            parent_widget.manager.current = target_screen
         except Exception:
             # fallback: if manager not set yet, use app
             try:
                 if getattr(app2, 'sm', None):
-                    app2.sm.current = 'location_select'
+                    app2.sm.current = target_screen
             except Exception:
                 pass
 
@@ -6047,6 +6052,8 @@ class RPGApp(App):
 
         self.npc_manager = NPCManager()
         self.game = None
+        self.return_to_local_location = False
+        self.return_to_local_location = False
 
         # Wrap ScreenManager in a FloatLayout so we can overlay a persistent HUD
         root = FloatLayout()

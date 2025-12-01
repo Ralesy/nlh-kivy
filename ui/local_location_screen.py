@@ -35,6 +35,8 @@ class LocalLocationScreen(Screen):
 
     def on_enter(self):
         print(f"[DEBUG] LocalLocationScreen.on_enter: location_id={self.location_id}")
+        app = App.get_running_app()
+        app.return_to_local_location = True
         self.layout.clear_widgets()
         
         # Load and add background image
@@ -396,7 +398,10 @@ class LocalLocationScreen(Screen):
     def _on_exit_location(self, *args):
         """Exit the local location and return to global map."""
         print("[DEBUG] Exiting local location")
-        
+
+        app = App.get_running_app()
+        app.return_to_local_location = False
+
         # Stop the update loop
         if self._update_event:
             self._update_event.cancel()
