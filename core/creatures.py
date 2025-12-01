@@ -338,6 +338,7 @@ class Player(Creature):
         self.enemies_defeated = 0
         self.battles_fought = 0
         self.last_location_pos = {}  # location_id -> (x_norm, y_norm)
+        self.defeated_bosses = set()  # set of defeated boss ids
         # --- Observer/listener support for event-driven UI updates ---
         # Listeners receive calls like: callback(event_name: str, **kwargs)
         self._listeners = []
@@ -713,6 +714,7 @@ class Player(Creature):
         data["accepted_quests"] = [quest.to_dict() for quest in self.accepted_quests]
         data["session_stats"] = self.get_session_stats()
         data["last_location_pos"] = self.last_location_pos
+        data["defeated_bosses"] = list(self.defeated_bosses)
         return data
 
     @classmethod
@@ -772,6 +774,9 @@ class Player(Creature):
 
         # Восстанавливаем позиции в локациях
         player.last_location_pos = data.get("last_location_pos", {})
+
+        # Восстанавливаем поверженных боссов
+        player.defeated_bosses = set(data.get("defeated_bosses", []))
 
         return player
 

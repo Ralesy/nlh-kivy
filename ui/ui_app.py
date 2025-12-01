@@ -5218,7 +5218,9 @@ class LootWindowScreen(Screen):
     def show_loot(self, battle_result):
         """Показать окно выбора лута (Mount & Blade style)."""
         from ui.loot_window import LootWindow
-        self.battle_result = battle_result
+        app = App.get_running_app()
+        print(f"[DEBUG] Setting app.battle_result = {battle_result}")
+        app.battle_result = battle_result
         self.clear_widgets()
         app = App.get_running_app()
         player_inventory = (

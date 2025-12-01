@@ -5,6 +5,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
+from kivy.uix.button import Button
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Ellipse, Line
 from kivy.metrics import dp
@@ -13,13 +14,21 @@ from kivy.clock import Clock
 import random
 import os
 
+try:
+    from ui.ui_styles import COLORS
+except ImportError:
+    COLORS = {
+        'stone_light': (0.7, 0.7, 0.7, 1),
+        'hp_red': (0.8, 0.2, 0.2, 1)
+    }
+
 BUTTONS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'ui', 'buttons')
 
 # Фиксированные позиции врагов на карте (нормализованные координаты)
 ENEMY_POSITIONS = [
     (0.23, 0.42),  # Левый враг
     (0.5, 0.44),  # Центральный враг
-    (0.7, 0.2)   # Правый враг
+    (0.7, 0.25)   # Правый враг
 ]
 
 
@@ -36,6 +45,14 @@ class LocalLocationScreen(Screen):
         self._update_event = None
         self._entry_map_norm = None
         self._returning_from_battle = False
+        self.btn_enter_cave = Button(
+            text='Войти в пещеру',
+            size_hint=(None, None),
+            size=(dp(150), dp(50)),
+            background_color=COLORS['stone_light'],
+            opacity=0
+        )
+        self.btn_enter_cave.bind(on_press=self._enter_cave)
         self.layout = FloatLayout()
         self.add_widget(self.layout)
         self._drawing_widget = None
@@ -84,7 +101,10 @@ class LocalLocationScreen(Screen):
         
         # Initialize UI (buttons, labels)
         self._init_ui()
-        
+
+        # Add cave button to layout
+        self.layout.add_widget(self.btn_enter_cave)
+
         # Start update loop
         if self._update_event:
             self._update_event.cancel()
@@ -94,6 +114,9 @@ class LocalLocationScreen(Screen):
 
     def _init_enemies(self):
         """Initialize enemies on fixed positions, skipping defeated ones."""
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+
         for i in range(3):
             if i in self._defeated_enemies:
                 continue  # Skip defeated enemy positions
@@ -110,7 +133,22 @@ class LocalLocationScreen(Screen):
                 'defeated': False
             }
             self._enemies.append(enemy)
-        print(f"[DEBUG] Initialized {len(self._enemies)} enemies")
+
+        # Add cave zone for forest if boss not defeated
+        if self.location_id == 'forest' and player and 'forest_cave' not in player.defeated_bosses:
+            zone = {
+                'type': 'zone',
+                'id': 'forest_cave',
+                'x_norm': 0.7,
+                'y_norm': 0.65,
+                'x': self.width * 0.7,
+                'y': self.height * 0.65,
+                'radius': dp(50),  # Proximity radius
+                'defeated': False
+            }
+            self._enemies.append(zone)
+
+        print(f"[DEBUG] Initialized {len(self._enemies)} enemies/zones")
 
     def _init_ui(self):
         """Initialize UI elements (exit button, location name, service buttons)."""
@@ -276,6 +314,14 @@ class LocalLocationScreen(Screen):
                 self._open_quests()
                 return True
 
+        # Check if touch hit the enter cave button
+        if self.btn_enter_cave and self.btn_enter_cave.opacity > 0:
+            btn_x, btn_y = self.btn_enter_cave.pos
+            btn_w, btn_h = self.btn_enter_cave.size
+            if btn_x <= touch.x <= btn_x + btn_w and btn_y <= touch.y <= btn_y + btn_h:
+                self._enter_cave()
+                return True
+
         # If we get here, the click was on the map for movement
         print(f"[DEBUG] Touch at ({touch.x}, {touch.y}) - setting movement target")
         self._target_pos = [touch.x, touch.y]
@@ -313,17 +359,25 @@ class LocalLocationScreen(Screen):
         """Check if player collides with any enemy and start battle."""
         if not self._drawing_widget:
             return
-        
+
         player_radius = dp(12)
         for enemy in self._enemies:
             if enemy['defeated']:
                 continue
-            
+
             dx = self._player_pos[0] - enemy['x']
             dy = self._player_pos[1] - enemy['y']
             distance = (dx**2 + dy**2) ** 0.5
-            
-            if distance < player_radius + enemy['radius']:
+
+            if enemy.get('type') == 'zone':
+                # Zone proximity check
+                if distance < enemy['radius']:
+                    self.btn_enter_cave.opacity = 1
+                    self.btn_enter_cave.pos = (enemy['x'] - self.btn_enter_cave.width / 2, enemy['y'] + enemy['radius'] + 10)
+                    print(f"[DEBUG] Cave button shown at pos {self.btn_enter_cave.pos}")
+                else:
+                    self.btn_enter_cave.opacity = 0
+            elif distance < player_radius + enemy['radius']:
                 print(f"[DEBUG] Collision with enemy {enemy['id']}!")
                 self._start_battle_with_enemy(enemy)
                 return
@@ -368,16 +422,75 @@ class LocalLocationScreen(Screen):
 
     def on_return_from_battle(self):
         """Called when returning from a battle."""
-        print("[DEBUG] Returning from battle")
+        print(f"[DEBUG] on_return_from_battle called for {self._current_enemy}")
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+
         if self._current_enemy:
-            self._current_enemy['defeated'] = True
-            self._defeated_enemies.add(self._current_enemy['id'])
+            if self._current_enemy.get('type') == 'boss':
+                # Check if boss was defeated
+                print(f"[DEBUG] Checking boss defeat: battle_result exists: {hasattr(app, 'battle_result')}, victory: {app.battle_result.victory if hasattr(app, 'battle_result') and app.battle_result else 'N/A'}")
+                if player and hasattr(app, 'battle_result') and app.battle_result and app.battle_result.victory:
+                    print(f"[DEBUG] Boss {self._current_enemy['id']} defeated! defeated_bosses before: {player.defeated_bosses}")
+                    player.defeated_bosses.add(self._current_enemy['id'])
+                    print(f"[DEBUG] defeated_bosses after: {player.defeated_bosses}")
+                    # Remove the zone from enemies list
+                    self._enemies = [e for e in self._enemies if not (e.get('type') == 'zone' and e.get('id') == self._current_enemy['id'])]
+                    # Hide the button
+                    self.btn_enter_cave.opacity = 0
+                    # Save game to persist defeated bosses
+                    try:
+                        from systems.save_system import save_game
+                        save_game(player, 'autosave')
+                        print("[DEBUG] Game auto-saved after boss defeat")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to save after boss defeat: {e}")
+            else:
+                # Regular enemy defeat
+                self._current_enemy['defeated'] = True
+                self._defeated_enemies.add(self._current_enemy['id'])
             self._current_enemy = None
-        
+
         # Resume game loop
         if self._update_event:
             self._update_event.cancel()
         self._update_event = Clock.schedule_interval(self._on_game_update, 1/60)
+
+    def _enter_cave(self, instance=None):
+        """Enter the cave and start boss battle."""
+        print(f"[DEBUG] Enter cave pressed")
+        from systems.battle import EnemyGenerator, Battlefield
+        from kivy.uix.popup import Popup
+        from kivy.uix.label import Label
+
+        app = App.get_running_app()
+        if not app.game or not app.game.player:
+            return
+
+        player = app.game.player
+        boss_id = 'forest_cave'
+
+        # Check if boss already defeated
+        if boss_id in player.defeated_bosses:
+            popup = Popup(
+                title='Пещера исследована',
+                content=Label(text='Вы уже победили Безумного мародера!\nЭта пещера больше не представляет угрозы.'),
+                size_hint=(0.6, 0.3)
+            )
+            popup.open()
+            return
+
+        boss = EnemyGenerator.generate_boss("enemy_ancient_cave_berserker")
+        if boss:
+            battlefield = Battlefield(app.game.player, [boss])
+
+            # Mark that we're in a battle from local location
+            app._battle_from_local_location = True
+            app.battle_screen.from_local_location = True
+
+            app.battle_screen.start_battle(battlefield, "Безумный мародер")
+            self._current_enemy = {'type': 'boss', 'id': boss_id}
+            self.manager.current = 'battle'
 
     def _draw_game(self):
         """Draw player and enemies on the canvas."""
@@ -395,14 +508,24 @@ class LocalLocationScreen(Screen):
                 enemy['x'] = self.width * enemy['x_norm']
                 enemy['y'] = self.height * enemy['y_norm']
                 
-                # Draw enemy circle (red)
-                Color(1, 0, 0, 0.7)
-                Ellipse(
-                    pos=(enemy['x'] - enemy['radius'], enemy['y'] - enemy['radius']),
-                    size=(enemy['radius'] * 2, enemy['radius'] * 2)
-                )
-                Color(0.8, 0, 0, 1)
-                Line(circle=(enemy['x'], enemy['y'], enemy['radius']), width=2)
+                if enemy.get('type') == 'zone':
+                    # Draw zone circle (blue)
+                    Color(0, 0, 1, 0.5)
+                    Ellipse(
+                        pos=(enemy['x'] - enemy['radius'], enemy['y'] - enemy['radius']),
+                        size=(enemy['radius'] * 2, enemy['radius'] * 2)
+                    )
+                    Color(0, 0, 0.8, 1)
+                    Line(circle=(enemy['x'], enemy['y'], enemy['radius']), width=2)
+                else:
+                    # Draw enemy circle (red)
+                    Color(1, 0, 0, 0.7)
+                    Ellipse(
+                        pos=(enemy['x'] - enemy['radius'], enemy['y'] - enemy['radius']),
+                        size=(enemy['radius'] * 2, enemy['radius'] * 2)
+                    )
+                    Color(0.8, 0, 0, 1)
+                    Line(circle=(enemy['x'], enemy['y'], enemy['radius']), width=2)
             
             # Draw player (yellow)
             player_radius = dp(12)
