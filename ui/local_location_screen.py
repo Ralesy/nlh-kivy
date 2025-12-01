@@ -15,6 +15,13 @@ import os
 
 BUTTONS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'ui', 'buttons')
 
+# Фиксированные позиции врагов на карте (нормализованные координаты)
+ENEMY_POSITIONS = [
+    (0.2, 0.7),  # Левый враг
+    (0.5, 0.8),  # Центральный враг
+    (0.8, 0.7)   # Правый враг
+]
+
 
 class LocalLocationScreen(Screen):
     def __init__(self, **kwargs):
@@ -72,16 +79,13 @@ class LocalLocationScreen(Screen):
         print(f"[DEBUG] LocalLocationScreen ready with {len(self._enemies)} enemies")
 
     def _init_enemies(self):
-        """Initialize 3 random enemies on the map."""
+        """Initialize enemies on fixed positions, skipping defeated ones."""
         for i in range(3):
-            # Generate random position avoiding center (where player starts)
-            while True:
-                x_norm = random.uniform(0.1, 0.9)
-                y_norm = random.uniform(0.3, 0.9)
-                dist_from_center = ((x_norm - 0.5) ** 2 + (y_norm - 0.5) ** 2) ** 0.5
-                if dist_from_center > 0.15:  # Keep away from center
-                    break
-            
+            if i in self._defeated_enemies:
+                continue  # Skip defeated enemy positions
+
+            x_norm, y_norm = ENEMY_POSITIONS[i]
+
             enemy = {
                 'id': i,
                 'x_norm': x_norm,
