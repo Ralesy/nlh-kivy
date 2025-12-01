@@ -35,6 +35,7 @@ class LocalLocationScreen(Screen):
         self._current_enemy = None
         self._update_event = None
         self._entry_map_norm = None
+        self._returning_from_battle = False
         self.layout = FloatLayout()
         self.add_widget(self.layout)
         self._drawing_widget = None
@@ -59,7 +60,20 @@ class LocalLocationScreen(Screen):
         self._target_pos = None
         self._enemies = []
         self._current_enemy = None
-        self._player_pos = [self.width * 0.5, self.height * 0.5]
+
+        # Set player position
+        if self._returning_from_battle:
+            # Returning from battle: keep current position (already set)
+            self._returning_from_battle = False
+        else:
+            # Normal entry: restore saved position or default to center
+            app = App.get_running_app()
+            player = app.game.player if app.game else None
+            if player and self.location_id in player.last_location_pos:
+                x_norm, y_norm = player.last_location_pos[self.location_id]
+                self._player_pos = [x_norm * self.width, y_norm * self.height]
+            else:
+                self._player_pos = [self.width * 0.5, self.height * 0.5]
         
         # Create drawing widget for player and enemies
         self._drawing_widget = Widget(size_hint=(1, 1), pos_hint={'x': 0, 'y': 0})
@@ -318,6 +332,7 @@ class LocalLocationScreen(Screen):
         """Start a battle with the given enemy."""
         print(f"[DEBUG] Starting battle with enemy {enemy['id']}")
         self._current_enemy = enemy
+        self._returning_from_battle = True
         
         # Stop the game loop
         if self._update_event:
@@ -411,6 +426,14 @@ class LocalLocationScreen(Screen):
             self._update_event.cancel()
             self._update_event = None
         
+        # Save current position before exiting
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        if player:
+            x_norm = self._player_pos[0] / self.width if self.width else 0.5
+            y_norm = self._player_pos[1] / self.height if self.height else 0.5
+            player.last_location_pos[self.location_id] = (x_norm, y_norm)
+
         # Clear state
         self.location_id = None
         self._enemies = []

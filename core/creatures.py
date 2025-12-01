@@ -337,6 +337,7 @@ class Player(Creature):
         self.total_damage_taken = 0
         self.enemies_defeated = 0
         self.battles_fought = 0
+        self.last_location_pos = {}  # location_id -> (x_norm, y_norm)
         # --- Observer/listener support for event-driven UI updates ---
         # Listeners receive calls like: callback(event_name: str, **kwargs)
         self._listeners = []
@@ -711,6 +712,7 @@ class Player(Creature):
         data["companions"] = [c.to_dict() for c in self.companions]
         data["accepted_quests"] = [quest.to_dict() for quest in self.accepted_quests]
         data["session_stats"] = self.get_session_stats()
+        data["last_location_pos"] = self.last_location_pos
         return data
 
     @classmethod
@@ -767,6 +769,9 @@ class Player(Creature):
         # Восстанавливаем квесты (без сериализации квестов для теперь)
         if "accepted_quests" in data:
             player.accepted_quests = []  # Пусто для сейчас
+
+        # Восстанавливаем позиции в локациях
+        player.last_location_pos = data.get("last_location_pos", {})
 
         return player
 
