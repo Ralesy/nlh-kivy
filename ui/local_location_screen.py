@@ -93,7 +93,7 @@ class LocalLocationScreen(Screen):
         print(f"[DEBUG] Initialized {len(self._enemies)} enemies")
 
     def _init_ui(self):
-        """Initialize UI elements (exit button, location name)."""
+        """Initialize UI elements (exit button, location name, service buttons)."""
         # Exit button (top-right corner) - using Image widget
         btn_exit = Image(
             source=os.path.join(BUTTONS_DIR, 'global_map.png'),
@@ -105,7 +105,7 @@ class LocalLocationScreen(Screen):
         self._btn_exit = btn_exit
         self._btn_exit_rect = (btn_exit.pos[0], btn_exit.pos[1], btn_exit.size[0], btn_exit.size[1])
         print(f"[DEBUG] Exit button added at pos {btn_exit.pos} with size {btn_exit.size}")
-        
+
         # Location name label (top-left)
         lbl_name = Label(
             text=self.location_name or 'Локация',
@@ -116,8 +116,105 @@ class LocalLocationScreen(Screen):
         )
         self.layout.add_widget(lbl_name)
 
+        # Service buttons (bottom-left, matching global map positions)
+        # Inventory button
+        inv_btn = Image(
+            source=os.path.join(BUTTONS_DIR, 'inventory.png'),
+            size_hint=(None, None),
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.01, 'y': 0.01}
+        )
+        self.layout.add_widget(inv_btn)
+        self._btn_inventory = inv_btn
+
+        # Status button
+        status_btn = Image(
+            source=os.path.join(BUTTONS_DIR, 'status.png'),
+            size_hint=(None, None),
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.12, 'y': 0.01}
+        )
+        self.layout.add_widget(status_btn)
+        self._btn_status = status_btn
+
+        # Companions button
+        comp_btn = Image(
+            source=os.path.join(BUTTONS_DIR, 'companion.png'),
+            size_hint=(None, None),
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.23, 'y': 0.01}
+        )
+        self.layout.add_widget(comp_btn)
+        self._btn_companions = comp_btn
+
+        # Quests button
+        quests_btn = Image(
+            source=os.path.join(BUTTONS_DIR, 'active_quests.png'),
+            size_hint=(None, None),
+            size=(dp(72), dp(72)),
+            pos_hint={'x': 0.34, 'y': 0.01}
+        )
+        self.layout.add_widget(quests_btn)
+        self._btn_quests = quests_btn
+
+    def _open_inventory(self, *args):
+        """Open inventory screen."""
+        app = App.get_running_app()
+        if getattr(app, 'inventory_screen', None):
+            try:
+                app.inventory_screen.update_inventory()
+            except Exception:
+                pass
+        if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+            try:
+                self.manager.current = 'inventory'
+            except Exception:
+                pass
+
+    def _open_status(self, *args):
+        """Open status screen."""
+        app = App.get_running_app()
+        if getattr(app, 'status_screen', None):
+            try:
+                app.status_screen.update_status()
+            except Exception:
+                pass
+        if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+            try:
+                self.manager.current = 'status'
+            except Exception:
+                pass
+
+    def _open_companions(self, *args):
+        """Open companions management screen."""
+        app = App.get_running_app()
+        if getattr(app, 'companion_management_screen', None):
+            try:
+                app.companion_management_screen.update_companion()
+            except Exception:
+                pass
+        if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+            try:
+                self.manager.current = 'companion_management'
+            except Exception:
+                pass
+
+    def _open_quests(self, *args):
+        """Open active quests screen."""
+        app = App.get_running_app()
+        if getattr(app, 'active_quests_screen', None):
+            try:
+                app.active_quests_screen.update_quests()
+            except Exception:
+                pass
+        if getattr(app, 'game', None) and getattr(app.game, 'player', None):
+            try:
+                self.manager.current = 'active_quests'
+            except Exception:
+                pass
+
     def on_touch_down(self, touch):
-        """Handle touch/click events for player movement."""
+        """Handle touch/click events for player movement and UI buttons."""
         # Check if touch hit the exit button
         if self._btn_exit:
             btn_x, btn_y = self._btn_exit.pos
@@ -126,7 +223,39 @@ class LocalLocationScreen(Screen):
                 print(f"[DEBUG] Touch hit exit button at ({touch.x}, {touch.y})")
                 self._on_exit_location()
                 return True
-        
+
+        # Check if touch hit the inventory button
+        if self._btn_inventory:
+            btn_x, btn_y = self._btn_inventory.pos
+            btn_w, btn_h = self._btn_inventory.size
+            if btn_x <= touch.x <= btn_x + btn_w and btn_y <= touch.y <= btn_y + btn_h:
+                self._open_inventory()
+                return True
+
+        # Check if touch hit the status button
+        if self._btn_status:
+            btn_x, btn_y = self._btn_status.pos
+            btn_w, btn_h = self._btn_status.size
+            if btn_x <= touch.x <= btn_x + btn_w and btn_y <= touch.y <= btn_y + btn_h:
+                self._open_status()
+                return True
+
+        # Check if touch hit the companions button
+        if self._btn_companions:
+            btn_x, btn_y = self._btn_companions.pos
+            btn_w, btn_h = self._btn_companions.size
+            if btn_x <= touch.x <= btn_x + btn_w and btn_y <= touch.y <= btn_y + btn_h:
+                self._open_companions()
+                return True
+
+        # Check if touch hit the quests button
+        if self._btn_quests:
+            btn_x, btn_y = self._btn_quests.pos
+            btn_w, btn_h = self._btn_quests.size
+            if btn_x <= touch.x <= btn_x + btn_w and btn_y <= touch.y <= btn_y + btn_h:
+                self._open_quests()
+                return True
+
         # If we get here, the click was on the map for movement
         print(f"[DEBUG] Touch at ({touch.x}, {touch.y}) - setting movement target")
         self._target_pos = [touch.x, touch.y]
