@@ -140,7 +140,7 @@ class LocalLocationScreen(Screen):
                 'type': 'zone',
                 'id': 'forest_cave',
                 'x_norm': 0.7,
-                'y_norm': 0.65,
+                'y_norm': 0.68,
                 'x': self.width * 0.7,
                 'y': self.height * 0.65,
                 'radius': dp(50),  # Proximity radius
