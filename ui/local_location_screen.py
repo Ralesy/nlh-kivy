@@ -68,6 +68,7 @@ class LocalLocationScreen(Screen):
         self.add_widget(self.layout)
         self._drawing_widget = None
         self._btn_exit = None
+        self._player_label = None
 
     def on_enter(self):
         print(f"[DEBUG] LocalLocationScreen.on_enter: location_id={self.location_id}")
@@ -127,6 +128,20 @@ class LocalLocationScreen(Screen):
 
         # Add hover tooltip
         self.layout.add_widget(self._hover_widget)
+
+        # Create player name label
+        app = App.get_running_app()
+        if app.game and app.game.player:
+            player_name = app.game.player.name
+            self._player_label = Label(
+                text=player_name,
+                size_hint=(None, None),
+                size=(dp(100), dp(25)),
+                font_size=dp(14),
+                color=COLORS['gold'],
+                bold=True
+            )
+            self.layout.add_widget(self._player_label)
 
         # Bind mouse position for tooltips
         from kivy.core.window import Window
@@ -529,6 +544,13 @@ class LocalLocationScreen(Screen):
         self.btn_enter_cave.opacity = 0
         # Hide tooltip
         self._hover_widget.opacity = 0
+        # Remove player label
+        if self._player_label:
+            try:
+                self.layout.remove_widget(self._player_label)
+            except Exception:
+                pass
+            self._player_label = None
         # Unbind mouse position
         from kivy.core.window import Window
         try:
@@ -677,6 +699,12 @@ class LocalLocationScreen(Screen):
             )
             Color(1, 0.8, 0, 1)
             Line(circle=(self._player_pos[0], self._player_pos[1], player_radius), width=2)
+
+            # Update player name label position
+            if self._player_label:
+                label_x = self._player_pos[0] - self._player_label.width / 2
+                label_y = self._player_pos[1] + player_radius + dp(5)
+                self._player_label.pos = (label_x, label_y)
 
     def _on_exit_location(self, *args):
         """Exit the local location and return to global map."""
