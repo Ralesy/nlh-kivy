@@ -53,6 +53,17 @@ class LocalLocationScreen(Screen):
             opacity=0
         )
         self.btn_enter_cave.bind(on_press=self._enter_cave)
+
+        # Hover tooltip widget
+        self._hover_widget = Label(
+            text='',
+            size_hint=(None, None),
+            size=(dp(200), dp(40)),
+            color=COLORS['text_light'],
+            opacity=0,
+            halign='center',
+            valign='middle'
+        )
         self.layout = FloatLayout()
         self.add_widget(self.layout)
         self._drawing_widget = None
@@ -105,6 +116,16 @@ class LocalLocationScreen(Screen):
         # Add cave button to layout
         self.layout.add_widget(self.btn_enter_cave)
 
+        # Add hover tooltip
+        self.layout.add_widget(self._hover_widget)
+
+        # Bind mouse position for tooltips
+        from kivy.core.window import Window
+        try:
+            Window.bind(mouse_pos=self._on_mouse_pos)
+        except Exception:
+            pass
+
         # Start update loop
         if self._update_event:
             self._update_event.cancel()
@@ -114,6 +135,7 @@ class LocalLocationScreen(Screen):
 
     def _init_enemies(self):
         """Initialize enemies on fixed positions, skipping defeated ones."""
+        from systems.battle import EnemyGenerator
         app = App.get_running_app()
         player = app.game.player if app.game else None
 
@@ -123,6 +145,9 @@ class LocalLocationScreen(Screen):
 
             x_norm, y_norm = ENEMY_POSITIONS[i]
 
+            # Generate enemy creature for tooltip
+            enemy_creature = EnemyGenerator.generate_for_location(self.location_id, player.level, count=1)[0] if player else None
+
             enemy = {
                 'id': i,
                 'x_norm': x_norm,
@@ -130,7 +155,10 @@ class LocalLocationScreen(Screen):
                 'x': self.width * x_norm,
                 'y': self.height * y_norm,
                 'radius': dp(12),
-                'defeated': False
+                'defeated': False,
+                'creature': enemy_creature,
+                'name': enemy_creature.name if enemy_creature else 'Неизвестный',
+                'level': enemy_creature.level if enemy_creature else 1,
             }
             self._enemies.append(enemy)
 
@@ -144,7 +172,8 @@ class LocalLocationScreen(Screen):
                 'x': self.width * 0.7,
                 'y': self.height * 0.65,
                 'radius': dp(50),  # Proximity radius
-                'defeated': False
+                'defeated': False,
+                'description': 'Пещера с боссом: Безумный мародер'
             }
             self._enemies.append(zone)
 
@@ -387,38 +416,51 @@ class LocalLocationScreen(Screen):
         print(f"[DEBUG] Starting battle with enemy {enemy['id']}")
         self._current_enemy = enemy
         self._returning_from_battle = True
-        
+
         # Stop the game loop
         if self._update_event:
             self._update_event.cancel()
             self._update_event = None
-        
-        # Get the app and player
+
+        # Start battle immediately using the pre-generated enemy
         app = App.get_running_app()
+        if not app.game or not app.game.player:
+            return
+
         player = app.game.player
-        
-        # Generate enemy for battle
+        enemy_creature = enemy.get('creature')
+        if not enemy_creature:
+            print(f"[ERROR] No creature for enemy {enemy['id']}")
+            return
+
         try:
-            from systems.battle import EnemyGenerator, Battlefield
-            enemies = EnemyGenerator.generate_for_location(self.location_id, player.level, count=1)
-            if not enemies:
-                print(f"[ERROR] Failed to generate enemies for {self.location_id}")
-                return
-            
-            # Create battlefield
-            battlefield = Battlefield(player, enemies)
-            
+            from systems.battle import Battlefield
+            battlefield = Battlefield(player, [enemy_creature])
+
             # Mark that we're in a battle from local location
             app._battle_from_local_location = True
             app.battle_screen.from_local_location = True
-            
+
             # Start the battle
-            app.battle_screen.start_battle(battlefield, enemies[0].name)
+            app.battle_screen.start_battle(battlefield, enemy_creature.name)
             self.manager.current = 'battle'
         except Exception as e:
             print(f"[ERROR] Failed to start battle: {e}")
             import traceback
             traceback.print_exc()
+
+    def on_leave(self):
+        """Cleanup when leaving screen."""
+        # Hide cave button
+        self.btn_enter_cave.opacity = 0
+        # Hide tooltip
+        self._hover_widget.opacity = 0
+        # Unbind mouse position
+        from kivy.core.window import Window
+        try:
+            Window.unbind(mouse_pos=self._on_mouse_pos)
+        except Exception:
+            pass
 
     def on_return_from_battle(self):
         """Called when returning from a battle."""
@@ -455,6 +497,31 @@ class LocalLocationScreen(Screen):
         if self._update_event:
             self._update_event.cancel()
         self._update_event = Clock.schedule_interval(self._on_game_update, 1/60)
+
+    def _on_mouse_pos(self, window, pos):
+        """Handle mouse position for enemy tooltips."""
+        # Convert to local coordinates
+        local_pos = self.to_local(*pos)
+
+        # Check enemies
+        for enemy in self._enemies:
+            dx = local_pos[0] - enemy['x']
+            dy = local_pos[1] - enemy['y']
+            distance = (dx**2 + dy**2) ** 0.5
+            if distance <= enemy['radius']:
+                if enemy.get('type') == 'enemy':
+                    tooltip = f"{enemy['name']} (Lv.{enemy['level']})"
+                elif enemy.get('type') == 'zone':
+                    tooltip = enemy.get('description', 'Специальная зона')
+                else:
+                    tooltip = enemy.get('name', 'Неизвестный')
+                self._hover_widget.text = tooltip
+                self._hover_widget.opacity = 1
+                self._hover_widget.pos = (local_pos[0] + dp(10), local_pos[1] + dp(10))
+                return
+
+        # Hide tooltip if not hovering over anything
+        self._hover_widget.opacity = 0
 
     def _enter_cave(self, instance=None):
         """Enter the cave and start boss battle."""
