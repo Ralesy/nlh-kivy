@@ -451,6 +451,15 @@ class LocalLocationScreen(Screen):
 
     def on_leave(self):
         """Cleanup when leaving screen."""
+        # Save current position before leaving
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        if player and self.location_id:
+            x_norm = self._player_pos[0] / self.width if self.width else 0.5
+            y_norm = self._player_pos[1] / self.height if self.height else 0.5
+            player.last_location_pos[self.location_id] = (x_norm, y_norm)
+            print(f"[DEBUG] Saved position for {self.location_id}: ({x_norm:.3f}, {y_norm:.3f})")
+
         # Hide cave button
         self.btn_enter_cave.opacity = 0
         # Hide tooltip
