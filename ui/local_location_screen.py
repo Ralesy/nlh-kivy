@@ -92,7 +92,7 @@ class LocalLocationScreen(Screen):
         # Set player position
         if self._returning_from_battle:
             # Returning from battle: keep current position (already set)
-            self._returning_from_battle = False
+            pass
         else:
             # Normal entry: restore saved position or default to center
             app = App.get_running_app()
@@ -102,13 +102,22 @@ class LocalLocationScreen(Screen):
                 self._player_pos = [x_norm * self.width, y_norm * self.height]
             else:
                 self._player_pos = [self.width * 0.5, self.height * 0.5]
-        
+
         # Create drawing widget for player and enemies
         self._drawing_widget = Widget(size_hint=(1, 1), pos_hint={'x': 0, 'y': 0})
         self.layout.add_widget(self._drawing_widget)
-        
+
         # Initialize enemies
-        self._init_enemies()
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        if self.location_id and player and getattr(player, 'last_location_visited', None) == self.location_id:
+            # Returning to location: use saved positions
+            self._init_enemies(use_saved=True)
+        else:
+            # First entry to location: generate new random positions
+            self._init_enemies(use_saved=False)
+            if player:
+                player.last_location_visited = self.location_id
         
         # Initialize UI (buttons, labels)
         self._init_ui()
@@ -133,17 +142,36 @@ class LocalLocationScreen(Screen):
         
         print(f"[DEBUG] LocalLocationScreen ready with {len(self._enemies)} enemies")
 
-    def _init_enemies(self):
-        """Initialize enemies on fixed positions, skipping defeated ones."""
+    def _init_enemies(self, use_saved=False):
+        """Initialize enemies on saved or random positions, skipping defeated ones."""
         from systems.battle import EnemyGenerator
         app = App.get_running_app()
         player = app.game.player if app.game else None
+
+        # Get saved enemy positions or generate new ones
+        saved_positions = []
+        if use_saved and player and hasattr(player, 'last_enemy_positions') and self.location_id in player.last_enemy_positions:
+            saved_positions = player.last_enemy_positions[self.location_id]
+            print(f"[DEBUG] Using {len(saved_positions)} saved enemy positions for {self.location_id}")
+        else:
+            # Generate random positions
+            saved_positions = self._generate_random_enemy_positions(3)
+            # Save for future use
+            if player:
+                if not hasattr(player, 'last_enemy_positions'):
+                    player.last_enemy_positions = {}
+                player.last_enemy_positions[self.location_id] = saved_positions
+                print(f"[DEBUG] Generated and saved {len(saved_positions)} random enemy positions for {self.location_id}")
 
         for i in range(3):
             if i in self._defeated_enemies:
                 continue  # Skip defeated enemy positions
 
-            x_norm, y_norm = ENEMY_POSITIONS[i]
+            if i < len(saved_positions):
+                x_norm, y_norm = saved_positions[i]
+            else:
+                # Fallback
+                x_norm, y_norm = random.uniform(0.15, 0.85), random.uniform(0.15, 0.85)
 
             # Generate enemy creature for tooltip
             enemy_creature = EnemyGenerator.generate_for_location(self.location_id, player.level, count=1)[0] if player else None
@@ -178,6 +206,32 @@ class LocalLocationScreen(Screen):
             self._enemies.append(zone)
 
         print(f"[DEBUG] Initialized {len(self._enemies)} enemies/zones")
+
+    def _generate_random_enemy_positions(self, count=3):
+        """Generate random enemy positions with minimum distance."""
+        import random
+        positions = []
+        for _ in range(count):
+            attempts = 0
+            while attempts < 50:
+                x_norm = random.uniform(0.15, 0.85)
+                y_norm = random.uniform(0.15, 0.85)
+                # Check minimum distance from other enemies (at least 0.2 normalized units)
+                too_close = False
+                for sx, sy in positions:
+                    if ((x_norm - sx)**2 + (y_norm - sy)**2)**0.5 < 0.2:
+                        too_close = True
+                        break
+                if not too_close:
+                    positions.append((x_norm, y_norm))
+                    break
+                attempts += 1
+            else:
+                # Fallback
+                x_norm = random.uniform(0.15, 0.85)
+                y_norm = random.uniform(0.15, 0.85)
+                positions.append((x_norm, y_norm))
+        return positions
 
     def _init_ui(self):
         """Initialize UI elements (exit button, location name, service buttons)."""
@@ -460,6 +514,17 @@ class LocalLocationScreen(Screen):
             player.last_location_pos[self.location_id] = (x_norm, y_norm)
             print(f"[DEBUG] Saved position for {self.location_id}: ({x_norm:.3f}, {y_norm:.3f})")
 
+            # Save enemy positions
+            enemy_positions = []
+            for enemy in self._enemies:
+                if enemy.get('type') == 'enemy' and not enemy['defeated']:
+                    enemy_positions.append((enemy['x_norm'], enemy['y_norm']))
+            if enemy_positions:
+                if not hasattr(player, 'last_enemy_positions'):
+                    player.last_enemy_positions = {}
+                player.last_enemy_positions[self.location_id] = enemy_positions
+                print(f"[DEBUG] Saved {len(enemy_positions)} enemy positions for {self.location_id}")
+
         # Hide cave button
         self.btn_enter_cave.opacity = 0
         # Hide tooltip
@@ -638,6 +703,10 @@ class LocalLocationScreen(Screen):
         self._enemies = []
         self._current_enemy = None
         self._target_pos = None
+
+        # Clear last visited location
+        if player:
+            player.last_location_visited = None
         
         # Auto-save game
         try:
