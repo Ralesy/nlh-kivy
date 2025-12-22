@@ -163,20 +163,30 @@ class LocalLocationScreen(Screen):
         app = App.get_running_app()
         player = app.game.player if app.game else None
 
-        # Get saved enemy positions or generate new ones
+        # Get saved enemy positions and creatures or generate new ones
         saved_positions = []
+        saved_creatures = []
         if use_saved and player and hasattr(player, 'last_enemy_positions') and self.location_id in player.last_enemy_positions:
             saved_positions = player.last_enemy_positions[self.location_id]
-            print(f"[DEBUG] Using {len(saved_positions)} saved enemy positions for {self.location_id}")
+            if hasattr(player, 'last_enemy_creatures') and self.location_id in player.last_enemy_creatures:
+                saved_creatures = player.last_enemy_creatures[self.location_id]
+            print(f"[DEBUG] Using {len(saved_positions)} saved enemy positions: {saved_positions} and {len(saved_creatures)} creatures for {self.location_id}")
         else:
-            # Generate random positions
+            # Generate random positions and creatures
             saved_positions = self._generate_random_enemy_positions(3)
+            saved_creatures = []
+            for _ in range(3):
+                enemy_creature = EnemyGenerator.generate_for_location(self.location_id, player.level, count=1)[0] if player else None
+                saved_creatures.append(enemy_creature)
             # Save for future use
             if player:
                 if not hasattr(player, 'last_enemy_positions'):
                     player.last_enemy_positions = {}
                 player.last_enemy_positions[self.location_id] = saved_positions
-                print(f"[DEBUG] Generated and saved {len(saved_positions)} random enemy positions for {self.location_id}")
+                if not hasattr(player, 'last_enemy_creatures'):
+                    player.last_enemy_creatures = {}
+                player.last_enemy_creatures[self.location_id] = saved_creatures
+                print(f"[DEBUG] Generated and saved {len(saved_positions)} random enemy positions and creatures for {self.location_id}")
 
         for i in range(3):
             if i in self._defeated_enemies:
@@ -188,10 +198,13 @@ class LocalLocationScreen(Screen):
                 # Fallback
                 x_norm, y_norm = random.uniform(0.15, 0.85), random.uniform(0.15, 0.85)
 
-            # Generate enemy creature for tooltip
-            enemy_creature = EnemyGenerator.generate_for_location(self.location_id, player.level, count=1)[0] if player else None
+            # Use saved creature or generate new
+            enemy_creature = saved_creatures[i] if i < len(saved_creatures) and saved_creatures[i] else (
+                EnemyGenerator.generate_for_location(self.location_id, player.level, count=1)[0] if player else None
+            )
 
             enemy = {
+                'type': 'enemy',
                 'id': i,
                 'x_norm': x_norm,
                 'y_norm': y_norm,
@@ -447,11 +460,37 @@ class LocalLocationScreen(Screen):
                 self._player_pos[0] += (dx / distance) * move_dist
                 self._player_pos[1] += (dy / distance) * move_dist
         
+        # Update enemy positions (enemies slowly move towards player)
+        self._update_enemy_positions(dt)
+
         # Check collisions with enemies
         self._check_enemy_collisions()
-        
+
         # Draw game state
         self._draw_game()
+
+    def _update_enemy_positions(self, dt):
+        """Update enemy positions to slowly move towards player."""
+        enemy_speed = dp(30) * dt  # Slower than player speed (dp(200))
+
+        for enemy in self._enemies:
+            if enemy['defeated'] or enemy.get('type') == 'zone':
+                continue
+
+            # Calculate direction to player
+            dx = self._player_pos[0] - enemy['x']
+            dy = self._player_pos[1] - enemy['y']
+            distance = (dx**2 + dy**2) ** 0.5
+
+            if distance > 0:
+                # Move towards player
+                move_dist = min(enemy_speed, distance)
+                enemy['x'] += (dx / distance) * move_dist
+                enemy['y'] += (dy / distance) * move_dist
+
+                # Update normalized coordinates
+                enemy['x_norm'] = enemy['x'] / self.width
+                enemy['y_norm'] = enemy['y'] / self.height
 
     def _check_enemy_collisions(self):
         """Check if player collides with any enemy and start battle."""
@@ -486,13 +525,31 @@ class LocalLocationScreen(Screen):
         self._current_enemy = enemy
         self._returning_from_battle = True
 
+        # Save current enemy positions and creatures before battle
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        if player:
+            enemy_positions = []
+            enemy_creatures = []
+            for e in self._enemies:
+                if e.get('type') == 'enemy' and not e['defeated']:
+                    enemy_positions.append((e['x_norm'], e['y_norm']))
+                    enemy_creatures.append(e['creature'])
+            if enemy_positions:
+                if not hasattr(player, 'last_enemy_positions'):
+                    player.last_enemy_positions = {}
+                player.last_enemy_positions[self.location_id] = enemy_positions
+                if not hasattr(player, 'last_enemy_creatures'):
+                    player.last_enemy_creatures = {}
+                player.last_enemy_creatures[self.location_id] = enemy_creatures
+                print(f"[DEBUG] Saved {len(enemy_positions)} current enemy positions and creatures before battle")
+
         # Stop the game loop
         if self._update_event:
             self._update_event.cancel()
             self._update_event = None
 
         # Start battle immediately using the pre-generated enemy
-        app = App.get_running_app()
         if not app.game or not app.game.player:
             return
 
@@ -588,6 +645,18 @@ class LocalLocationScreen(Screen):
                 self._current_enemy['defeated'] = True
                 self._defeated_enemies.add(self._current_enemy['id'])
             self._current_enemy = None
+
+        # Update saved positions to current positions of remaining enemies
+        if player:
+            enemy_positions = []
+            for enemy in self._enemies:
+                if enemy.get('type') == 'enemy' and not enemy['defeated']:
+                    enemy_positions.append((enemy['x_norm'], enemy['y_norm']))
+            if enemy_positions:
+                if not hasattr(player, 'last_enemy_positions'):
+                    player.last_enemy_positions = {}
+                player.last_enemy_positions[self.location_id] = enemy_positions
+                print(f"[DEBUG] Updated saved enemy positions after battle return")
 
         # Resume game loop
         if self._update_event:
@@ -732,9 +801,13 @@ class LocalLocationScreen(Screen):
         self._current_enemy = None
         self._target_pos = None
 
-        # Clear last visited location
+        # Clear last visited location and enemy data
         if player:
             player.last_location_visited = None
+            if hasattr(player, 'last_enemy_positions'):
+                player.last_enemy_positions.pop(self.location_id, None)
+            if hasattr(player, 'last_enemy_creatures'):
+                player.last_enemy_creatures.pop(self.location_id, None)
         
         # Auto-save game
         try:
