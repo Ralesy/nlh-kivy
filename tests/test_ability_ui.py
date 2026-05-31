@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Test that ability button appears and works in battle UI"""
 
-from core.creatures_module import Player, Creature
+from core.creatures import Player, Creature
 from data.items import ItemDatabase
 from systems.battle import Battlefield
 
@@ -20,7 +20,7 @@ def test_ability_button():
         return False
     
     # Create player and equip sword
-    player = Player(name="Hero", cls="warrior")
+    player = Player(name="Hero", background="squire")
     player.equip_weapon(sword)
     
     print("OK: Player equipped with sword")

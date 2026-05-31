@@ -71,7 +71,7 @@ class LocalLocationScreen(Screen):
         self._player_label = None
 
     def on_enter(self):
-        print(f"[DEBUG] LocalLocationScreen.on_enter: location_id={self.location_id}")
+        pass
         app = App.get_running_app()
         app.return_to_local_location = True
         self.layout.clear_widgets()
@@ -81,9 +81,9 @@ class LocalLocationScreen(Screen):
         try:
             bg = Image(source=bg_path, allow_stretch=True, keep_ratio=False, size_hint=(1, 1), pos_hint={'x': 0, 'y': 0})
             self.layout.add_widget(bg)
-            print(f"[DEBUG] Background loaded: {bg_path}")
+            pass
         except Exception as e:
-            print(f"[ERROR] Failed to load background: {e}")
+            pass
         
         # Initialize state
         self._target_pos = None
@@ -155,7 +155,7 @@ class LocalLocationScreen(Screen):
             self._update_event.cancel()
         self._update_event = Clock.schedule_interval(self._on_game_update, 1/60)
         
-        print(f"[DEBUG] LocalLocationScreen ready with {len(self._enemies)} enemies")
+        pass
 
     def _init_enemies(self, use_saved=False):
         """Initialize enemies on saved or random positions, skipping defeated ones."""
@@ -170,7 +170,7 @@ class LocalLocationScreen(Screen):
             saved_positions = player.last_enemy_positions[self.location_id]
             if hasattr(player, 'last_enemy_creatures') and self.location_id in player.last_enemy_creatures:
                 saved_creatures = player.last_enemy_creatures[self.location_id]
-            print(f"[DEBUG] Using {len(saved_positions)} saved enemy positions: {saved_positions} and {len(saved_creatures)} creatures for {self.location_id}")
+            pass
         else:
             # Generate random positions and creatures
             saved_positions = self._generate_random_enemy_positions(3)
@@ -186,7 +186,7 @@ class LocalLocationScreen(Screen):
                 if not hasattr(player, 'last_enemy_creatures'):
                     player.last_enemy_creatures = {}
                 player.last_enemy_creatures[self.location_id] = saved_creatures
-                print(f"[DEBUG] Generated and saved {len(saved_positions)} random enemy positions and creatures for {self.location_id}")
+                pass
 
         for i in range(3):
             if i in self._defeated_enemies:
@@ -233,7 +233,7 @@ class LocalLocationScreen(Screen):
             }
             self._enemies.append(zone)
 
-        print(f"[DEBUG] Initialized {len(self._enemies)} enemies/zones")
+        pass
 
     def _generate_random_enemy_positions(self, count=3):
         """Generate random enemy positions with minimum distance."""
@@ -273,7 +273,7 @@ class LocalLocationScreen(Screen):
         self.layout.add_widget(btn_exit)
         self._btn_exit = btn_exit
         self._btn_exit_rect = (btn_exit.pos[0], btn_exit.pos[1], btn_exit.size[0], btn_exit.size[1])
-        print(f"[DEBUG] Exit button added at pos {btn_exit.pos} with size {btn_exit.size}")
+        pass
 
         # Location name label (top-left)
         lbl_name = Label(
@@ -389,7 +389,7 @@ class LocalLocationScreen(Screen):
             btn_x, btn_y = self._btn_exit.pos
             btn_w, btn_h = self._btn_exit.size
             if btn_x <= touch.x <= btn_x + btn_w and btn_y <= touch.y <= btn_y + btn_h:
-                print(f"[DEBUG] Touch hit exit button at ({touch.x}, {touch.y})")
+                pass
                 self._on_exit_location()
                 return True
 
@@ -434,7 +434,7 @@ class LocalLocationScreen(Screen):
                 return True
 
         # If we get here, the click was on the map for movement
-        print(f"[DEBUG] Touch at ({touch.x}, {touch.y}) - setting movement target")
+        pass
         self._target_pos = [touch.x, touch.y]
         return True
 
@@ -452,7 +452,7 @@ class LocalLocationScreen(Screen):
             if distance < dp(8):
                 # Reached target
                 self._target_pos = None
-                print("[DEBUG] Player reached target")
+                pass
             else:
                 # Move towards target
                 speed = dp(200) * dt  # pixels per second
@@ -511,17 +511,17 @@ class LocalLocationScreen(Screen):
                 if distance < enemy['radius']:
                     self.btn_enter_cave.opacity = 1
                     self.btn_enter_cave.pos = (enemy['x'] - self.btn_enter_cave.width / 2, enemy['y'] + enemy['radius'] + 10)
-                    print(f"[DEBUG] Cave button shown at pos {self.btn_enter_cave.pos}")
+                    pass
                 else:
                     self.btn_enter_cave.opacity = 0
             elif distance < player_radius + enemy['radius']:
-                print(f"[DEBUG] Collision with enemy {enemy['id']}!")
+                pass
                 self._start_battle_with_enemy(enemy)
                 return
 
     def _start_battle_with_enemy(self, enemy):
         """Start a battle with the given enemy."""
-        print(f"[DEBUG] Starting battle with enemy {enemy['id']}")
+        pass
         self._current_enemy = enemy
         self._returning_from_battle = True
 
@@ -542,7 +542,7 @@ class LocalLocationScreen(Screen):
                 if not hasattr(player, 'last_enemy_creatures'):
                     player.last_enemy_creatures = {}
                 player.last_enemy_creatures[self.location_id] = enemy_creatures
-                print(f"[DEBUG] Saved {len(enemy_positions)} current enemy positions and creatures before battle")
+                pass
 
         # Stop the game loop
         if self._update_event:
@@ -556,7 +556,7 @@ class LocalLocationScreen(Screen):
         player = app.game.player
         enemy_creature = enemy.get('creature')
         if not enemy_creature:
-            print(f"[ERROR] No creature for enemy {enemy['id']}")
+            pass
             return
 
         try:
@@ -571,7 +571,7 @@ class LocalLocationScreen(Screen):
             app.battle_screen.start_battle(battlefield, enemy_creature.name)
             self.manager.current = 'battle'
         except Exception as e:
-            print(f"[ERROR] Failed to start battle: {e}")
+            pass
             import traceback
             traceback.print_exc()
 
@@ -584,7 +584,7 @@ class LocalLocationScreen(Screen):
             x_norm = self._player_pos[0] / self.width if self.width else 0.5
             y_norm = self._player_pos[1] / self.height if self.height else 0.5
             player.last_location_pos[self.location_id] = (x_norm, y_norm)
-            print(f"[DEBUG] Saved position for {self.location_id}: ({x_norm:.3f}, {y_norm:.3f})")
+            pass
 
             # Save enemy positions
             enemy_positions = []
@@ -595,7 +595,7 @@ class LocalLocationScreen(Screen):
                 if not hasattr(player, 'last_enemy_positions'):
                     player.last_enemy_positions = {}
                 player.last_enemy_positions[self.location_id] = enemy_positions
-                print(f"[DEBUG] Saved {len(enemy_positions)} enemy positions for {self.location_id}")
+                pass
 
         # Hide cave button
         self.btn_enter_cave.opacity = 0
@@ -617,18 +617,18 @@ class LocalLocationScreen(Screen):
 
     def on_return_from_battle(self):
         """Called when returning from a battle."""
-        print(f"[DEBUG] on_return_from_battle called for {self._current_enemy}")
+        pass
         app = App.get_running_app()
         player = app.game.player if app.game else None
 
         if self._current_enemy:
             if self._current_enemy.get('type') == 'boss':
                 # Check if boss was defeated
-                print(f"[DEBUG] Checking boss defeat: battle_result exists: {hasattr(app, 'battle_result')}, victory: {app.battle_result.victory if hasattr(app, 'battle_result') and app.battle_result else 'N/A'}")
+                pass
                 if player and hasattr(app, 'battle_result') and app.battle_result and app.battle_result.victory:
-                    print(f"[DEBUG] Boss {self._current_enemy['id']} defeated! defeated_bosses before: {player.defeated_bosses}")
+                    pass
                     player.defeated_bosses.add(self._current_enemy['id'])
-                    print(f"[DEBUG] defeated_bosses after: {player.defeated_bosses}")
+                    pass
                     # Remove the zone from enemies list
                     self._enemies = [e for e in self._enemies if not (e.get('type') == 'zone' and e.get('id') == self._current_enemy['id'])]
                     # Hide the button
@@ -637,9 +637,9 @@ class LocalLocationScreen(Screen):
                     try:
                         from systems.save_system import save_game
                         save_game(player, 'autosave')
-                        print("[DEBUG] Game auto-saved after boss defeat")
+                        pass
                     except Exception as e:
-                        print(f"[ERROR] Failed to save after boss defeat: {e}")
+                        pass
             else:
                 # Regular enemy defeat
                 self._current_enemy['defeated'] = True
@@ -656,7 +656,7 @@ class LocalLocationScreen(Screen):
                 if not hasattr(player, 'last_enemy_positions'):
                     player.last_enemy_positions = {}
                 player.last_enemy_positions[self.location_id] = enemy_positions
-                print(f"[DEBUG] Updated saved enemy positions after battle return")
+                pass
 
         # Resume game loop
         if self._update_event:
@@ -690,7 +690,7 @@ class LocalLocationScreen(Screen):
 
     def _enter_cave(self, instance=None):
         """Enter the cave and start boss battle."""
-        print(f"[DEBUG] Enter cave pressed")
+        pass
         from systems.battle import EnemyGenerator, Battlefield
         from kivy.uix.popup import Popup
         from kivy.uix.label import Label
@@ -777,7 +777,7 @@ class LocalLocationScreen(Screen):
 
     def _on_exit_location(self, *args):
         """Exit the local location and return to global map."""
-        print("[DEBUG] Exiting local location")
+        pass
 
         app = App.get_running_app()
         app.return_to_local_location = False
@@ -815,10 +815,10 @@ class LocalLocationScreen(Screen):
             if getattr(app, 'game', None) and getattr(app.game, 'player', None):
                 from systems.save_system import save_game
                 save_game(app.game.player, 'autosave')
-                print("[DEBUG] Game auto-saved")
+                pass
         except Exception as e:
-            print(f"[DEBUG] Auto-save failed: {e}")
+            pass
         
         # Return to location select screen
         self.manager.current = 'location_select'
-        print("[DEBUG] Returned to location_select")
+        pass

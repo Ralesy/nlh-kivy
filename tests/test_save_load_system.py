@@ -96,8 +96,8 @@ def test_player_reconstruction():
         delete_save(filename)
         return False
     
-    if player2.cls != "archer":
-        print(f"❌ FAIL: Class not preserved: {player2.cls}")
+    if player2.background != "squire":
+        print(f"❌ FAIL: Background not preserved: {player2.background}")
         delete_save(filename)
         return False
     
@@ -338,8 +338,8 @@ def test_multiple_characters():
                 delete_save(fn)
             return False
         
-        if loaded_player.cls != cls:
-            print(f"❌ FAIL: Class mismatch in {filename}")
+            if loaded_player.background != cls:
+                print(f"❌ FAIL: Background mismatch in {filename}")
             for fn in filenames:
                 delete_save(fn)
             return False
@@ -372,7 +372,7 @@ def test_json_format():
     save_game(player, filename)
     
     # Read the file directly
-    from save_system import get_save_path
+    from systems.save_system import get_save_path
     save_path = get_save_path(filename)
     
     try:

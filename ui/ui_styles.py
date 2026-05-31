@@ -5,6 +5,8 @@
 UI Styles: переиспользуемые компоненты и цветовая схема для красивого интерфейса.
 """
 
+import os
+
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
@@ -14,6 +16,11 @@ from kivy.graphics import Color, Rectangle, Line, RoundedRectangle
 from kivy.metrics import dp
 from kivy.animation import Animation
 from kivy.app import App
+
+# Repo root (ui/ui_styles.py -> ui/ -> project root)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BUTTONS_DIR = os.path.join(PROJECT_ROOT, "assets", "ui", "buttons")
+BACKGROUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "backgrounds")
 
 
 # ============================================================================

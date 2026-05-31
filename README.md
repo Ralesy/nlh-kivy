@@ -40,31 +40,25 @@
 
 ## 🏗️ Архитектура
 
+Логика отделена от UI: `GameSession` в `core/session.py`, бой в `core/combat/`, экраны в `ui/screens/`, HUD через `PlayerViewModel` в `ui/bindings/`. Подробнее — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ```
 NLH_remake/
-├── main.py                  # Точка входа
-├── core/                    # Основная логика
-│   ├── game.py             # Главный класс Game
-│   ├── creatures.py        # Player, Enemy, Creature
-│   ├── config.py           # Константы
-│   └── utils.py            # Утилиты
-├── data/                    # Игровые данные
-│   ├── enemies.py          # Враги и боссы
-│   ├── items.py            # Предметы
-│   ├── locations.py        # Локации
-│   └── weapon_abilities.py # Способности
-├── systems/                 # Игровые системы
-│   ├── battle.py           # Боевая система
-│   ├── battle_service.py   # Service Layer для боя (NEW)
-│   ├── location_service.py # Service Layer для локаций (NEW)
-│   ├── quests.py           # Квесты
-│   ├── npcs.py             # NPC
-│   ├── shop_casino.py      # Магазин и казино
-│   └── save_system.py      # Сохранения
-├── ui/                      # Интерфейс (Kivy)
-│   └── ui_app.py           # 15+ экранов
-├── tests/                   # Тестирование
-└── docs/                    # Документация
+├── main.py
+├── core/
+│   ├── models/          # Player, Creature, Inventory
+│   ├── combat/          # Battlefield, лут, спавн
+│   ├── session.py       # GameSession
+│   └── game.py          # re-export Game
+├── data/
+├── systems/             # квесты, NPC, save; battle.py → core.combat
+├── ui/
+│   ├── ui_app.py
+│   ├── screens/
+│   ├── widgets/
+│   └── bindings/
+├── tests/
+└── docs/
 ```
 
 ## 🚀 Быстрый старт

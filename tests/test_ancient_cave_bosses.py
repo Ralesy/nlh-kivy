@@ -23,32 +23,19 @@ def test_boss_unlock_conditions():
     assert lm.is_boss_unlocked(1), "Boss 1 should always be unlocked"
     print("✓ Boss 1 (Безумный мародёр) always available")
     
-    # Boss 2 should be locked initially
+    # Следующие боссы открываются после победы над предыдущим
     assert not lm.is_boss_unlocked(2), "Boss 2 should be locked"
-    print("✓ Boss 2 (Хозяин Болота) locked until Swamp opens")
-    
-    # Boss 3 should be locked initially
     assert not lm.is_boss_unlocked(3), "Boss 3 should be locked"
-    print("✓ Boss 3 (Король Шахт) locked until Mines open")
-    
-    # Boss 4 should be locked initially
     assert not lm.is_boss_unlocked(4), "Boss 4 should be locked"
-    print("✓ Boss 4 (Повелитель Драконов) locked until Mountains open")
-    
-    # Simulate unlocking swamp and check boss 2
-    lm.unlock_location("swamp")
-    assert lm.is_boss_unlocked(2), "Boss 2 should unlock with swamp"
-    print("✓ Boss 2 unlocks when Swamp is unlocked")
-    
-    # Simulate unlocking mines and check boss 3
-    lm.unlock_location("mines")
-    assert lm.is_boss_unlocked(3), "Boss 3 should unlock with mines"
-    print("✓ Boss 3 unlocks when Mines are unlocked")
-    
-    # Simulate unlocking mountains and check boss 4
-    lm.unlock_location("mountains")
-    assert lm.is_boss_unlocked(4), "Boss 4 should unlock with mountains"
-    print("✓ Boss 4 unlocks when Mountains are unlocked")
+
+    lm.mark_boss_defeated(1)
+    assert lm.is_boss_unlocked(2), "Boss 2 unlocks after boss 1 defeated"
+
+    lm.mark_boss_defeated(2)
+    assert lm.is_boss_unlocked(3), "Boss 3 unlocks after boss 2 defeated"
+
+    lm.mark_boss_defeated(3)
+    assert lm.is_boss_unlocked(4), "Boss 4 unlocks after boss 3 defeated"
 
 
 def test_boss_generation():

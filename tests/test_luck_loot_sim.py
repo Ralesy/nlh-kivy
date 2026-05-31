@@ -10,9 +10,7 @@ import random
 EnemyDatabase.initialize()
 # Use an existing enemy template that has loot_table, e.g., deserter
 template = EnemyDatabase.get('enemy_forest_deserter')
-if not template:
-    print('No template found')
-    raise SystemExit(1)
+
 
 def trial(luck_value, trials=1000):
     rare_count = 0
@@ -26,10 +24,18 @@ def trial(luck_value, trials=1000):
             chosen_counts[item_id] = chosen_counts.get(item_id, 0) + 1
     return rare_count, chosen_counts
 
-for luck in [0.8, 1.0, 1.2, 1.5, 2.0]:
-    rare, counts = trial(luck, trials=2000)
-    print(f'luck={luck}: rare_drops={rare} / 2000 -> {rare/2000:.3f}')
-    # print top 3 chosen
-    top = sorted(counts.items(), key=lambda x: -x[1])[:5]
-    print(' top:', top)
+def test_enemy_loot_template_exists():
+    """Шаблон врага с таблицей лута должен быть в базе."""
+    assert template is not None
+
+
+if __name__ == '__main__':
+    if not template:
+        print('No template found')
+        raise SystemExit(1)
+    for luck in [0.8, 1.0, 1.2, 1.5, 2.0]:
+        rare, counts = trial(luck, trials=2000)
+        print(f'luck={luck}: rare_drops={rare} / 2000 -> {rare/2000:.3f}')
+        top = sorted(counts.items(), key=lambda x: -x[1])[:5]
+        print(' top:', top)
 

@@ -302,129 +302,6 @@ class Potion(Item):
         return data
 
 
-class Inventory:
-    """Система инвентаря."""
-    
-    def __init__(self, capacity: int = 20):
-        # mapping: item_id -> (Item, qty)
-        self.items: Dict[str, Tuple[Item, int]] = {}
-        self.capacity = capacity
-
-    def add(self, item: Item, qty: int = 1) -> bool:
-        """Добавление предмета."""
-        total = sum(q for _, q in self.items.values())
-        if total + qty > self.capacity:
-            return False
-        entry = self.items.get(item.id)
-        if entry:
-            self.items[item.id] = (entry[0], entry[1] + qty)
-        else:
-            self.items[item.id] = (item, qty)
-        return True
-
-    def remove(self, item_id: str, qty: int = 1) -> bool:
-        """Удаление предмета."""
-        entry = self.items.get(item_id)
-        if not entry:
-            return False
-        item, cur = entry
-        if qty >= cur:
-            del self.items[item_id]
-        else:
-            self.items[item_id] = (item, cur - qty)
-        return True
-
-    def get(self, item_id: str) -> Optional[Item]:
-        """Получение предмета."""
-        entry = self.items.get(item_id)
-        return entry[0] if entry else None
-
-    def qty(self, item_id: str) -> int:
-        """Количество предмета."""
-        entry = self.items.get(item_id)
-        return entry[1] if entry else 0
-
-    def list_items(self) -> List[Tuple[Item, int]]:
-        """Список предметов."""
-        return list(self.items.values())
-
-    def has_space_for(self, qty: int = 1) -> bool:
-        """Проверка свободного места."""
-        total = sum(q for _, q in self.items.values())
-        return total + qty <= self.capacity
-
-    def __str__(self) -> str:
-        """Строковое представление."""
-        if not self.items:
-            return "Пусто"
-        lines = []
-        for item, qty in self.list_items():
-            desc = item.description or 'без описания'
-            lines.append(f"{item.display_name()} x{qty} — {desc}")
-        return "\n".join(lines)
-
-    def to_dict(self) -> dict:
-        """Для сохранения."""
-        return {
-            "items": {
-                item_id: (item.to_dict(), qty)
-                for item_id, (item, qty) in self.items.items()
-            },
-            "capacity": self.capacity
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Inventory':
-        """Загрузка из словаря."""
-        inventory = cls(capacity=data.get("capacity", 40))
-        if "items" in data:
-            ItemDatabase.initialize()
-            for item_id, item_entry in data["items"].items():
-                # Handle both tuple and list formats from JSON
-                if isinstance(item_entry, (list, tuple)):
-                    item_data, qty = item_entry[0], item_entry[1]
-                else:
-                    # Shouldn't happen but safe fallback
-                    continue
-                
-                # Восстанавливаем предмет из данных
-                item_type = item_data.get("type")
-                if item_type == "Weapon":
-                    item = Weapon(
-                        item_data["id"],
-                        item_data["name"],
-                        item_data["price"],
-                        item_data["material"],
-                        item_data["base_damage"],
-                        item_data.get("condition", "normal"),
-                        item_data.get("description", ""),
-                        item_data.get("is_unique", False)
-                    )
-                elif item_type == "Armor":
-                    item = Armor(
-                        item_data["id"],
-                        item_data["name"],
-                        item_data["price"],
-                        item_data["material"],
-                        item_data["base_defense"],
-                        item_data.get("condition", "normal"),
-                        item_data.get("description", ""),
-                        item_data.get("is_unique", False)
-                    )
-                elif item_type == "Potion":
-                    item = Potion(
-                        item_data["id"],
-                        item_data["name"],
-                        item_data["price"],
-                        item_data["heal_amount"],
-                        item_data.get("description", "")
-                    )
-                else:
-                    continue  # Пропускаем неизвестные типы
-                inventory.items[item_id] = (item, qty)
-        return inventory
-
-
 class ItemDatabase:
     """База данных предметов."""
     
@@ -752,3 +629,7 @@ class ItemDatabase:
                    heal_amount=500,
                    description="Восстанавливает 500 HP")
         )
+
+
+# Инвентарь живёт в core.models; re-export для обратной совместимости.
+from core.models.inventory import Inventory  # noqa: E402,F401

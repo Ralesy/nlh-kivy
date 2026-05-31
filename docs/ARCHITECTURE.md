@@ -1,168 +1,76 @@
-# 🏗️ Архитектура проекта NLH Remake
+# Архитектура NLH Remake
 
-## Общая структура
+Краткое описание слоёв после рефакторинга v2.
+
+## Структура каталогов
 
 ```
 NLH_remake/
-├── main.py              # Точка входа приложения
-├── core/                # Ядро игры (логика персонажа, игры)
-│   ├── game.py         # Главный класс Game
-│   ├── creatures.py    # Creature, Player, Companion
-│   ├── config.py       # Конфигурация и константы
-│   └── utils.py        # Утилиты
-├── data/               # Игровые данные (враги, предметы, локации)
-│   ├── enemies.py      # Определение врагов
-│   ├── items.py        # Определение предметов
-│   ├── locations.py    # Определение локаций
-│   └── weapon_abilities.py  # Способности оружия
-├── systems/            # Игровые системы (боевая, квесты, магазин)
-│   ├── battle.py       # Боевая система (Battlefield, EnemyGenerator)
-│   ├── battle_service.py   # Service слой для боя (опционально)
-│   ├── location_service.py # Service слой для локаций (опционально)
-│   ├── quests.py       # Система квестов
-│   ├── npcs.py         # Управление NPC
-│   ├── shop_casino.py  # Магазин и казино
-│   ├── save_system.py  # Сохранение и загрузка
-│   └── active_quests.py # Активные квесты
-├── ui/                 # Пользовательский интерфейс (Kivy)
-│   └── ui_app.py       # 15+ экранов игры
-├── tests/              # Тесты (25+ тестов)
-├── docs/               # Документация
-└── assets/             # Графика и звуки
+├── main.py                 # Точка входа
+├── core/
+│   ├── models/             # Player, Creature, Inventory, Companion
+│   ├── combat/             # Battlefield, урон, лут, спавн врагов
+│   ├── session.py          # GameSession (игровая сессия)
+│   ├── game.py             # Re-export: Game = GameSession
+│   ├── creatures.py        # Фасад / legacy-импорты
+│   ├── config.py
+│   └── utils.py
+├── data/                   # Статические данные (враги, предметы, локации)
+├── systems/                # Квесты, NPC, магазин, сохранения, battle re-export
+│   └── battle.py           # Re-export из core.combat
+├── ui/
+│   ├── ui_app.py           # RPGApp: ScreenManager + HUD (~200 строк)
+│   ├── screens/            # Экраны Kivy (меню, бой, таверна, …)
+│   ├── widgets/            # HUD, навигация, попапы
+│   ├── bindings/           # PlayerViewModel — реактивный HUD
+│   └── local_location_screen.py  # Карта локации (лес и др.)
+├── tests/
+└── docs/
 ```
 
-## Слои архитектуры
+## Слои
 
-### 1️⃣ Data Layer (`data/`)
-Чистые данные без логики:
-- **enemies.py** - Определение врагов и их характеристик
-- **items.py** - Определение предметов (оружие, броня, зелья)
-- **locations.py** - Определение локаций и их требований
-- **weapon_abilities.py** - Способности оружия
-
-### 2️⃣ Core Layer (`core/`)
-Основная логика игры:
-- **creatures.py** - Классы Creature, Player, Companion
-- **game.py** - Главный контроллер Game
-- **config.py** - Константы и конфигурация
-- **utils.py** - Вспомогательные функции
-
-### 3️⃣ Systems Layer (`systems/`)
-Игровые системы:
-- **battle.py** - Боевая механика (раунды, атаки, урон)
-- **quests.py** - Система квестов
-- **npcs.py** - NPC и диалоги
-- **shop_casino.py** - Торговля и азартные игры
-- **save_system.py** - Сохранение/загрузка игры
-
-### 4️⃣ UI Layer (`ui/`)
-Интерфейс на Kivy:
-- **ui_app.py** - Все экраны (карта, боевой экран, инвентарь и т.д.)
+| Слой | Назначение |
+|------|------------|
+| **data/** | Только данные: враги, предметы, локации |
+| **core/models/** | Состояние сущностей и инвентарь |
+| **core/combat/** | Боевая логика без UI |
+| **core/session.py** | `GameSession`: игрок, прогресс, связка систем |
+| **systems/** | Квесты, NPC, магазин, save/load |
+| **ui/** | Kivy: экраны читают `app.game` / `app.session` |
 
 ## Поток данных
 
 ```
-Player Input (UI)
+Ввод игрока (ui/screens)
         ↓
-  BattleScreen (display)
+GameSession (core/session.py)
         ↓
-  Battlefield (logic)
+core/combat / systems/*
         ↓
-  Creature (state)
+core/models (Player, Creature)
         ↓
-  ItemDatabase (data)
+data/* (шаблоны)
 ```
 
-## Ключевые классы
+## UI
 
-### Creature
-```python
-class Creature:
-    name: str
-    health: int
-    max_health: int
-    damage: int
-    defense: int
-    level: int
-```
+- **ui_app.py** — регистрирует экраны, `NPCManager`, флаг `return_to_local_location`.
+- **PlayerViewModel** (`ui/bindings/`) — обновляет HUD при изменении HP/монет/уровня.
+- **local_location_screen** — отдельный экран карты; создаётся один раз в `build()`.
 
-### Player (наследник Creature)
-```python
-class Player(Creature):
-    inventory: Inventory
-    weapon: Weapon
-    armor: Armor
-    companions: List[Companion]
-    coins: int
-    xp: int
-```
+Новый экран: модуль в `ui/screens/`, импорт в `ui/screens/__init__.py`, регистрация в `RPGApp.build()`.
 
-### Battlefield
-```python
-class Battlefield:
-    player: Player
-    enemies: List[Creature]
-    round: int
-    
-    def player_attack() -> Tuple[str, bool]
-    def enemy_attack() -> List[str]
-    def is_over() -> bool
-```
-
-### Item & Weapon
-```python
-class Item:
-    id: str
-    name: str
-    description: str
-
-class Weapon(Item):
-    damage: int
-    ability: Optional[Ability]
-
-class Armor(Item):
-    defense: int
-```
-
-## Разделение ответственности
-
-| Слой | Отвечает за | Примеры |
-|------|------------|---------|
-| **Data** | Хранение данных | Враги, предметы, локации |
-| **Core** | Состояние игры | Player, Creature, Game |
-| **Systems** | Игровая логика | Боевая система, квесты |
-| **UI** | Отображение | Экраны, кнопки, текст |
-
-## Service Layer (опционально)
-
-Если нужна лучшая абстракция:
+## Обратная совместимость
 
 ```python
-# systems/battle_service.py
-class BattleService:
-    def get_battle_status() -> dict
-    def player_attack_enemy() -> Tuple[str, bool]
-    def use_ability() -> Tuple[bool, List[str]]
-    def enemy_attack() -> Tuple[str, bool]
+from core.game import Game, GameSession  # GameSession — основной тип
+from systems.battle import Battlefield     # → core.combat
 ```
 
-## Как добавить новую фичу
+## Добавление фичи
 
-1. **Определить данные** (`data/`)
-2. **Добавить логику** (`systems/` или `core/`)
-3. **Обновить UI** (`ui/ui_app.py`)
-4. **Добавить тесты** (`tests/`)
-
-Пример: Добавить новую локацию
-- Добавить в `data/locations.py`
-- Создать врагов в `data/enemies.py`
-- Обновить UI карты
-- Протестировать
-
-## Текущие интеграции
-
-- ✅ Боевая система полностью интегрирована
-- ✅ Инвентарь работает с сохранениями
-- ✅ Квесты привязаны к NPC
-- ✅ Магазин обновляется при разблокировке локаций
-- ✅ Service слой готов к использованию
+1. Данные → `data/`
+2. Логика → `core/` или `systems/`
+3. Экран/виджет → `ui/screens/` или `ui/widgets/`
+4. Тест → `tests/`

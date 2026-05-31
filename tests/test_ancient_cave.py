@@ -56,10 +56,10 @@ def test_boss_drops():
     enemies = EnemyDatabase.get_by_location("ancient_cave")
     
     expected_drops = {
-        "Безумный мародёр": "a_berserker_plate",
-        "Хозяин Болота": "a_bog_mail",
-        "Король Шахт": "w_mining_king_pickaxe",
-        "Повелитель Драконов": "a_dragon_lord_plate"
+        "Безумный мародёр": "w_mad_raider_sword",
+        "Хозяин Болота": "w_bog_master_staff",
+        "Король Шахт": "w_dwarf_king_hammer",
+        "Повелитель Драконов": "a_dragon_lord_plate",
     }
     
     for enemy in enemies:
