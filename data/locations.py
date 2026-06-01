@@ -138,13 +138,14 @@ class LocationManager:
             ]
         )
 
-        # 5. ПЕЩЕРА ДРЕВНИХ - открыта сразу, но с блокировками боссов
+        # 5. ПЕЩЕРА ДРЕВНИХ — устарела: боссы перенесены в боевые локации
         self.locations["ancient_cave"] = Location(
             "ancient_cave",
             "🏰 Пещера Древних",
-            "Древняя пещера, где хранятся уникальные артефакты",
+            "Древняя пещера (боссы теперь в своих локациях)",
             difficulty=5,
-            is_locked=False,
+            is_locked=True,
+            unlock_condition="Боссы перенесены в лес, болота, шахты и горы",
             enemy_types=[
                 "enemy_ancient_boss_lich",
                 "enemy_ancient_boss_archlich",
@@ -161,6 +162,11 @@ class LocationManager:
 
     def is_location_available(self, location_id: str) -> bool:
         """Доступна ли локация."""
+        from data.local_scenes import CITY_SCENES
+
+        # Город и подлокации не блокируются прогрессом региона
+        if location_id in CITY_SCENES:
+            return True
         if location_id not in self.locations:
             return False
         return not self.locations[location_id].is_locked

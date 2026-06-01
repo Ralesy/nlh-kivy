@@ -172,6 +172,9 @@ class RPGApp(App):
 
         self.npc_manager = NPCManager()
         self.return_to_local_location = False
+        self.local_scene_id = None
+        # Экран, на который вернуться из инвентаря (задаётся при открытии).
+        self.inventory_return_screen = "location_select"
 
         root = FloatLayout()
         root.size_hint = (1, 1)

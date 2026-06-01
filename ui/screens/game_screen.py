@@ -207,26 +207,27 @@ class GameScreen(Screen):
             popup.open()
             return
 
-        # Special case: ancient cave -> boss selection screen
+        # Special case: ancient cave — боссы перенесены в локации
         if loc_id == 'ancient_cave':
-            app = App.get_running_app()
-            try:
-                if getattr(app, 'ancient_cave_boss_screen', None):
-                    try:
-                        app.ancient_cave_boss_screen.update_bosses()
-                    except Exception:
-                        pass
-                # switch to boss selection
-                try:
-                    self.manager.current = 'ancient_cave_boss'
-                except Exception:
-                    if getattr(app, 'sm', None):
-                        app.sm.current = 'ancient_cave_boss'
-            except Exception:
-                pass
+            popup = Popup(
+                title='Пещера Древних',
+                content=Label(
+                    text='Боссы теперь обитают в своих локациях.',
+                    font_size=dp(18),
+                ),
+                size_hint=(0.6, 0.3),
+            )
+            popup.open()
             return
 
-        # Normal locations -> start a battle
+        # Проходимые локальные карты
+        from data.local_scenes import COMBAT_SCENES, enter_local_scene
+        if loc_id in COMBAT_SCENES or loc_id == 'city':
+            app = App.get_running_app()
+            enter_local_scene(app, loc_id)
+            return
+
+        # Normal locations -> start a battle (legacy fallback)
         app = App.get_running_app()
         cnt = random.randint(1, 3)
         try:
@@ -270,11 +271,17 @@ class GameScreen(Screen):
     def on_city(self, instance):
         if not self.game or not self.game.player:
             return
-        self.manager.current = 'city_menu'
+        from data.local_scenes import enter_local_scene
+
+        app = App.get_running_app()
+        enter_local_scene(app, "city")
     
     def on_inventory(self, instance):
         if not self.game or not self.game.player:
             return
+        from ui.widgets.navigation_buttons import prepare_inventory_navigation
+
+        prepare_inventory_navigation('game_screen')
         app = App.get_running_app()
         app.inventory_screen.update_inventory()
         self.manager.current = 'inventory'

@@ -24,7 +24,7 @@ def test_ancient_cave_location():
     
     assert ancient_cave is not None, "Ancient Cave location not found"
     assert ancient_cave.name == "🏰 Пещера Древних", "Ancient Cave name mismatch"
-    assert not ancient_cave.is_locked, "Ancient Cave should not be locked"
+    assert ancient_cave.is_locked, "Ancient Cave should be locked (bosses moved)"
     print("✓ Ancient Cave location exists and is accessible")
 
 

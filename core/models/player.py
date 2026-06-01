@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from core.models.companion import Companion
 from core.models.creature import Creature
@@ -116,7 +116,10 @@ class Player(Creature):
         self.total_damage_taken = 0
         self.enemies_defeated = 0
         self.battles_fought = 0
-        self.last_location_pos = {}
+        self.last_location_pos: Dict[str, Tuple[float, float]] = {}
+        # Позиции и экземпляры врагов на боевых картах (сохраняются между визитами)
+        self.last_enemy_positions: Dict[str, List[Tuple[float, float]]] = {}
+        self.last_enemy_creatures: Dict[str, List[Optional[Creature]]] = {}
         self.defeated_bosses = set()
 
     def allocate_skill_point(self, skill: str) -> bool:
@@ -447,6 +450,14 @@ class Player(Creature):
         data["accepted_quests"] = [quest.to_dict() for quest in self.accepted_quests]
         data["session_stats"] = self.get_session_stats()
         data["last_location_pos"] = self.last_location_pos
+        data["last_enemy_positions"] = {
+            scene_id: [list(pos) for pos in positions]
+            for scene_id, positions in self.last_enemy_positions.items()
+        }
+        data["last_enemy_creatures"] = {
+            scene_id: [creature.to_dict() if creature else None for creature in creatures]
+            for scene_id, creatures in self.last_enemy_creatures.items()
+        }
         data["defeated_bosses"] = list(self.defeated_bosses)
         return data
 
@@ -497,7 +508,23 @@ class Player(Creature):
         if "accepted_quests" in data:
             player.accepted_quests = []
 
-        player.last_location_pos = data.get("last_location_pos", {})
+        player.last_location_pos = {
+            scene_id: tuple(pos)
+            for scene_id, pos in data.get("last_location_pos", {}).items()
+        }
+        player.last_enemy_positions = {
+            scene_id: [tuple(pos) for pos in positions]
+            for scene_id, positions in data.get("last_enemy_positions", {}).items()
+        }
+        player.last_enemy_creatures = {}
+        for scene_id, creatures in data.get("last_enemy_creatures", {}).items():
+            restored: List[Optional[Creature]] = []
+            for creature_data in creatures:
+                if creature_data is None:
+                    restored.append(None)
+                else:
+                    restored.append(Creature.from_dict(creature_data))
+            player.last_enemy_creatures[scene_id] = restored
         player.defeated_bosses = set(data.get("defeated_bosses", []))
 
         return player

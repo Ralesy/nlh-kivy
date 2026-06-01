@@ -148,7 +148,7 @@ class PlaythroughTest:
         print("✓ Болота, Шахты, Горы заблокированы")
         
         # Пещера Древних должна быть доступна
-        assert not self.location_manager.locations["ancient_cave"].is_locked
+        assert self.location_manager.locations["ancient_cave"].is_locked
         print("✓ Пещера Древних доступна")
     
     def test_forest_progression(self):

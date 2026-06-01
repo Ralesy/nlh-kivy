@@ -192,3 +192,29 @@ class Creature:
             "weapon_id": self.weapon.id if self.weapon else None,
             "armor_id": self.armor.id if self.armor else None,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Creature:
+        """Восстановить существо из сохранения."""
+        from data.items import ItemDatabase
+
+        creature = cls(
+            data["name"],
+            data["base_health"],
+            data["base_damage"],
+            data["base_coins"],
+            level=data["level"],
+        )
+        creature.health = data["health"]
+        creature.coins = data["coins"]
+
+        ItemDatabase.initialize()
+        if data.get("weapon_id"):
+            weapon = ItemDatabase.get(data["weapon_id"])
+            if weapon:
+                creature.equip_weapon(weapon)
+        if data.get("armor_id"):
+            armor = ItemDatabase.get(data["armor_id"])
+            if armor:
+                creature.equip_armor(armor)
+        return creature

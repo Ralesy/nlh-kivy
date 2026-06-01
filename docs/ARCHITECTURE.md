@@ -23,7 +23,9 @@ NLH_remake/
 │   ├── screens/            # Экраны Kivy (меню, бой, таверна, …)
 │   ├── widgets/            # HUD, навигация, попапы
 │   ├── bindings/           # PlayerViewModel — реактивный HUD
-│   └── local_location_screen.py  # Карта локации (лес и др.)
+│   ├── screens/local_location_base.py  # Базовый класс проходимых карт
+│   └── local_location_screen.py        # Re-export LocalLocationScreen
+├── data/local_scenes.py    # Конфиг сцен: бой, город, таверна, магазин
 ├── tests/
 └── docs/
 ```
@@ -56,8 +58,12 @@ data/* (шаблоны)
 ## UI
 
 - **ui_app.py** — регистрирует экраны, `NPCManager`, флаг `return_to_local_location`.
+- **local_location_base** + **data/local_scenes.py** — единый экран проходимых карт:
+  боевые локации (враги + боссы), город (зоны входа), таверна (NPC), магазин (торговец).
 - **PlayerViewModel** (`ui/bindings/`) — обновляет HUD при изменении HP/монет/уровня.
-- **local_location_screen** — отдельный экран карты; создаётся один раз в `build()`.
+
+Боссы перенесены из «Пещеры Древних» в соответствующие боевые локации.
+Экран `AncientCaveBossSelectScreen` оставлен для совместимости, но с карты не вызывается.
 
 Новый экран: модуль в `ui/screens/`, импорт в `ui/screens/__init__.py`, регистрация в `RPGApp.build()`.
 

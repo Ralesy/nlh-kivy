@@ -13,16 +13,16 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.image import Image
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
 from kivy.metrics import dp
 
-from ui.ui_styles import COLORS, BUTTONS_DIR, BACKGROUNDS_DIR
+from ui.ui_styles import COLORS, BUTTONS_DIR
 from data.locations import LocationManager
-from systems.battle import Battlefield, EnemyGenerator
+from data.local_scenes import COMBAT_SCENES, enter_local_scene, resolve_global_map_background
+from ui.widgets.cover_background import cover_background_image
 
 class LocationSelectScreen(Screen):
     """Экран выбора локации с информацией."""
@@ -46,8 +46,6 @@ class LocationSelectScreen(Screen):
             'swamp': (0.48, 0.62),
             'mines': (0.75, 0.41),
             'mountains': (0.83, 0.78),
-            # ancient cave: lower and to the left
-            'ancient_cave': (0.67, 0.25)
         }
 
         main_layout = BoxLayout(
@@ -78,16 +76,10 @@ class LocationSelectScreen(Screen):
 
         # Map container with background image and overlay for small buttons
         self.map_container = FloatLayout(size_hint=(1, 0.82))
-        map_src = os.path.join(
-            BACKGROUNDS_DIR, 'global_map', 'Emberfall_global_map_sunset.png',
-        )
-        # Ensure the map fills the container (don't preserve aspect ratio)
-        self.map_image = Image(
-            source=map_src,
-            allow_stretch=True,
-            keep_ratio=False,
+        map_src = resolve_global_map_background() or ""
+        self.map_image = cover_background_image(map_src) if map_src else Widget(
             size_hint=(1, 1),
-            pos_hint={'x': 0, 'y': 0}
+            pos_hint={"x": 0, "y": 0},
         )
         self.map_container.add_widget(self.map_image)
 
@@ -205,10 +197,6 @@ class LocationSelectScreen(Screen):
             elif loc_id == 'mountains':
                 size_dp = dp(120) * 2
                 adj_x = max(0.05, x - 0.05)
-            # ancient cave: just lower
-            elif loc_id == 'ancient_cave':
-                adj_y = max(0.05, y - 0.06)
-
             btn = Button(
                 text='',
                 size_hint=(None, None),
@@ -272,12 +260,6 @@ class LocationSelectScreen(Screen):
             )
             city_btn._loc_id = 'city'
             city_btn._loc_name = 'Город'
-
-            def _open_city(btn):
-                try:
-                    self.manager.current = 'city_menu'
-                except Exception:
-                    pass
 
             # City entry should also be triggered by the player marker
             # (showing the enter button) rather than direct clicks, so do
@@ -454,7 +436,10 @@ class LocationSelectScreen(Screen):
 
         # Inventory quick-access button on the map (bottom-right)
         def _open_inventory(*args):
+            from ui.widgets.navigation_buttons import prepare_inventory_navigation
+
             app = App.get_running_app()
+            prepare_inventory_navigation('location_select')
             if getattr(app, 'inventory_screen', None):
                 try:
                     app.inventory_screen.update_inventory()
@@ -833,10 +818,7 @@ class LocationSelectScreen(Screen):
                         try:
                             # Get loc_id from button's property, not from closure
                             entered_loc = getattr(b, '_target_loc_id', 'city')
-                            if entered_loc == 'city':
-                                self.manager.current = 'city_menu'
-                            else:
-                                self.on_select_location(entered_loc)
+                            self.on_select_location(entered_loc)
                         except Exception:
                             pass
                     eb.bind(on_press=_enter)
@@ -903,81 +885,43 @@ class LocationSelectScreen(Screen):
             print(f"[DEBUG] Error checking location availability: {e}")
             pass
 
-        # Determine location and handle appropriately
-        if loc_id == 'ancient_cave':
-            # Boss selection for ancient cave
-            self.manager.current = 'ancient_cave_boss'
-            return
-        
-        # Forest uses local location screen (создаётся в ui_app.build)
-        if loc_id == 'forest':
-            try:
-                screen = getattr(app, 'local_location_screen', None)
-                if not screen:
-                    return
-                screen.location_id = 'forest'
-                screen.location_name = 'Forest'
+        # Проходимые локальные карты: бой, город и подлокации
+        if loc_id in COMBAT_SCENES or loc_id == 'city':
+            screen = getattr(app, 'local_location_screen', None)
+            if not screen:
+                return
+            if loc_id in COMBAT_SCENES:
                 screen._defeated_enemies = set()
-                screen._current_enemy = None
-                # store normalized global map player position so we can restore on exit
-                try:
-                    lss = app.location_select_screen
-                    if getattr(lss, '_player_marker', None) and getattr(lss, 'map_overlay', None):
-                        pm = lss._player_marker
-                        w = max(1, lss.map_overlay.width)
-                        h = max(1, lss.map_overlay.height)
-                        # center coords normalized
-                        nx = (pm.x + pm.width / 2) / float(w)
-                        ny = (pm.y + pm.height / 2) / float(h)
-                        screen._entry_map_norm = (nx, ny)
-                except Exception:
-                    screen._entry_map_norm = None
-                self.manager.current = 'local_location'
+                screen._returning_from_battle = False
+            if enter_local_scene(app, loc_id):
                 return
-            except Exception as e:
-                print(f"[DEBUG] Failed to open local location for {loc_id}: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        # Start normal battle for other locations: generate enemies
-        try:
-            player = app.game.player
-            # generate 1-3 enemies depending on location difficulty
-            import random as _rand
-            count = _rand.randint(1, 3)
-            enemies = EnemyGenerator.generate_for_location(loc_id, player.level, count=count)
-            if not enemies:
-                popup = Popup(title='Ошибка', content=Label(text='Нет доступных врагов для этой локации.'), size_hint=(0.6, 0.3))
-                popup.open()
-                return
-            battlefield = Battlefield(player, enemies)
-            app.battle_screen.start_battle(battlefield, None)
-            self.manager.current = 'battle'
-        except Exception as e:
-            print(f"[DEBUG] failed to start battle for {loc_id}: {e}")
-            pass
+            popup = Popup(
+                title='Ошибка',
+                content=Label(text='Не удалось открыть локацию.'),
+                size_hint=(0.6, 0.3),
+            )
+            popup.open()
+            return
+
+        if loc_id == 'ancient_cave':
+            popup = Popup(
+                title='Пещера Древних',
+                content=Label(
+                    text='Боссы теперь обитают в своих локациях:\n'
+                         'лес, болота, шахты и горы.',
+                    halign='center',
+                ),
+                size_hint=(0.7, 0.35),
+            )
+            popup.open()
+            return
     
     def on_status(self, instance):
         """Открыть статус."""
         self.manager.current = 'status'
 
     def on_enter(self):
-        """Debug: visual confirmation when LocationSelectScreen is shown."""
-        try:
-            print("[DEBUG] LocationSelectScreen.on_enter called")
-            has_overlay = hasattr(self, 'map_overlay')
-            children_count = len(self.map_overlay.children) if has_overlay else 0
-            print(f"[DEBUG] on_enter map_overlay={has_overlay} children={children_count}")
-            # show small popup that auto-dismisses so user can see whether screen was entered
-            content = Label(text=f"КАРТА:\noverlay={has_overlay}\nchildren={children_count}")
-            popup = Popup(title='DEBUG: LocationSelect', content=content, size_hint=(0.36, 0.18))
-            popup.open()
-            try:
-                Clock.schedule_once(lambda dt: popup.dismiss(), 1.4)
-            except Exception:
-                pass
-        except Exception:
-            pass
+        """Обновить карту при входе на экран."""
         # Ensure hotspots are up-to-date when entering the screen
         try:
             self.update_locations()

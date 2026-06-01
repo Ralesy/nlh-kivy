@@ -17,6 +17,15 @@ from kivy.metrics import dp
 from ui.ui_styles import COLORS
 from systems.npcs import QuestState, QuestType
 
+
+def _tavern_return_screen():
+    """Экран возврата из диалога NPC."""
+    app = App.get_running_app()
+    if getattr(app, "return_to_local_location", False):
+        return "local_location"
+    return "tavern"
+
+
 class NPCDialogueScreen(Screen):
     """Экран диалога с NPC."""
     
@@ -274,9 +283,9 @@ class NPCDialogueScreen(Screen):
         Clock.schedule_once(
             lambda dt: (
                 popup.dismiss(),
-                setattr(self.manager, 'current', 'tavern')
+                setattr(self.manager, "current", _tavern_return_screen()),
             ),
-            1.5
+            1.5,
         )
 
     def on_claim_reward(self, instance):
@@ -315,11 +324,11 @@ class NPCDialogueScreen(Screen):
         Clock.schedule_once(
             lambda dt: (
                 popup.dismiss(),
-                setattr(self.manager, 'current', 'tavern')
+                setattr(self.manager, "current", _tavern_return_screen()),
             ),
-            1.5
+            1.5,
         )
 
     def on_back(self, instance):
-        """Вернуться в таверну."""
-        self.manager.current = 'tavern'
+        """Вернуться в таверну (проходимую или экран списка)."""
+        self.manager.current = _tavern_return_screen()

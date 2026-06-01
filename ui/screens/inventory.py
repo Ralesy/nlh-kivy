@@ -18,6 +18,7 @@ from ui.ui_styles import COLORS
 from ui.widgets.navigation_buttons import (
     add_back_to_map_button,
     add_back_to_city_button,
+    sync_inventory_city_button,
 )
 from data.items import (
     Weapon, Armor, Potion,
@@ -68,9 +69,13 @@ class InventoryScreen(Screen):
         layout.add_widget(scroll)
 
         self.add_widget(layout)
-        add_back_to_map_button(self, self.manager)
-        add_back_to_city_button(self, self.manager)
-        add_back_to_city_button(self, self.manager)
+        self._btn_back_map = add_back_to_map_button(self, self.manager)
+        self._btn_back_city = add_back_to_city_button(self, self.manager)
+        sync_inventory_city_button(self._btn_back_city)
+
+    def on_enter(self, *args):
+        """Скрыть «в город», если инвентарь открыт с карты или локации."""
+        sync_inventory_city_button(self._btn_back_city)
 
     def update_inventory(self):
         app = App.get_running_app()

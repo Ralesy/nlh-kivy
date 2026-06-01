@@ -39,12 +39,6 @@ class MapWidget(BoxLayout):
             'difficulty': 'Очень сложно',
             'color': (0.47, 0.34, 0.22, 1)
         },
-        'ancient_cave': {
-            'name': '🏰 Пещера Древних',
-            'desc': 'Уникальные враги\nДревние артефакты',
-            'difficulty': 'Легендарно',
-            'color': (0.50, 0.36, 0.22, 1)
-        }
     }
     
     def __init__(self, game_screen, **kwargs):
@@ -73,7 +67,7 @@ class MapWidget(BoxLayout):
         # Кнопки локаций с улучшенным дизайном
         locations_layout = BoxLayout(orientation='vertical', spacing=dp(8))
         
-        for loc_id in ['forest', 'swamp', 'mines', 'mountains', 'ancient_cave']:
+        for loc_id in ['forest', 'swamp', 'mines', 'mountains']:
             info = self.LOCATION_INFO[loc_id]
             loc_box = BoxLayout(orientation='vertical', spacing=dp(3), size_hint_y=None, height=dp(90))
             
