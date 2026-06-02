@@ -40,12 +40,14 @@ class LocationSelectScreen(Screen):
         self._enter_btn = None
         # positions on the map (normalized 0..1) for location hotspots
         self._map_positions = {
-            'forest': (0.16, 0.55),
-            'city': (0.22, 0.86),
-            # swamp: a bit higher
-            'swamp': (0.48, 0.62),
-            'mines': (0.75, 0.41),
-            'mountains': (0.83, 0.78),
+            # NOTE: normalized coordinates (0..1) in map_overlay space,
+            # where (0,0) is bottom-left and (1,1) is top-right.
+            'city': (0.19, 0.85),
+            'forest': (0.18, 0.45),
+            'swamp': (0.50, 0.60),
+            'village': (0.73, 0.52),  # placeholder "в разработке"
+            'mines': (0.70, 0.20),
+            'mountains': (0.70, 0.90),
         }
 
         main_layout = BoxLayout(
@@ -293,6 +295,52 @@ class LocationSelectScreen(Screen):
         except Exception:
             pass
 
+        # Add a hotspot for the new village drawing (placeholder screen/text).
+        try:
+            v_pos = self._map_positions.get('village')
+            if v_pos:
+                vx, vy = v_pos
+                size_dp = dp(120) * 2
+                village_btn = Button(
+                    text='',
+                    size_hint=(None, None),
+                    size=(size_dp, size_dp),
+                    pos_hint={'center_x': vx, 'center_y': vy},
+                    background_normal='',
+                    background_down='',
+                    background_color=(0, 0, 0, 0)
+                )
+                village_btn._loc_id = 'village'
+                village_btn._loc_name = 'Деревня'
+                self._hotspot_buttons.append(village_btn)
+                self.map_overlay.add_widget(village_btn)
+
+                # Add faint circular marker behind the village hotspot
+                try:
+                    from kivy.graphics import Color, Ellipse
+                    col = Color(0.35, 0.22, 0.10, 0.16)
+                    ell = Ellipse(pos=village_btn.pos, size=village_btn.size)
+                    self.map_overlay.canvas.before.add(col)
+                    self.map_overlay.canvas.before.add(ell)
+                    self._hotspot_markers.append((village_btn, col, ell))
+
+                    def _update_village_marker(btn, *args):
+                        try:
+                            ell.pos = btn.pos
+                            ell.size = btn.size
+                        except Exception:
+                            pass
+
+                    village_btn.bind(
+                        pos=lambda inst, val: _update_village_marker(village_btn),
+                        size=lambda inst, val: _update_village_marker(village_btn),
+                    )
+                    Clock.schedule_once(lambda dt: _update_village_marker(village_btn), 0.05)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # Create hover tooltip widget (once) and bind mouse movement
         if not hasattr(self, '_hover_widget'):
             hw = BoxLayout(size_hint=(None, None), size=(dp(180), dp(40)))
@@ -357,7 +405,7 @@ class LocationSelectScreen(Screen):
                 # Make the marker 2x smaller: dp(20) instead of dp(40)
                 size_px = dp(20)
                 # Start on the road below the city (0.28, 0.75 instead of 0.28, 0.9)
-                city_pos = (0.28, 0.28)
+                city_pos = (0.25, 0.60)
                 cx, cy = city_pos
                 adj_cx = cx
                 adj_cy = cy
@@ -912,6 +960,15 @@ class LocationSelectScreen(Screen):
                     halign='center',
                 ),
                 size_hint=(0.7, 0.35),
+            )
+            popup.open()
+            return
+
+        if loc_id == 'village':
+            popup = Popup(
+                title='Деревня',
+                content=Label(text='в разработке', halign='center'),
+                size_hint=(0.6, 0.28),
             )
             popup.open()
             return
