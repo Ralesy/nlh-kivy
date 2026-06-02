@@ -23,6 +23,8 @@ from ui.ui_styles import COLORS, BUTTONS_DIR
 from data.locations import LocationManager
 from data.local_scenes import COMBAT_SCENES, enter_local_scene, resolve_global_map_background
 from ui.widgets.cover_background import cover_background_image
+from ui.widgets.danger_bar import DangerBar
+
 
 class LocationSelectScreen(Screen):
     """Экран выбора локации с информацией."""
@@ -450,6 +452,39 @@ class LocationSelectScreen(Screen):
         except Exception:
             pass
 
+        # --- Danger Bar (шкала глобальной опасности) ---
+        def _place_danger_bar(dt=None):
+            """Позиционирование danger bar."""
+            try:
+                ow = self.map_overlay.width
+                oh = self.map_overlay.height
+                db = self._danger_bar
+                if not db or db.width <= 0 or db.height <= 0:
+                    return
+                x = int(ow * 0.82) - db.width
+                y = oh - db.height - dp(8)
+                db.pos = (max(dp(4), x), max(dp(4), y))
+            except Exception:
+                pass
+
+        try:
+            if not getattr(self, '_danger_bar', None) or self._danger_bar.parent is None:
+                if getattr(self, '_danger_bar', None):
+                    self._danger_bar.cleanup()
+                danger_bar = DangerBar()
+                self.map_overlay.add_widget(danger_bar)
+                self._danger_bar = danger_bar
+                Clock.schedule_once(_place_danger_bar, 0.12)
+                self.map_overlay.bind(size=lambda i, v: _place_danger_bar())
+            else:
+                try:
+                    self.map_overlay.remove_widget(self._danger_bar)
+                except Exception:
+                    pass
+                self.map_overlay.add_widget(self._danger_bar)
+        except Exception:
+            pass
+
         # Exit to main menu button (top-right corner)
         def _exit_to_menu(*args):
             app = App.get_running_app()
@@ -792,6 +827,20 @@ class LocationSelectScreen(Screen):
             if not getattr(self, '_player_marker', None) or not getattr(self, '_destination', None):
                 self._stop_moving()
                 return
+            # --- Global Danger: update while moving ---
+            try:
+                app = App.get_running_app()
+                if (getattr(app, 'game', None)
+                        and getattr(app.game, 'danger_manager', None)):
+                    ambush = app.game.danger_manager.update(
+                        dt, app.game.location_manager
+                    )
+                    if ambush:
+                        self._stop_moving()
+                        self._trigger_ambush(ambush)
+                        return
+            except Exception:
+                pass
             # current center of player marker in window coords
             pm = self._player_marker
             cur_x = pm.pos[0] + pm.size[0] / 2
@@ -1038,6 +1087,17 @@ class LocationSelectScreen(Screen):
 
     def on_leave(self):
         """Cleanup when leaving screen: hide tooltip, unbind mouse handler, remove enter button."""
+        # Clean up danger bar
+        try:
+            if getattr(self, '_danger_bar', None):
+                self._danger_bar.cleanup()
+                try:
+                    self.map_overlay.remove_widget(self._danger_bar)
+                except Exception:
+                    pass
+                self._danger_bar = None
+        except Exception:
+            pass
         try:
             if getattr(self, '_hover_widget', None):
                 try:
@@ -1063,6 +1123,55 @@ class LocationSelectScreen(Screen):
                 self._enter_btn = None
         except Exception:
             pass
+
+    def _trigger_ambush(self, enemy_id):
+        """Начать бой при засаде (danger = 100%) с предупреждением."""
+        try:
+            app = App.get_running_app()
+            if not app.game or not app.game.player:
+                return
+            # Создать врага из EnemyDatabase
+            from data.enemies import EnemyDatabase
+            enemy = EnemyDatabase.create(enemy_id)
+            if not enemy:
+                return
+
+            enemy_name = getattr(enemy, 'name', enemy_id)
+
+            def _start_ambush_battle(*args):
+                try:
+                    battlefield, battle_service = app.game.create_battle([enemy])
+                    if hasattr(app, 'battle_screen'):
+                        app.battle_screen.start_battle(battlefield, battle_service)
+                        app.root.current = 'battle'
+                except Exception as e:
+                    print(f"[AMBUSH] Battle start error: {e}")
+
+            # Показать предупреждение перед боем
+            popup = Popup(
+                title='⚠️ ЗАСАДА!',
+                content=Label(
+                    text=(
+                        f'Опасность достигла максимума!\n\n'
+                        f'На вас нападает: {enemy_name}!\n\n'
+                        f'🔴 Глобальная опасность: '
+                        f'{app.game.danger_manager.danger_level:.0f}%'
+                    ),
+                    text_size=(None, None),
+                    halign='center',
+                    valign='middle',
+                    font_size=dp(18),
+                    color=(0.9, 0.3, 0.2, 1),
+                ),
+                size_hint=(0.7, 0.4),
+            )
+            popup.open()
+            Clock.schedule_once(
+                lambda dt: (popup.dismiss(), _start_ambush_battle()),
+                1.8,
+            )
+        except Exception as e:
+            print(f"[AMBUSH] Error: {e}")
 
     def on_locked_location(self, location):
         """Показать требования для разблокировки локации."""

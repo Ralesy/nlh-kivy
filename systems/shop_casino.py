@@ -31,8 +31,21 @@ class Shop:
             )
         return "\n".join(lines)
 
-    def buy(self, player: Player, item_id: str, qty: int = 1) -> str:
-        """Покупка."""
+    def buy(
+        self,
+        player: Player,
+        item_id: str,
+        qty: int = 1,
+        price_modifier: float = 1.0,
+    ) -> str:
+        """Покупка.
+
+        Args:
+            player: игрок.
+            item_id: ID предмета.
+            qty: количество.
+            price_modifier: множитель цены (от DangerManager).
+        """
         item = ItemDatabase.get(item_id)
         if not item:
             return "Товар не найден."
@@ -41,7 +54,8 @@ class Shop:
         if stock_qty is not None and stock_qty < qty:
             return "В магазине нет такого количества."
 
-        cost = item.price * qty
+        base_cost = item.price * qty
+        cost = int(base_cost * price_modifier)
         if player.coins < cost:
             return "Недостаточно монет."
 

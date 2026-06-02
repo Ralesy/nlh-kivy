@@ -372,6 +372,18 @@ class TavernScreen(Screen):
 
         result = quest.claim(app.game.player)
 
+        # --- Global Danger: снизить опасность за сдачу квеста ---
+        danger_msg = ""
+        if hasattr(app.game, 'danger_manager'):
+            reduction = app.game.danger_manager.on_quest_completed()
+            if reduction > 0:
+                danger_msg = (
+                    f"\n\n🛡️ Опасность снижена на "
+                    f"{reduction:.0f}% "
+                    f"(теперь "
+                    f"{app.game.danger_manager.danger_level:.0f}%)"
+                )
+
         # Уведомляем NPC о завершении квеста
         if hasattr(quest, 'npc_id') and quest.npc_id:
             npc_manager = getattr(app, 'npc_manager', None) or NPCManager()
@@ -383,7 +395,7 @@ class TavernScreen(Screen):
         popup = Popup(
             title='🎁 Награда получена!',
             content=Label(
-                text=result,
+                text=result + danger_msg,
                 text_size=(None, None),
                 halign='center',
                 font_size=dp(18)

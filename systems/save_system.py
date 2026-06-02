@@ -80,6 +80,9 @@ def load_session_into(session: "GameSession", filename: str) -> bool:
         session.history = list(data.get("history", []))
         session.wins_in_row = int(data.get("wins_in_row", 0))
         session.restore_npc_state(data.get("npcs", {}))
+        # Восстановить состояние DangerManager
+        if "danger" in data:
+            session.danger_manager.from_dict(data["danger"])
         return True
     except Exception as e:
         print(f"Ошибка загрузки сессии: {e}")

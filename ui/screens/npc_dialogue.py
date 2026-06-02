@@ -253,12 +253,28 @@ class NPCDialogueScreen(Screen):
         app.game.player.accepted_quests.append(self.current_quest)
 
         npc_class_name = self.current_npc.__class__.__name__
+
+        # Подсказка о снижении опасности
+        danger_hint = ""
+        if hasattr(app.game, 'danger_manager'):
+            dm = app.game.danger_manager
+            from systems.danger_manager import QUEST_DANGER_REDUCTION
+            danger_hint = (
+                f"\n\n🛡️ Сдача квеста снизит опасность "
+                f"на {QUEST_DANGER_REDUCTION:.0f}% "
+                f"(сейчас: {dm.danger_level:.0f}%)"
+            )
+
         popup = Popup(
             title='✅ Квест принят!',
             content=Label(
-                text=f"Вы приняли квест от {npc_class_name}"
+                text=f"Вы приняли квест от {npc_class_name}" + danger_hint,
+                text_size=(None, None),
+                halign='center',
+                valign='middle',
+                font_size=dp(16),
             ),
-            size_hint=(0.6, 0.3)
+            size_hint=(0.65, 0.35)
         )
         popup.open()
 
@@ -303,6 +319,18 @@ class NPCDialogueScreen(Screen):
             self.current_quest.reward_xp
         )
 
+        # --- Global Danger: снизить опасность за сдачу квеста ---
+        danger_msg = ""
+        if hasattr(app.game, 'danger_manager'):
+            reduction = app.game.danger_manager.on_quest_completed()
+            if reduction > 0:
+                danger_msg = (
+                    f"\n\n🛡️ Опасность снижена на "
+                    f"{reduction:.0f}% "
+                    f"(теперь "
+                    f"{app.game.danger_manager.danger_level:.0f}%)"
+                )
+
         # Удалить квест из списка принятых
         if self.current_quest in player.accepted_quests:
             player.accepted_quests.remove(self.current_quest)
@@ -314,7 +342,11 @@ class NPCDialogueScreen(Screen):
         popup = Popup(
             title='🎁 Награда получена!',
             content=Label(
-                text='Квест выполнен! Вы получили награду.',
+                text=(
+                    'Квест выполнен! '
+                    'Вы получили награду.'
+                    + danger_msg
+                ),
                 font_size=dp(18)
             ),
             size_hint=(0.6, 0.3)

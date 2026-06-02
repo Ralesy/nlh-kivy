@@ -22,6 +22,7 @@ from data.items import ItemDatabase
 from data.locations import LocationManager
 from systems.npcs import GeneratedQuest, NPCManager
 from systems.quests import Tavern
+from systems.danger_manager import DangerManager
 from systems.save_system import load_session_into, save_session
 from systems.shop_casino import Shop
 
@@ -65,6 +66,7 @@ class GameSession:
         EnemyDatabase.initialize()
 
         self.shop = Shop(self.DEFAULT_SHOP_STOCK.copy())
+        self.danger_manager = DangerManager()
         self.day = 1
         self.history: List[str] = []
         self.wins_in_row = 0
@@ -89,6 +91,7 @@ class GameSession:
         self.day = 1
         self.history = []
         self.wins_in_row = 0
+        self.danger_manager.reset()
         return self.player
 
     def start_test_game(self, name: str) -> Player:
@@ -97,6 +100,7 @@ class GameSession:
         self.day = 1
         self.history = []
         self.wins_in_row = 0
+        self.danger_manager.reset()
         return self.player
 
     def load_from_file(self, filename: str) -> bool:
@@ -254,6 +258,25 @@ class GameSession:
             else:
                 npc.current_quest = None
 
+    def complete_quest_and_reduce_danger(
+        self, quest_id: str
+    ) -> str:
+        """Сдать квест и снизить глобальную опасность.
+
+        Args:
+            quest_id: ID завершённого квеста.
+
+        Returns:
+            Сообщение о снижении опасности.
+        """
+        reduction = self.danger_manager.on_quest_completed()
+        if reduction > 0:
+            return (
+                f"🛡️ Опасность снижена на {reduction:.0f}% "
+                f"(теперь {self.danger_manager.danger_level:.0f}%)"
+            )
+        return "🛡️ Опасность уже на минимуме."
+
     def to_save_dict(self) -> dict:
         """Сериализовать сессию для сохранения."""
         return {
@@ -261,8 +284,11 @@ class GameSession:
             "day": self.day,
             "history": self.history,
             "wins_in_row": self.wins_in_row,
-            "player": self.player.to_dict() if self.player else None,
+            "player": (
+                self.player.to_dict() if self.player else None
+            ),
             "npcs": self.npc_manager.to_dict(),
+            "danger": self.danger_manager.to_dict(),
         }
 
 

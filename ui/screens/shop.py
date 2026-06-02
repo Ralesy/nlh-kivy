@@ -103,16 +103,65 @@ class ShopScreen(Screen):
 
         self.coins_label.text = f"Ваши монеты: {app.game.player.coins} 💰"
 
+        # Получить модификатор цен от DangerManager
+        price_mod = 1.0
+        danger_info_text = ""
+        if hasattr(app.game, 'danger_manager'):
+            dm = app.game.danger_manager
+            price_mod = dm.get_price_modifier()
+            danger_level = dm.danger_level
+            tier_name = dm.tier_name
+
+            # Иконка градации
+            tier_icons = {
+                "Безопасно": "🟢",
+                "Повышенная опасность": "🟡",
+                "Критическая опасность": "🟠",
+                "Апокалипсис": "🔴",
+            }
+            icon = tier_icons.get(tier_name, "🟢")
+
+            if price_mod > 1.0:
+                pct_increase = int((price_mod - 1.0) * 100)
+                danger_info_text = (
+                    f"{icon} Опасность: {danger_level:.0f}% ({tier_name}) "
+                    f"— цены +{pct_increase}%"
+                )
+            else:
+                danger_info_text = (
+                    f"{icon} Опасность: {danger_level:.0f}% ({tier_name})"
+                )
+
+        # Показать индикатор опасности
+        if danger_info_text:
+            danger_color = COLORS["text_light"]
+            if price_mod >= 2.0:
+                danger_color = (0.9, 0.3, 0.2, 1)  # красный
+            elif price_mod >= 1.5:
+                danger_color = (0.9, 0.5, 0.2, 1)  # оранжевый
+            elif price_mod >= 1.2:
+                danger_color = (0.9, 0.8, 0.2, 1)  # жёлтый
+
+            danger_label = StyledLabel(
+                text=danger_info_text,
+                font_size=dp(14),
+                size_hint_y=None,
+                height=dp(32),
+                color=danger_color,
+            )
+            self.content_layout.add_widget(danger_label)
+
         for iid, qty in app.game.shop.stock.items():
             item = ItemDatabase.get(iid)
             if not item:
                 continue
 
             q = "∞" if qty is None else str(qty)
+            display_price = int(item.price * price_mod)
 
             item_layout = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(60), spacing=dp(5))
             item_label = StyledLabel(
-                text=f"{item.display_name()} — {item.price} 💰 (осталось: {q})",
+                text=f"{item.display_name()} — {display_price} 💰 (осталось: {q})",
                 font_size=dp(14),
                 size_hint_x=0.65,
                 color=COLORS["text_light"],
@@ -247,7 +296,14 @@ class ShopScreen(Screen):
         if not app.game:
             return
 
-        result = app.game.player.buy(app.game.shop, item_id, 1)
+        # Получить модификатор цен от DangerManager
+        price_mod = 1.0
+        if hasattr(app.game, 'danger_manager'):
+            price_mod = app.game.danger_manager.get_price_modifier()
+
+        result = app.game.shop.buy(
+            app.game.player, item_id, 1, price_modifier=price_mod
+        )
         popup = Popup(
             title="Результат",
             content=Label(text=result),
