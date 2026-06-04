@@ -19,25 +19,29 @@ class MapWidget(BoxLayout):
             'name': '🌲 Лес Криволесье',
             'desc': 'Легкие враги\nСобытия',
             'difficulty': 'Легко',
-            'color': (0.45, 0.33, 0.20, 1)
+            'color': (0.45, 0.33, 0.20, 1),
+            'pos': (-100, 100)
         },
         'swamp': {
             'name': '🏞️ Болота Гниющие Топи',
             'desc': 'Средние враги\nТопи',
             'difficulty': 'Средне',
-            'color': (0.40, 0.30, 0.20, 1)
+            'color': (0.40, 0.30, 0.20, 1),
+            'pos': (-100, 0)
         },
         'mines': {
             'name': '⛏️ Шахты Подскальные Гроты',
             'desc': 'Сложные враги\nСокровища',
             'difficulty': 'Сложно',
-            'color': (0.38, 0.28, 0.18, 1)
+            'color': (0.38, 0.28, 0.18, 1),
+            'pos': (100, 0)
         },
         'mountains': {
             'name': '⛰️ Горы Хребет Драконов',
             'desc': 'Очень сложные враги\nДраконы',
             'difficulty': 'Очень сложно',
-            'color': (0.47, 0.34, 0.22, 1)
+            'color': (0.47, 0.34, 0.22, 1),
+            'pos': (100, 100)
         },
     }
     
@@ -48,13 +52,11 @@ class MapWidget(BoxLayout):
         self.spacing = dp(8)
         self.padding = dp(12)
         
-        # Фон карты
         with self.canvas.before:
             Color(0.15, 0.2, 0.15, 1)
             self.bg_rect = Rectangle(pos=self.pos, size=self.size)
             self.bind(pos=self.update_bg, size=self.update_bg)
         
-        # Заголовок карты
         map_title = Label(
             text='🗺️ КАРТА МИРА',
             font_size=dp(20),
@@ -64,7 +66,6 @@ class MapWidget(BoxLayout):
         )
         self.add_widget(map_title)
         
-        # Кнопки локаций с улучшенным дизайном
         locations_layout = BoxLayout(orientation='vertical', spacing=dp(8))
         
         for loc_id in ['forest', 'swamp', 'mines', 'mountains']:
@@ -88,3 +89,10 @@ class MapWidget(BoxLayout):
     def update_bg(self, *args):
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
+    
+    def screen_to_game_pos(self, pos):
+        """Конвертировать экранные координаты в игровые (для клика мыши)."""
+        x, y = pos
+        cx = (x - self.center_x) / self.width * 400
+        cy = (self.center_y - y) / self.height * 400
+        return (cx, cy)

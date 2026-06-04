@@ -15,7 +15,6 @@ from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle, Line, RoundedRectangle
 from kivy.metrics import dp
 from kivy.animation import Animation
-from kivy.app import App
 
 # Repo root (ui/ui_styles.py -> ui/ -> project root)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,39 +28,41 @@ BACKGROUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "backgrounds")
 
 COLORS = {
     # Основные нейтральные цвета
-    'dark_bg': (0.10, 0.09, 0.07, 1),           # Очень тёмный коричневый (земля)
-    'panel': (0.18, 0.15, 0.12, 0.95),          # Тёмный коричневый (панели)
-    'panel_light': (0.25, 0.22, 0.18, 0.95),    # Светло-коричневый (светлые панели)
-    
+    'dark_bg': (0.08, 0.07, 0.06, 1),           # Тёмный фон
+    'panel': (0.20, 0.17, 0.14, 0.97),          # Панели
+    'panel_light': (0.28, 0.24, 0.20, 0.97),    # Светлые панели
+
     # Золотой акцент
-    'gold': (0.80, 0.70, 0.40, 1),              # Приглушённое золото (листва)
-    'gold_dark': (0.65, 0.55, 0.30, 1),         # Тёмное золото
-    
-    # Зелень (листва, трава)
-    'green_leaf': (0.45, 0.50, 0.35, 1),        # Приглушённый зелёный (листья)
-    'green_moss': (0.38, 0.42, 0.30, 1),        # Мох
-    'green_dark': (0.28, 0.32, 0.22, 1),        # Тёмная листва
-    
+    'gold_light': (0.95, 0.82, 0.40, 1),        # Светлое золото
+    'gold': (0.85, 0.70, 0.30, 1),              # Основное золото
+    'gold_dark': (0.65, 0.55, 0.20, 1),         # Тёмное золото
+
+    # Зелень
+    'green_leaf': (0.50, 0.60, 0.40, 1),        # Листва
+    'green_moss': (0.40, 0.45, 0.30, 1),        # Мох
+    'green_dark': (0.30, 0.35, 0.25, 1),        # Тёмная зелень
+
     # Камень
-    'stone_light': (0.45, 0.42, 0.38, 1),       # Светлый камень
-    'stone': (0.35, 0.33, 0.30, 1),             # Серый камень
-    'stone_dark': (0.28, 0.26, 0.24, 1),        # Тёмный камень
-    
-    # Акценты для действий (более приглушённые)
-    'hp_red': (0.65, 0.35, 0.30, 1),            # Ржавый красный (здоровье)
-    'hp_green': (0.50, 0.55, 0.38, 1),          # Живой зелёный
-    'mana_blue': (0.38, 0.45, 0.50, 1),         # Небесно-синий (вода)
-    'xp_purple': (0.52, 0.42, 0.48, 1),         # Приглушённый фиолетовый
-    
+    'stone_light': (0.50, 0.47, 0.43, 1),       # Светлый камень
+    'stone': (0.40, 0.37, 0.34, 1),             # Серый камень
+    'stone_dark': (0.30, 0.28, 0.26, 1),        # Тёмный камень
+
+    # Акценты действий
+    'hp_red': (0.75, 0.35, 0.30, 1),            # Красный (здоровье)
+    'hp_green': (0.55, 0.65, 0.40, 1),          # Зелёный
+    'mana_blue': (0.40, 0.55, 0.65, 1),         # Синий (мана)
+    'xp_purple': (0.60, 0.45, 0.55, 1),         # Фиолетовый (опыт)
+
     # Текст
-    'text_light': (0.88, 0.85, 0.78, 1),        # Светлый кремовый текст
-    'text_dark': (0.15, 0.14, 0.12, 1),         # Тёмный коричневый текст
-    
+    'text_light': (0.95, 0.92, 0.85, 1),        # Светлый текст
+    'text_dark': (0.12, 0.11, 0.10, 1),         # Тёмный текст
+
     # Граница
-    'border_gold': (0.72, 0.62, 0.35, 0.7),     # Приглушённая золотая граница
-    
-    # Тень и эффекты
-    'shadow': (0, 0, 0, 0.4),                   # Тень
+    'border_gold': (0.85, 0.75, 0.45, 0.8),     # Золотая граница
+
+    # Эффекты
+    'shadow': (0, 0, 0, 0.5),                   # Тень
+    'glow': (0.85, 0.75, 0.45, 0.3),            # Свечение
 }
 
 
@@ -70,105 +71,253 @@ COLORS = {
 # ============================================================================
 
 class StyledButton(Button):
-    """Красивая кнопка с золотой каёмкой."""
-    
+    """Современная кнопка с градиентом и эффектами."""
+
     def __init__(self, text="Button", color=None, **kwargs):
-        self.button_color = color or COLORS['gold']
         super().__init__(**kwargs)
         self.text = text
         self.background_normal = ''
         self.background_down = ''
-        self.background_color = self.button_color
-        self.font_size = kwargs.get('font_size', dp(16))
+        self.background_color = (0, 0, 0, 0)  # прозрачный фон, чтобы canvas был виден
+        self.font_size = kwargs.get('font_size', dp(18))
         self.bold = True
         self.color = COLORS['text_light']
-        
-        # Рисуем фон с границей
+
+        # Сохраняем переданный цвет (по умолчанию золотой)
+        self.button_color = color or COLORS['gold']
+
+        # Запоминаем исходные размеры для анимаций
+        self.original_size = self.size[:] if self.size else (dp(100), dp(40))
+        self.original_font_size = self.font_size
+
+        # Рисуем кнопку
         self._update_canvas()
-        self.bind(pos=lambda i, v: self._update_canvas(),
-                 size=lambda i, v: self._update_canvas())
-    
+        self.bind(
+            pos=lambda i, v: self._update_canvas(),
+            size=lambda i, v: self._update_canvas()
+        )
+
+    def _darken_color(self, color, factor=0.7):
+        """Затемнить цвет на factor."""
+        return (
+            min(1, color[0] * factor),
+            min(1, color[1] * factor),
+            min(1, color[2] * factor),
+            color[3] if len(color) > 3 else 1
+        )
+
+    def _lighten_color(self, color, factor=1.3):
+        """Осветлить цвет на factor."""
+        return (
+            min(1, color[0] * factor),
+            min(1, color[1] * factor),
+            min(1, color[2] * factor),
+            color[3] if len(color) > 3 else 1
+        )
+
     def _update_canvas(self):
-        """Обновить canvas."""
+        """Обновить canvas с градиентом и эффектами."""
         self.canvas.before.clear()
         with self.canvas.before:
-            # Основной фон кнопки
-            Color(*self.button_color)
-            Rectangle(pos=self.pos, size=self.size)
+            # Тень под кнопкой
+            Color(*COLORS['shadow'])
+            RoundedRectangle(
+                pos=(self.x + dp(2), self.y - dp(2)),
+                size=self.size,
+                radius=[dp(6)]
+            )
+
+            # Градиентный фон на основе цвета кнопки
+            # Верхняя часть (светлая)
+            top_color = self._lighten_color(self.button_color)
+            Color(*top_color)
+            RoundedRectangle(
+                pos=self.pos,
+                size=(self.width, self.height * 0.6),
+                radius=[dp(6)]
+            )
+
+            # Нижняя часть (тёмная)
+            bottom_color = self._darken_color(self.button_color)
+            Color(*bottom_color)
+            RoundedRectangle(
+                pos=(self.x, self.y + self.height * 0.4),
+                size=(self.width, self.height * 0.6),
+                radius=[dp(6)]
+            )
+
             # Золотая граница
             Color(*COLORS['border_gold'])
-            Line(rectangle=(self.x, self.y, self.width, self.height), width=dp(2))
-    
+            Line(
+                rounded_rectangle=(
+                    self.x, self.y, self.width, self.height, dp(6)
+                ),
+                width=dp(1.5)
+            )
+
     def on_enter(self):
-        """Эффект при наведении мыши."""
-        # Осветляем кнопку
-        r = min(1, self.button_color[0] * 1.2)
-        g = min(1, self.button_color[1] * 1.2)
-        b = min(1, self.button_color[2] * 1.2)
-        self.background_color = (r, g, b, self.button_color[3])
-    
+        """Эффект при наведении мыши - увеличение и свечение."""
+        Animation.cancel_all(self)
+        anim = Animation(
+            size=(self.width * 1.05, self.height * 1.05),
+            font_size=self.font_size * 1.05,
+            duration=0.15
+        )
+        anim.start(self)
+
+        # Эффект свечения
+        self.canvas.after.clear()
+        with self.canvas.after:
+            Color(*COLORS['glow'])
+            RoundedRectangle(
+                pos=(self.x - dp(3), self.y - dp(3)),
+                size=(self.width + dp(6), self.height + dp(6)),
+                radius=[dp(8)]
+            )
+
     def on_leave(self):
-        """Эффект при уходе мыши."""
-        self.background_color = self.button_color
+        """Возврат к исходному состоянию при уходе мыши."""
+        Animation.cancel_all(self)
+        anim = Animation(
+            size=self.original_size,
+            font_size=self.original_font_size,
+            duration=0.2
+        )
+        anim.start(self)
+        self.canvas.after.clear()
+
+    def on_touch_down(self, touch):
+        """Эффект при нажатии - уменьшение."""
+        if self.collide_point(*touch.pos):
+            Animation.cancel_all(self)
+            anim = Animation(
+                size=(self.width * 0.95, self.height * 0.95),
+                duration=0.1
+            )
+            anim.start(self)
+        return super().on_touch_down(touch)
+
+    def on_touch_up(self, touch):
+        """Восстановление после нажатия."""
+        Animation.cancel_all(self)
+        anim = Animation(
+            size=self.original_size,
+            duration=0.15
+        )
+        anim.start(self)
+        return super().on_touch_up(touch)
 
 
 class StyledLabel(Label):
-    """Красивая метка с золотым цветом и тенью."""
-    
-    def __init__(self, text="", color=None, font_size=dp(16), bold=False, **kwargs):
+    """Стилизованная метка с тенью и иерархией."""
+
+    def __init__(self, text="", color=None, font_size=dp(18),
+                 bold=True, shadow=True, **kwargs):
         super().__init__(**kwargs)
         self.text = text
         self.color = color or COLORS['text_light']
         self.font_size = font_size
         self.bold = bold
+        self.shadow = shadow
+
+        # Добавляем тень для лучшей читаемости
+        if shadow:
+            self.shadow_offset = (dp(1), -dp(1))
+            self.shadow_color = (0, 0, 0, 0.7)
 
 
 class StyledPanel(BoxLayout):
-    """Красивая панель с текстурой и золотой границей."""
-    
+    """Современная панель с закруглёнными углами и текстурой."""
+
     def __init__(self, title="", **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
-        self.padding = dp(12)
-        self.spacing = dp(8)
-        
+        self.padding = dp(16)  # Отступы
+        self.spacing = dp(12)  # Промежутки
+
         # Фон панели
         with self.canvas.before:
-            # Основной тёмный фон
+            # Тень под панелью
+            Color(*COLORS['shadow'])
+            self._shadow_rect = RoundedRectangle(
+                pos=(self.x + dp(3), self.y - dp(3)),
+                size=self.size,
+                radius=[dp(10)]
+            )
+
+            # Основной фон
             Color(*COLORS['panel'])
-            self._bg_rect = Rectangle(pos=self.pos, size=self.size)
-            # Золотая граница
+            self._bg_rect = RoundedRectangle(
+                pos=self.pos, size=self.size, radius=[dp(10)]
+            )
+
+            # Граница
             Color(*COLORS['border_gold'])
-            self._border_line = Line(rectangle=(self.x, self.y, self.width, self.height), width=dp(1.5))
-        
-        self.bind(pos=lambda i, v: (setattr(self._bg_rect, 'pos', v), 
-                                   setattr(self._border_line, 'rectangle', (i.x, i.y, i.width, i.height))),
-                 size=lambda i, v: (setattr(self._bg_rect, 'size', v),
-                                   setattr(self._border_line, 'rectangle', (self.x, self.y, v[0], v[1]))))
-        
+            self._border_line = Line(
+                rounded_rectangle=(
+                    self.x, self.y, self.width, self.height, dp(10)
+                ),
+                width=dp(1.5)
+            )
+
+        self.bind(
+            pos=lambda i, v: self._update_canvas(),
+            size=lambda i, v: self._update_canvas()
+        )
+
         # Заголовок если передан
         if title:
-            header = StyledLabel(
-                text=title,
-                font_size=dp(18),
+            header = BoxLayout(
                 size_hint_y=None,
-                height=dp(35),
-                color=COLORS['gold'],
-                bold=True
+                height=dp(40),
+                padding=(dp(10), 0)
             )
+
+            # Текст заголовка
+            title_label = StyledLabel(
+                text=title,
+                font_size=dp(22),
+                color=COLORS['gold_light'],
+                bold=True,
+                halign='center',
+                valign='middle'
+            )
+            header.add_widget(title_label)
             self.add_widget(header)
+
+            # Разделитель
+            with header.canvas.before:
+                Color(*COLORS['border_gold'])
+                Line(
+                    points=[header.x, header.y, header.right, header.y],
+                    width=dp(1.5)
+                )
+
+    def _update_canvas(self):
+        """Обновить элементы canvas при изменении размера или позиции."""
+        self._shadow_rect.pos = (self.x + dp(3), self.y - dp(3))
+        self._shadow_rect.size = self.size
+        self._shadow_rect.radius = [dp(10)]
+
+        self._bg_rect.pos = self.pos
+        self._bg_rect.size = self.size
+        self._bg_rect.radius = [dp(10)]
+
+        self._border_line.rounded_rectangle = (
+            self.x, self.y, self.width, self.height, dp(10)
+        )
 
 
 class StatRow(BoxLayout):
     """Строка со статистикой (название: значение)."""
-    
+
     def __init__(self, label_text="", value_text="", **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'horizontal'
         self.spacing = dp(10)
         self.size_hint_y = None
         self.height = dp(28)
-        
+
         # Левая метка (название)
         label = StyledLabel(
             text=label_text,
@@ -177,7 +326,7 @@ class StatRow(BoxLayout):
             color=COLORS['text_light']
         )
         self.add_widget(label)
-        
+
         # Правое значение (значение)
         value = StyledLabel(
             text=value_text,
@@ -188,27 +337,27 @@ class StatRow(BoxLayout):
         )
         self.value_label = value
         self.add_widget(value)
-    
+
     def update_value(self, new_value):
         """Обновить значение на правой стороне."""
         self.value_label.text = str(new_value)
 
 
 class CustomProgressBar(Widget):
-    """Пользовательский прогресс-бар с текстурой (не конфликт с Kivy ProgressBar)."""
-    
-    def __init__(self, max_value=100, current_value=50, 
+    """Пользовательский прогресс-бар (не конфликт с Kivy ProgressBar)."""
+
+    def __init__(self, max_value=100, current_value=50,
                  bar_color=None, bg_color=None, **kwargs):
         self.max_value = max_value
         self.current_value = current_value
         self.bar_color = bar_color or COLORS['hp_red']
         self.bg_color = bg_color or (0.12, 0.12, 0.12, 1)
-        
+
         super().__init__(**kwargs)
-        
+
         self.size_hint_y = None
         self.height = dp(20)
-        
+
         with self.canvas:
             # Фон бара
             Color(*self.bg_color)
@@ -216,41 +365,49 @@ class CustomProgressBar(Widget):
             # Передний план бара
             Color(*self.bar_color)
             bar_width = self._calculate_bar_width()
-            self._bar_rect = Rectangle(pos=self.pos, size=(bar_width, self.height))
+            self._bar_rect = Rectangle(
+                pos=self.pos, size=(bar_width, self.height)
+            )
             # Граница
             Color(0.5, 0.5, 0.5, 0.5)
-            self._border = Line(rectangle=(self.x, self.y, self.width, self.height), width=dp(0.5))
-        
-        self.bind(pos=self._update_pos,
-                 size=self._update_size)
-    
+            self._border = Line(
+                rectangle=(self.x, self.y, self.width, self.height),
+                width=dp(0.5)
+            )
+
+        self.bind(pos=self._update_pos, size=self._update_size)
+
     def __setattr__(self, name, value):
         """Переопределить setattr чтобы игнорировать странные атрибуты."""
         if name in ('max', 'min', 'value'):
             # Kivy иногда пытается установить эти атрибуты, игнорируем
             return
         super().__setattr__(name, value)
-    
+
     def _calculate_bar_width(self):
         """Рассчитать ширину передней части бара."""
         if self.max_value <= 0:
             return 0
         ratio = self.current_value / self.max_value
         return self.width * max(0, min(1, ratio))
-    
+
     def _update_pos(self, instance, value):
         """Обновить позицию бара."""
         self._bg_rect.pos = value
         self._bar_rect.pos = value
-        self._border.rectangle = (self.x, self.y, self.width, self.height)
-    
+        self._border.rectangle = (
+            self.x, self.y, self.width, self.height
+        )
+
     def _update_size(self, instance, value):
         """Обновить размер бара."""
         self._bg_rect.size = value
         bar_width = self._calculate_bar_width()
         self._bar_rect.size = (bar_width, self.height)
-        self._border.rectangle = (self.x, self.y, self.width, self.height)
-    
+        self._border.rectangle = (
+            self.x, self.y, self.width, self.height
+        )
+
     def set_value(self, current, max_val=None):
         """Обновить значение бара."""
         if max_val is not None:
@@ -261,7 +418,7 @@ class CustomProgressBar(Widget):
 
 class StatGrid(GridLayout):
     """Сетка статистики в 2 колонки."""
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.cols = 2
@@ -272,7 +429,7 @@ class StatGrid(GridLayout):
 
 class PopupTitle(Label):
     """Красивый заголовок для Popup'ов."""
-    
+
     def __init__(self, text="", **kwargs):
         super().__init__(**kwargs)
         self.text = text
@@ -283,40 +440,51 @@ class PopupTitle(Label):
         self.height = dp(40)
 
 
-def create_styled_popup(title="", content_widget=None, width_hint=0.7, height_hint=0.5):
+def create_styled_popup(
+    title="", content_widget=None, width_hint=0.7, height_hint=0.5
+):
     """Создать красивый Popup."""
     from kivy.uix.popup import Popup
-    
-    main_box = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
-    
+
+    main_box = BoxLayout(
+        orientation='vertical', spacing=dp(10), padding=dp(10)
+    )
+
     # Заголовок
     title_label = PopupTitle(text=title)
     main_box.add_widget(title_label)
-    
+
     # Контент
     if content_widget:
         main_box.add_widget(content_widget)
-    
+
     popup = Popup(
         content=main_box,
         size_hint=(width_hint, height_hint),
         background='',
         separator_height=0
     )
-    
+
     # Стилизованный фон Popup'а
     with popup.canvas.before:
         Color(*COLORS['panel'])
         popup_bg = Rectangle(pos=popup.pos, size=popup.size)
         # Граница
         Color(*COLORS['border_gold'])
-        popup_border = Line(rectangle=(popup.x, popup.y, popup.width, popup.height), width=dp(2))
-    
+        popup_border = Line(
+            rectangle=(
+                popup.x, popup.y, popup.width, popup.height
+            ),
+            width=dp(2)
+        )
+
     def update_bg(instance, value):
         popup_bg.pos = instance.pos
         popup_bg.size = instance.size
-        popup_border.rectangle = (instance.x, instance.y, instance.width, instance.height)
-    
+        popup_border.rectangle = (
+            instance.x, instance.y, instance.width, instance.height
+        )
+
     popup.bind(pos=update_bg, size=update_bg)
-    
+
     return popup

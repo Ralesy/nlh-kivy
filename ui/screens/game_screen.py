@@ -7,6 +7,9 @@ import random
 
 from kivy.app import App
 from kivy.uix.screenmanager import Screen
+from kivy.core.window import Window
+from core.hybrid_controls import HybridControlManager
+from ui.bindings.keyboard_handler import KeyboardHandler, _keycode_to_char
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
@@ -19,13 +22,15 @@ from ui.ui_styles import StyledButton, COLORS
 from ui.widgets.map_widget import MapWidget
 from systems.battle import EnemyGenerator
 
-class GameScreen(Screen):
+class GameScreen(Screen, KeyboardHandler):
     """Главный игровой экран."""
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.game = None
         self.battlefield = None
+        self.controls = HybridControlManager()
+        self.bind_keyboard()
         
         main_layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
         
@@ -161,6 +166,37 @@ class GameScreen(Screen):
             f"💰 {p.coins} | XP: {p.experience}/{p.level*100}\n"
             f"HP: {p.health}/{p.max_health} | DMG: {p.damage} | DEF: {p.defense}"
         )
+    
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        """Обработка клавиатурных действий."""
+        if action == "move_up":
+            self.controls.handle_keyboard('w', pressed)
+            return True
+        elif action == "move_down":
+            self.controls.handle_keyboard('s', pressed)
+            return True
+        elif action == "move_left":
+            self.controls.handle_keyboard('a', pressed)
+            return True
+        elif action == "move_right":
+            self.controls.handle_keyboard('d', pressed)
+            return True
+        elif action == "enter_location":
+            self.enter_location('forest')
+            return True
+        return False
+    
+    def on_touch_down(self, touch):
+        """Обработка касания/клика мыши - движение по карте."""
+        if not self.game or not self.game.player:
+            return super().on_touch_down(touch)
+        
+        if self.map_widget.collide_point(*touch.pos):
+            widget_pos = self.map_widget.to_local(*touch.pos, relative=False)
+            game_pos = self.map_widget.screen_to_game_pos(widget_pos)
+            self.controls.handle_mouse_click(game_pos)
+        
+        return super().on_touch_down(touch)
     
     def enter_location(self, loc_id):
         """Вход в локацию."""
