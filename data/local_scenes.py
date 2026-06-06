@@ -149,7 +149,7 @@ def build_scene_config(scene_id: str) -> Optional[LocalSceneConfig]:
             title=title,
             scene_type="combat",
             exit_target="location_select",
-            enemy_count=3,
+            enemy_count=6,
             enemy_location_id=scene_id,
             background_candidates=_bg_candidates(scene_id),
         )

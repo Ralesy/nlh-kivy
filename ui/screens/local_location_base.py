@@ -15,7 +15,7 @@ from typing import Optional
 
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.graphics import Color, Ellipse, Line, Rectangle
+from kivy.graphics import Color, Ellipse, Line, Mesh, Rectangle
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -39,6 +39,9 @@ from ui.widgets.cover_background import cover_background_image
 AGGRO_RADIUS = 120
 DE_AGGRO_RADIUS = 250
 PATROL_RADIUS = 150
+CONE_ANGLE = 120
+CONE_LENGTH = 200
+RADIAL_AGGRO_RADIUS = 55
 ENTRY_POINT_X = 0.5
 ENTRY_POINT_Y = 0.1
 STUN_DURATION = 5.0
@@ -69,6 +72,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._move = {"up": False, "down": False, "left": False, "right": False}
         self._player_invincible_timer = 0.0
         self._paused = False
+        self._chasing_active = False
         self.bind_keyboard()
 
         self.btn_zone_action = Button(
@@ -336,6 +340,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     "patrol_target_x_norm": x_norm,
                     "patrol_target_y_norm": y_norm,
                     "patrol_pause_timer": random.uniform(0, 2),
+                    "dir_x": 0,
+                    "dir_y": -1,
+                    "patrol_speed": dp(20),
+                    "chase_speed": dp(170),
                 }
             )
 
@@ -612,11 +620,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _update_enemy_ai(self, dt):
         """AI врагов: патрулирование, преследование, возврат."""
-        patrol_speed = dp(20) * dt
-        chase_speed = dp(50) * dt
         px, py = self._player_pos
         w = max(1, self.width)
         h = max(1, self.height)
+        player_chasing = False
 
         for ent in self._entities:
             if ent["defeated"] or ent.get("type") not in ("enemy",):
@@ -631,8 +638,22 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             state = ent.get("ai_state", "patrol")
 
             if state == "patrol":
-                if dist_to_player <= AGGRO_RADIUS:
+                cone_angle_rad = math.radians(CONE_ANGLE / 2)
+                in_cone = False
+                if dist_to_player > 0 and dist_to_player <= CONE_LENGTH:
+                    edx = ent.get("dir_x", 0)
+                    edy = ent.get("dir_y", -1)
+                    norm = (edx * edx + edy * edy) ** 0.5
+                    if norm > 0:
+                        dot = (dx_player / dist_to_player * edx / norm +
+                               dy_player / dist_to_player * edy / norm)
+                        in_cone = dot >= math.cos(cone_angle_rad)
+
+                in_radial = dist_to_player <= RADIAL_AGGRO_RADIUS
+
+                if in_cone or in_radial:
                     ent["ai_state"] = "chase"
+                    player_chasing = True
                     continue
 
                 pause = ent.get("patrol_pause_timer", 0)
@@ -661,7 +682,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                         0.05, min(0.95, spawn_y + radius_norm * math.sin(angle))
                     )
                 else:
-                    step = min(patrol_speed, dist_to_target)
+                    speed = ent.get("patrol_speed", dp(20)) * dt
+                    step = min(speed, dist_to_target)
+                    ent["dir_x"] = dx / dist_to_target
+                    ent["dir_y"] = dy / dist_to_target
                     ent["x"] += (dx / dist_to_target) * step
                     ent["y"] += (dy / dist_to_target) * step
                     ent["x_norm"] = ent["x"] / w
@@ -677,12 +701,18 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     ent["patrol_pause_timer"] = 0
                     continue
 
+                player_chasing = True
                 if dist_to_player > 0:
-                    step = min(chase_speed, dist_to_player)
+                    speed = ent.get("chase_speed", dp(170)) * dt
+                    step = min(speed, dist_to_player)
+                    ent["dir_x"] = dx_player / dist_to_player
+                    ent["dir_y"] = dy_player / dist_to_player
                     ent["x"] += (dx_player / dist_to_player) * step
                     ent["y"] += (dy_player / dist_to_player) * step
                     ent["x_norm"] = ent["x"] / w
                     ent["y_norm"] = ent["y"] / h
+
+        self._chasing_active = player_chasing
 
     def _check_collisions(self):
         """Столкновения игрока с сущностями."""
@@ -998,6 +1028,54 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 etype = ent.get("type")
                 r = ent["radius"]
 
+                if etype == "enemy":
+                    ex, ey = ent["x"], ent["y"]
+                    edx = ent.get("dir_x", 0)
+                    edy = ent.get("dir_y", -1)
+                    dir_norm = (edx * edx + edy * edy) ** 0.5
+
+                    # --- Radial zone (small circle) ---
+                    Color(1, 0.3, 0, 0.08)
+                    Ellipse(
+                        pos=(ex - RADIAL_AGGRO_RADIUS, ey - RADIAL_AGGRO_RADIUS),
+                        size=(RADIAL_AGGRO_RADIUS * 2, RADIAL_AGGRO_RADIUS * 2),
+                    )
+                    Color(1, 0.3, 0, 0.25)
+                    Line(
+                        circle=(ex, ey, RADIAL_AGGRO_RADIUS),
+                        width=1,
+                    )
+
+                    # --- Directional cone ---
+                    if dir_norm > 0.01:
+                        cone_length = CONE_LENGTH
+                        half_a = math.radians(CONE_ANGLE / 2)
+                        base_angle = math.atan2(edy / dir_norm, edx / dir_norm)
+                        segments = 14
+                        verts = [ex, ey, 0, 0]
+                        indices = [0]
+                        for i in range(segments + 1):
+                            t = i / segments
+                            theta = base_angle - half_a + t * 2 * half_a
+                            px = ex + math.cos(theta) * cone_length
+                            py = ey + math.sin(theta) * cone_length
+                            verts.extend([px, py, 0, 0])
+                            indices.append(i + 1)
+                        Color(1, 0.6, 0, 0.06)
+                        Mesh(vertices=verts, indices=indices, mode='triangle_fan')
+
+                        arc_points = []
+                        for i in range(segments + 1):
+                            t = i / segments
+                            theta = base_angle - half_a + t * 2 * half_a
+                            px = ex + math.cos(theta) * cone_length
+                            py = ey + math.sin(theta) * cone_length
+                            arc_points.extend([px, py])
+                        Color(1, 0.6, 0, 0.2)
+                        Line(points=[ex, ey, arc_points[0], arc_points[1]], width=1)
+                        Line(points=[ex, ey, arc_points[-2], arc_points[-1]], width=1)
+                        Line(points=arc_points, width=1)
+
                 if etype == "zone":
                     Color(0.2, 0.5, 0.9, 0.35)
                     Ellipse(pos=(ent["x"] - r, ent["y"] - r), size=(r * 2, r * 2))
@@ -1082,8 +1160,30 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             pass
         self._stop_loop()
 
+    def _is_anyone_chasing(self):
+        """Проверить, есть ли враги в состоянии погони."""
+        if self._chasing_active:
+            return True
+        for ent in self._entities:
+            if ent.get("ai_state") == "chase" and not ent["defeated"]:
+                return True
+        return False
+
     def _on_exit_location(self, *_args):
         """Выход: на карту региона или в родительскую сцену."""
+        if self._is_anyone_chasing():
+            popup = Popup(
+                title='⚠️ Невозможно уйти!',
+                content=Label(
+                    text='Вас преследуют! Сначала разберитесь с врагами.',
+                    halign='center',
+                    valign='middle',
+                    font_size=dp(18),
+                ),
+                size_hint=(0.7, 0.3),
+            )
+            popup.open()
+            return
         app = App.get_running_app()
         self._save_player_state()
         self._stop_loop()
