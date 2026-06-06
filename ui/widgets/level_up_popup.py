@@ -3,6 +3,7 @@
 
 """Popup распределения очков навыков при повышении уровня."""
 
+from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
@@ -20,6 +21,7 @@ class LevelUpPopup(Popup):
         self.size_hint = (0.7, 0.7)
         self.auto_dismiss = False
         self.player = player
+        self._paused_local = False
 
         root = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
 
@@ -84,3 +86,16 @@ class LevelUpPopup(Popup):
                     break
                 self.player.allocate_skill_point(s)
         self._refresh()
+
+    def on_open(self):
+        local_screen = getattr(App.get_running_app(), 'local_location_screen', None)
+        if local_screen and hasattr(local_screen, '_paused') and not local_screen._paused:
+            local_screen.pause_game()
+            self._paused_local = True
+
+    def on_dismiss(self):
+        if self._paused_local:
+            local_screen = getattr(App.get_running_app(), 'local_location_screen', None)
+            if local_screen:
+                local_screen.resume_game()
+            self._paused_local = False

@@ -8,6 +8,7 @@
 таверну (NPC) и магазин (торговец).
 """
 
+import math
 import os
 import random
 from typing import Optional
@@ -16,10 +17,12 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.graphics import Color, Ellipse, Line, Rectangle
 from kivy.metrics import dp
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 
@@ -31,6 +34,15 @@ from data.local_scenes import (
 from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.ui_styles import BUTTONS_DIR, COLORS
 from ui.widgets.cover_background import cover_background_image
+
+
+AGGRO_RADIUS = 120
+DE_AGGRO_RADIUS = 250
+PATROL_RADIUS = 150
+ENTRY_POINT_X = 0.5
+ENTRY_POINT_Y = 0.1
+STUN_DURATION = 5.0
+INVINCIBILITY_DURATION = 3.0
 
 
 class LocalLocationScreen(Screen, KeyboardHandler):
@@ -49,10 +61,14 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._target_pos = None
         self._entities = []
         self._current_entity = None
+        self._current_battle_group = None
+        self._pending_boss_entity = None
         self._update_event = None
         self._returning_from_battle = False
         self._active_zone = None
         self._move = {"up": False, "down": False, "left": False, "right": False}
+        self._player_invincible_timer = 0.0
+        self._paused = False
         self.bind_keyboard()
 
         self.btn_zone_action = Button(
@@ -108,12 +124,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._move = {"up": False, "down": False, "left": False, "right": False}
         self._entities = []
         self._current_entity = None
+        self._pending_boss_entity = None
         self._active_zone = None
         self.btn_zone_action.opacity = 0
         self.btn_zone_action.text = "Войти"
 
         if self._returning_from_battle:
             pass
+        elif self.scene_config and self.scene_config.scene_type == "combat":
+            self._player_pos = [self.width * ENTRY_POINT_X, self.height * ENTRY_POINT_Y]
         else:
             player = app.game.player if app.game else None
             pos_key = self.scene_id
@@ -305,11 +324,18 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     "y_norm": y_norm,
                     "x": self.width * x_norm,
                     "y": self.height * y_norm,
+                    "spawn_x_norm": x_norm,
+                    "spawn_y_norm": y_norm,
                     "radius": dp(12),
                     "defeated": False,
                     "creature": creature,
                     "name": creature.name if creature else "Неизвестный",
                     "level": creature.level if creature else 1,
+                    "stun_timer": 0,
+                    "ai_state": "patrol",
+                    "patrol_target_x_norm": x_norm,
+                    "patrol_target_y_norm": y_norm,
+                    "patrol_pause_timer": random.uniform(0, 2),
                 }
             )
 
@@ -348,6 +374,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 "creature": boss_creature,
                 "name": boss_cfg.name,
                 "level": boss_creature.level,
+                "stun_timer": 0,
             }
         )
 
@@ -543,7 +570,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _on_game_update(self, dt):
         """Игровой цикл: движение, столкновения, отрисовка."""
-        if not self.scene_id:
+        if not self.scene_id or self._paused:
             return
 
         self._sync_entity_positions()
@@ -569,25 +596,93 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 self._player_pos[0] += (dx / distance) * move_dist
                 self._player_pos[1] += (dy / distance) * move_dist
 
-        self._update_chasing_entities(dt)
+        self._player_pos[0] = max(dp(10), min(self.width - dp(10), self._player_pos[0]))
+        self._player_pos[1] = max(dp(10), min(self.height - dp(10), self._player_pos[1]))
+
+        if self._player_invincible_timer > 0:
+            self._player_invincible_timer = max(0, self._player_invincible_timer - dt)
+
+        for ent in self._entities:
+            if ent.get("stun_timer", 0) > 0:
+                ent["stun_timer"] = max(0, ent["stun_timer"] - dt)
+
+        self._update_enemy_ai(dt)
         self._check_collisions()
         self._draw_game()
 
-    def _update_chasing_entities(self, dt):
-        """Враги медленно преследуют игрока."""
-        speed = dp(30) * dt
+    def _update_enemy_ai(self, dt):
+        """AI врагов: патрулирование, преследование, возврат."""
+        patrol_speed = dp(20) * dt
+        chase_speed = dp(50) * dt
+        px, py = self._player_pos
+        w = max(1, self.width)
+        h = max(1, self.height)
+
         for ent in self._entities:
             if ent["defeated"] or ent.get("type") not in ("enemy",):
                 continue
-            dx = self._player_pos[0] - ent["x"]
-            dy = self._player_pos[1] - ent["y"]
-            dist = (dx**2 + dy**2) ** 0.5
-            if dist > 0:
-                step = min(speed, dist)
-                ent["x"] += (dx / dist) * step
-                ent["y"] += (dy / dist) * step
-                ent["x_norm"] = ent["x"] / max(1, self.width)
-                ent["y_norm"] = ent["y"] / max(1, self.height)
+            if ent.get("stun_timer", 0) > 0:
+                continue
+
+            dx_player = px - ent["x"]
+            dy_player = py - ent["y"]
+            dist_to_player = (dx_player**2 + dy_player**2) ** 0.5
+
+            state = ent.get("ai_state", "patrol")
+
+            if state == "patrol":
+                if dist_to_player <= AGGRO_RADIUS:
+                    ent["ai_state"] = "chase"
+                    continue
+
+                pause = ent.get("patrol_pause_timer", 0)
+                if pause > 0:
+                    ent["patrol_pause_timer"] = max(0, pause - dt)
+                    continue
+
+                tx_norm = ent.get("patrol_target_x_norm", ent["x_norm"])
+                ty_norm = ent.get("patrol_target_y_norm", ent["y_norm"])
+                tx = tx_norm * w
+                ty = ty_norm * h
+                dx = tx - ent["x"]
+                dy = ty - ent["y"]
+                dist_to_target = (dx * dx + dy * dy) ** 0.5
+
+                if dist_to_target < dp(5):
+                    ent["patrol_pause_timer"] = random.uniform(1.0, 3.0)
+                    spawn_x = ent.get("spawn_x_norm", ent["x_norm"])
+                    spawn_y = ent.get("spawn_y_norm", ent["y_norm"])
+                    angle = random.uniform(0, 6.2832)
+                    radius_norm = PATROL_RADIUS / max(w, h)
+                    ent["patrol_target_x_norm"] = max(
+                        0.05, min(0.95, spawn_x + radius_norm * math.cos(angle))
+                    )
+                    ent["patrol_target_y_norm"] = max(
+                        0.05, min(0.95, spawn_y + radius_norm * math.sin(angle))
+                    )
+                else:
+                    step = min(patrol_speed, dist_to_target)
+                    ent["x"] += (dx / dist_to_target) * step
+                    ent["y"] += (dy / dist_to_target) * step
+                    ent["x_norm"] = ent["x"] / w
+                    ent["y_norm"] = ent["y"] / h
+
+            elif state == "chase":
+                if dist_to_player > DE_AGGRO_RADIUS:
+                    ent["ai_state"] = "patrol"
+                    spawn_x = ent.get("spawn_x_norm", ent["x_norm"])
+                    spawn_y = ent.get("spawn_y_norm", ent["y_norm"])
+                    ent["patrol_target_x_norm"] = spawn_x
+                    ent["patrol_target_y_norm"] = spawn_y
+                    ent["patrol_pause_timer"] = 0
+                    continue
+
+                if dist_to_player > 0:
+                    step = min(chase_speed, dist_to_player)
+                    ent["x"] += (dx_player / dist_to_player) * step
+                    ent["y"] += (dy_player / dist_to_player) * step
+                    ent["x_norm"] = ent["x"] / w
+                    ent["y_norm"] = ent["y"] / h
 
     def _check_collisions(self):
         """Столкновения игрока с сущностями."""
@@ -613,6 +708,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     self._active_interact = ent
             elif dist < player_r + ent["radius"]:
                 if etype in ("enemy", "boss"):
+                    if ent.get("stun_timer", 0) > 0:
+                        continue
+                    if self._player_invincible_timer > 0:
+                        continue
+                    if etype == "boss":
+                        if self._pending_boss_entity is not None:
+                            continue
+                        self._pending_boss_entity = ent
+                        self._show_boss_confirmation(ent)
+                        return
                     self._start_battle(ent)
                     return
 
@@ -675,9 +780,63 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         enter_local_scene(app, target, parent_scene=self.scene_id)
 
+    def _collect_nearby_enemies(self, center_entity):
+        """Собрать всех непобеждённых врагов в радиусе AGGRO_RADIUS от центрального."""
+        cx, cy = center_entity["x"], center_entity["y"]
+        group = [center_entity]
+        for ent in self._entities:
+            if ent is center_entity:
+                continue
+            if ent["defeated"] or ent.get("type") != "enemy":
+                continue
+            dx = ent["x"] - cx
+            dy = ent["y"] - cy
+            dist = (dx * dx + dy * dy) ** 0.5
+            if dist <= AGGRO_RADIUS:
+                group.append(ent)
+        return group
+
+    def _show_boss_confirmation(self, entity):
+        """Показать диалог подтверждения перед боем с боссом."""
+        self._paused = True
+        boss_name = entity.get("name", "босс")
+        content = BoxLayout(orientation='vertical', spacing=dp(15), padding=dp(20))
+        content.add_widget(Label(
+            text=f"Вы встретили {boss_name}.\nНачать битву?",
+            text_size=(dp(280), None),
+            halign='center',
+            valign='middle',
+            font_size=dp(18),
+        ))
+        btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+        btn_yes = Button(text='Да, в бой!')
+        btn_no = Button(text='Нет, отойти')
+        btn_yes.bind(on_press=lambda _: self._confirm_boss_battle(entity, popup))
+        btn_no.bind(on_press=lambda _: self._cancel_boss_battle(popup))
+        btn_layout.add_widget(btn_yes)
+        btn_layout.add_widget(btn_no)
+        content.add_widget(btn_layout)
+        popup = Popup(
+            title='👑 Босс!',
+            content=content,
+            size_hint=(0.7, 0.45),
+            auto_dismiss=False,
+        )
+        popup.open()
+
+    def _confirm_boss_battle(self, entity, popup):
+        popup.dismiss()
+        self._pending_boss_entity = None
+        self._start_battle(entity)
+
+    def _cancel_boss_battle(self, popup):
+        popup.dismiss()
+        self._pending_boss_entity = None
+        self._player_invincible_timer = 1.5
+        self._paused = False
+
     def _start_battle(self, entity):
-        """Начать бой с врагом или боссом."""
-        self._current_entity = entity
+        """Начать бой с врагом или боссом. Втягивает соседних врагов в радиус аггро."""
         self._returning_from_battle = True
         app = App.get_running_app()
         player = app.game.player if app.game else None
@@ -686,7 +845,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             positions = []
             creatures = []
             for e in self._entities:
-                if e.get("type") in ("enemy", "boss") and not e["defeated"]:
+                if e.get("type") == "enemy" and not e["defeated"]:
                     positions.append((e["x_norm"], e["y_norm"]))
                     creatures.append(e.get("creature"))
             if positions:
@@ -694,19 +853,31 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 player.last_enemy_creatures[self.scene_id] = creatures
 
         self._stop_loop()
-        creature = entity.get("creature")
-        if not app.game or not player or not creature:
+
+        etype = entity.get("type")
+        if etype == "boss":
+            battle_group = [entity]
+        else:
+            battle_group = self._collect_nearby_enemies(entity)
+
+        self._current_battle_group = battle_group
+        self._current_entity = battle_group[0]
+
+        creatures = [e.get("creature") for e in battle_group if e.get("creature")]
+        if not creatures or not app.game or not player:
             return
 
         try:
             from systems.battle import Battlefield
 
-            battlefield = Battlefield(player, [creature])
+            battlefield = Battlefield(player, creatures)
             app._battle_from_local_location = True
             app.battle_screen.from_local_location = True
-            title = entity.get("name", creature.name)
-            if entity.get("type") == "boss":
-                title = f"👑 {title}"
+            if etype == "boss":
+                title = f"👑 {entity.get('name', creatures[0].name)}"
+            else:
+                names = ", ".join(e.get("name", "?") for e in battle_group)
+                title = f"⚔️ {names}"
             app.battle_screen.start_battle(battlefield, title)
             self.manager.current = "battle"
         except Exception:
@@ -714,40 +885,81 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
             traceback.print_exc()
 
+    def prepare_defeat_state(self):
+        """Подготовить карту после поражения: стан врагам, бессмертие игроку, без возобновления цикла."""
+        if self._current_battle_group:
+            for ent in self._current_battle_group:
+                if ent.get("type") == "enemy":
+                    ent["stun_timer"] = STUN_DURATION
+            self._player_invincible_timer = INVINCIBILITY_DURATION
+
+        self._current_entity = None
+        self._current_battle_group = None
+
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        if player and self.scene_config and self.scene_config.scene_type == "combat":
+            positions = [
+                (e["x_norm"], e["y_norm"])
+                for e in self._entities
+                if e.get("type") == "enemy" and not e["defeated"]
+            ]
+            if positions:
+                player.last_enemy_positions[self.scene_id] = positions
+
+    def pause_game(self):
+        """Приостановить игровой цикл (пока открыт popup)."""
+        self._paused = True
+
+    def resume_game(self):
+        """Возобновить игровой цикл после закрытия popup."""
+        self._paused = False
+
     def on_return_from_battle(self):
-        """Возврат после боя."""
+        """Возврат после боя: при победе очищает врагов, при поражении — стан."""
         app = App.get_running_app()
         player = app.game.player if app.game else None
         victory = (
             getattr(app, "battle_result", None) and app.battle_result.victory
         )
 
-        if self._current_entity and victory:
-            etype = self._current_entity.get("type")
-            if etype == "boss":
-                self._current_entity["defeated"] = True
+        if victory and self._current_battle_group:
+            has_boss = False
+            for ent in self._current_battle_group:
+                etype = ent.get("type")
+                if etype == "boss":
+                    ent["defeated"] = True
+                    has_boss = True
+                elif etype == "enemy":
+                    ent["defeated"] = True
+                    self._defeated_enemies.add(ent["id"])
+            if has_boss and player and app.game:
                 try:
-                    if player and app.game:
-                        app.game.autosave()
+                    app.game.autosave()
                 except Exception:
                     pass
-            elif etype == "enemy":
-                self._current_entity["defeated"] = True
-                self._defeated_enemies.add(self._current_entity["id"])
+        elif self._current_battle_group:
+            for ent in self._current_battle_group:
+                if ent.get("type") == "enemy" and ent.get("stun_timer", 0) < 2.0:
+                    ent["stun_timer"] = 2.0
+            if self._player_invincible_timer < 2.0:
+                self._player_invincible_timer = 2.0
 
         self._current_entity = None
+        self._current_battle_group = None
         if player and self.scene_config and self.scene_config.scene_type == "combat":
             positions = [
                 (e["x_norm"], e["y_norm"])
                 for e in self._entities
-                if e.get("type") in ("enemy", "boss") and not e["defeated"]
+                if e.get("type") == "enemy" and not e["defeated"]
             ]
             if positions:
                 player.last_enemy_positions[self.scene_id] = positions
 
         if self._update_event:
             self._update_event.cancel()
-        self._update_event = Clock.schedule_interval(self._on_game_update, 1 / 60)
+        if not self._paused:
+            self._update_event = Clock.schedule_interval(self._on_game_update, 1 / 60)
 
     def _on_mouse_pos(self, window, pos):
         local_pos = self.to_local(*pos)
@@ -801,6 +1013,11 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     Ellipse(pos=(ent["x"] - r, ent["y"] - r), size=(r * 2, r * 2))
                     Color(0.7, 0.2, 0.05, 1)
                     Line(circle=(ent["x"], ent["y"], r), width=3)
+                elif ent.get("stun_timer", 0) > 0:
+                    Color(0.3, 0.5, 0.8, 0.6)
+                    Ellipse(pos=(ent["x"] - r, ent["y"] - r), size=(r * 2, r * 2))
+                    Color(0.2, 0.4, 0.7, 1)
+                    Line(circle=(ent["x"], ent["y"], r), width=2)
                 else:
                     Color(1, 0, 0, 0.7)
                     Ellipse(pos=(ent["x"] - r, ent["y"] - r), size=(r * 2, r * 2))
@@ -844,7 +1061,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             positions = [
                 (e["x_norm"], e["y_norm"])
                 for e in self._entities
-                if e.get("type") in ("enemy", "boss") and not e["defeated"]
+                if e.get("type") == "enemy" and not e["defeated"]
             ]
             if positions:
                 player.last_enemy_positions[self.scene_id] = positions
@@ -870,6 +1087,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         app = App.get_running_app()
         self._save_player_state()
         self._stop_loop()
+        self._returning_from_battle = False
+        self._player_invincible_timer = 0
+        self._paused = False
 
         if self.scene_config and self.scene_config.exit_target == "parent":
             parent = self.parent_scene_id or "city"
@@ -886,11 +1106,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 player.last_enemy_positions.pop(self.scene_id, None)
             if hasattr(player, "last_enemy_creatures"):
                 player.last_enemy_creatures.pop(self.scene_id, None)
+            if hasattr(player, "last_location_pos"):
+                player.last_location_pos.pop(self.scene_id, None)
 
         self.scene_id = None
         self.location_id = None
         self._entities = []
         self._current_entity = None
+        self._current_battle_group = None
+        self._pending_boss_entity = None
         self._target_pos = None
 
         try:

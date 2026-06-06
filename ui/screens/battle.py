@@ -540,6 +540,9 @@ class BattleScreen(Screen):
             return
         result = app.game.apply_death_penalty()
 
+        if getattr(app, '_battle_from_local_location', False) and getattr(app, 'local_location_screen', None):
+            app.local_location_screen.prepare_defeat_state()
+
         content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
         content.add_widget(Label(
             text=result.message,
@@ -551,6 +554,11 @@ class BattleScreen(Screen):
         def return_to_main_menu(instance):
             popup.dismiss()
             if getattr(app, '_battle_from_local_location', False):
+                try:
+                    if getattr(app, 'local_location_screen', None):
+                        app.local_location_screen.resume_game()
+                except Exception:
+                    pass
                 self.manager.current = 'local_location'
                 app._battle_from_local_location = False
             else:
@@ -567,39 +575,55 @@ class BattleScreen(Screen):
             auto_dismiss=False,
         )
         popup.open()
-    
+
     def return_to_game(self, victory=True):
-        """Возврат на главный экран."""
+        """Возврат на главный экран после боя."""
         app = App.get_running_app()
         if app.game and not victory:
             result = app.game.apply_death_penalty()
-            popup = Popup(
-                title='🤕 Вы были оглушены',
-                content=Label(
-                    text=result.message,
-                    text_size=(None, None),
-                    halign='center',
-                    valign='middle',
-                    font_size=dp(18),
-                ),
-                size_hint=(0.8, 0.6),
-                auto_dismiss=False,
-            )
 
-            def close_popup(instance):
+            if getattr(app, '_battle_from_local_location', False) and getattr(app, 'local_location_screen', None):
+                app.local_location_screen.prepare_defeat_state()
+
+            content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
+            content.add_widget(Label(
+                text=result.message,
+                text_size=(dp(300), None),
+                halign='center',
+                valign='middle',
+                font_size=dp(18),
+            ))
+
+            def close_and_return(instance):
                 popup.dismiss()
+                if getattr(app, '_battle_from_local_location', False):
+                    try:
+                        if getattr(app, 'local_location_screen', None):
+                            app.local_location_screen.resume_game()
+                    except Exception:
+                        pass
+                    self.manager.current = 'local_location'
+                    app._battle_from_local_location = False
+                else:
+                    self.manager.current = 'location_select'
 
             btn_continue = Button(
                 text='Продолжить',
                 size_hint_y=None,
                 height=dp(50),
             )
-            btn_continue.bind(on_press=close_popup)
-            popup.content.add_widget(btn_continue)
-            popup.open()
+            btn_continue.bind(on_press=close_and_return)
+            content.add_widget(btn_continue)
 
-        # Return to appropriate screen after battle
-        app = App.get_running_app()
+            popup = Popup(
+                title='🤕 Вы были оглушены',
+                content=content,
+                size_hint=(0.8, 0.6),
+                auto_dismiss=False,
+            )
+            popup.open()
+            return
+
         if getattr(app, '_battle_from_local_location', False):
             try:
                 if getattr(app, 'local_location_screen', None):
