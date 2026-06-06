@@ -14,6 +14,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.metrics import dp
 
 from ui.ui_styles import StyledButton, StyledLabel, COLORS
+from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.widgets.navigation_buttons import (
     add_back_to_map_button,
     add_back_to_city_button,
@@ -24,7 +25,7 @@ from data.items import (
 )
 
 
-class ShopScreen(Screen):
+class ShopScreen(Screen, KeyboardHandler):
     """Экран магазина."""
 
     def __init__(self, **kwargs):
@@ -86,9 +87,20 @@ class ShopScreen(Screen):
         layout.add_widget(scroll)
 
         self.add_widget(layout)
-        add_back_to_map_button(self, self.manager)
+        self._btn_back_map = add_back_to_map_button(self, self.manager)
         add_back_to_city_button(self, self.manager)
         self.current_tab = "buy"
+        self.bind_keyboard()
+
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        if action in ("exit_location", "open_menu", "open_locations") and pressed:
+            try:
+                if getattr(self, "_btn_back_map", None):
+                    self._btn_back_map.trigger_action(duration=0)
+                    return True
+            except Exception:
+                pass
+        return False
 
     def update_shop(self):
         self.show_buy()

@@ -31,6 +31,9 @@ class GameScreen(Screen, KeyboardHandler):
         self.battlefield = None
         self.controls = HybridControlManager()
         self.bind_keyboard()
+        self._kb_location_ids = []
+        self._kb_location_index = 0
+        self._kb_selected_location = None
         
         main_layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
         
@@ -76,6 +79,14 @@ class GameScreen(Screen, KeyboardHandler):
         # Интерактивная карта
         self.map_widget = MapWidget(self, size_hint_x=0.6)
         content_layout.add_widget(self.map_widget)
+        try:
+            self._kb_location_ids = self.map_widget.get_location_ids()
+            if self._kb_location_ids:
+                self._kb_location_index = 0
+                self._kb_selected_location = self._kb_location_ids[0]
+                self.map_widget.set_selected_location(self._kb_selected_location)
+        except Exception:
+            pass
         
         # Кнопки меню с улучшенным дизайном
         menu_layout = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_x=0.4)
@@ -154,6 +165,17 @@ class GameScreen(Screen, KeyboardHandler):
         main_layout.add_widget(content_layout)
         
         self.add_widget(main_layout)
+
+    def _kb_select_location_delta(self, delta: int) -> bool:
+        if not self._kb_location_ids:
+            return False
+        self._kb_location_index = (self._kb_location_index + delta) % len(self._kb_location_ids)
+        self._kb_selected_location = self._kb_location_ids[self._kb_location_index]
+        try:
+            self.map_widget.set_selected_location(self._kb_selected_location)
+        except Exception:
+            pass
+        return True
     
     def update_game_state(self):
         """Обновление отображения состояния игры."""
@@ -169,20 +191,47 @@ class GameScreen(Screen, KeyboardHandler):
     
     def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
         """Обработка клавиатурных действий."""
-        if action == "move_up":
-            self.controls.handle_keyboard('w', pressed)
+        if action == "move_up" and pressed:
+            return self._kb_select_location_delta(-1)
+        elif action == "move_down" and pressed:
+            return self._kb_select_location_delta(1)
+        elif action == "move_left" and pressed:
+            return self._kb_select_location_delta(-1)
+        elif action == "move_right" and pressed:
+            return self._kb_select_location_delta(1)
+        elif action == "enter_location" and pressed:
+            if self._kb_selected_location:
+                self.enter_location(self._kb_selected_location)
             return True
-        elif action == "move_down":
-            self.controls.handle_keyboard('s', pressed)
+        elif action == "open_inventory" and pressed:
+            self.on_inventory(None)
             return True
-        elif action == "move_left":
-            self.controls.handle_keyboard('a', pressed)
+        elif action == "open_status" and pressed:
+            self.on_status(None)
             return True
-        elif action == "move_right":
-            self.controls.handle_keyboard('d', pressed)
+        elif action == "open_companions" and pressed:
+            self.on_companions(None)
             return True
-        elif action == "enter_location":
-            self.enter_location('forest')
+        elif action == "open_quests" and pressed:
+            self.on_active_quests(None)
+            return True
+        elif action == "open_locations" and pressed:
+            self.on_locations(None)
+            return True
+        elif action == "open_save" and pressed:
+            self.on_save(None)
+            return True
+        elif action in ("open_menu", "exit_location") and pressed:
+            try:
+                app = App.get_running_app()
+                if getattr(app, "game", None) and getattr(app.game, "player", None):
+                    app.game.autosave()
+            except Exception:
+                pass
+            try:
+                self.manager.current = "main_menu"
+            except Exception:
+                pass
             return True
         return False
     

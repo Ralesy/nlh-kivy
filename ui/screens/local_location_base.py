@@ -28,11 +28,12 @@ from data.local_scenes import (
     LOCATION_BOSSES,
     build_scene_config,
 )
+from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.ui_styles import BUTTONS_DIR, COLORS
 from ui.widgets.cover_background import cover_background_image
 
 
-class LocalLocationScreen(Screen):
+class LocalLocationScreen(Screen, KeyboardHandler):
     """Проходимая локальная карта с сущностями и зонами перехода."""
 
     def __init__(self, **kwargs):
@@ -51,6 +52,8 @@ class LocalLocationScreen(Screen):
         self._update_event = None
         self._returning_from_battle = False
         self._active_zone = None
+        self._move = {"up": False, "down": False, "left": False, "right": False}
+        self.bind_keyboard()
 
         self.btn_zone_action = Button(
             text="Войти",
@@ -102,6 +105,7 @@ class LocalLocationScreen(Screen):
         self._load_background()
 
         self._target_pos = None
+        self._move = {"up": False, "down": False, "left": False, "right": False}
         self._entities = []
         self._current_entity = None
         self._active_zone = None
@@ -160,6 +164,42 @@ class LocalLocationScreen(Screen):
         if self._update_event:
             self._update_event.cancel()
         self._update_event = Clock.schedule_interval(self._on_game_update, 1 / 60)
+
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        if action == "move_up":
+            self._move["up"] = pressed
+            return True
+        if action == "move_down":
+            self._move["down"] = pressed
+            return True
+        if action == "move_left":
+            self._move["left"] = pressed
+            return True
+        if action == "move_right":
+            self._move["right"] = pressed
+            return True
+        if action == "enter_location" and pressed:
+            self._on_zone_action()
+            return True
+        if action == "exit_location" and pressed:
+            self._on_exit_location()
+            return True
+        if action == "open_inventory" and pressed:
+            self._open_inventory()
+            return True
+        if action == "open_status" and pressed:
+            self._open_status()
+            return True
+        if action == "open_companions" and pressed:
+            self._open_companions()
+            return True
+        if action == "open_quests" and pressed:
+            self._open_quests()
+            return True
+        if action == "open_locations" and pressed:
+            self._on_exit_location()
+            return True
+        return False
 
     def _resolve_scene_background(self) -> Optional[str]:
         """Найти фон только среди путей из конфига сцены (без fallback на другие локации)."""
@@ -508,7 +548,16 @@ class LocalLocationScreen(Screen):
 
         self._sync_entity_positions()
 
-        if self._target_pos:
+        mx = (1 if self._move["right"] else 0) - (1 if self._move["left"] else 0)
+        my = (1 if self._move["up"] else 0) - (1 if self._move["down"] else 0)
+        if mx or my:
+            self._target_pos = None
+            length = (mx * mx + my * my) ** 0.5
+            if length:
+                speed = dp(200) * dt
+                self._player_pos[0] += (mx / length) * speed
+                self._player_pos[1] += (my / length) * speed
+        elif self._target_pos:
             dx = self._target_pos[0] - self._player_pos[0]
             dy = self._target_pos[1] - self._player_pos[1]
             distance = (dx**2 + dy**2) ** 0.5

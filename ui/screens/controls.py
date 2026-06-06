@@ -90,8 +90,13 @@ class ControlsScreen(Screen, KeyboardHandler):
         self.build_ui()
 
     def start_rebind(self, action: str, button: Button):
-        def on_key_down(window, key, scancode, codepoint, modifiers):
-            key_name = codepoint.lower() if codepoint else str(key)
+        def on_key_down(window, keycode, scancode, codepoint, modifiers):
+            if isinstance(keycode, (tuple, list)) and len(keycode) >= 2:
+                key_name = str(keycode[1]).lower()
+            elif codepoint:
+                key_name = codepoint.lower()
+            else:
+                key_name = str(keycode).lower()
             key_manager.set_binding(action, key_name)
             button.text = key_name
             window.unbind(on_key_down=on_key_down)

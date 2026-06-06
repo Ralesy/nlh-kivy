@@ -24,9 +24,10 @@ from data.locations import LocationManager
 from data.local_scenes import COMBAT_SCENES, enter_local_scene, resolve_global_map_background
 from ui.widgets.cover_background import cover_background_image
 from ui.widgets.danger_bar import DangerBar
+from ui.bindings.keyboard_handler import KeyboardHandler
 
 
-class LocationSelectScreen(Screen):
+class LocationSelectScreen(Screen, KeyboardHandler):
     """Экран выбора локации с информацией."""
     
     def __init__(self, **kwargs):
@@ -40,6 +41,9 @@ class LocationSelectScreen(Screen):
         self._move_ev = None
         self._move_speed = dp(147)  # pixels per second (1.5x slower than 220)
         self._enter_btn = None
+        self._kb_move = {"up": False, "down": False, "left": False, "right": False}
+        self._kb_move_ev = None
+        self.bind_keyboard()
         # positions on the map (normalized 0..1) for location hotspots
         self._map_positions = {
             # NOTE: normalized coordinates (0..1) in map_overlay space,
@@ -105,6 +109,215 @@ class LocationSelectScreen(Screen):
 
         # bottom controls removed (status button relocated to map overlay)
         self.add_widget(main_layout)
+
+    def _start_kb_move(self):
+        if getattr(self, "_kb_move_ev", None):
+            return
+        self._kb_move_ev = Clock.schedule_interval(self._kb_move_tick, 1.0 / 60.0)
+
+    def _stop_kb_move(self):
+        if getattr(self, "_kb_move_ev", None):
+            try:
+                self._kb_move_ev.cancel()
+            except Exception:
+                pass
+            self._kb_move_ev = None
+
+    def _kb_move_tick(self, dt):
+        if not getattr(self, "_player_marker", None) or not getattr(self, "map_overlay", None):
+            self._stop_kb_move()
+            return
+
+        mx = (1 if self._kb_move["right"] else 0) - (1 if self._kb_move["left"] else 0)
+        my = (1 if self._kb_move["up"] else 0) - (1 if self._kb_move["down"] else 0)
+        if not (mx or my):
+            self._stop_kb_move()
+            return
+
+        if getattr(self, "_destination", None):
+            self._destination = None
+            self._stop_moving()
+
+        try:
+            app = App.get_running_app()
+            if getattr(app, "game", None) and getattr(app.game, "danger_manager", None):
+                ambush = app.game.danger_manager.update(dt, app.game.location_manager)
+                if ambush:
+                    self._trigger_ambush(ambush)
+                    return
+        except Exception:
+            pass
+
+        length = (mx * mx + my * my) ** 0.5
+        if not length:
+            return
+
+        speed = dp(220) * dt
+        pm = self._player_marker
+        nx = pm.pos[0] + (mx / length) * speed
+        ny = pm.pos[1] + (my / length) * speed
+
+        nx = max(0, min(nx, max(0, self.map_overlay.width - pm.width)))
+        ny = max(0, min(ny, max(0, self.map_overlay.height - pm.height)))
+        pm.pos = (nx, ny)
+
+        if getattr(self, "_player_label", None):
+            try:
+                cx = nx + pm.size[0] / 2
+                cy = ny + pm.size[1] / 2
+                player_label = self._player_label
+                label_x = cx - player_label.size[0] / 2
+                label_y = cy + pm.size[1] + dp(5)
+                player_label.pos = (label_x, label_y)
+            except Exception:
+                pass
+
+        self._update_enter_button()
+
+    def _nearest_hotspot(self):
+        try:
+            if not getattr(self, "_player_marker", None):
+                return None, None
+            pm = self._player_marker
+            cx = pm.pos[0] + pm.size[0] / 2
+            cy = pm.pos[1] + pm.size[1] / 2
+            nearest = None
+            nearest_dist = None
+            for btn in getattr(self, "_hotspot_buttons", []):
+                try:
+                    bx = btn.pos[0] + btn.size[0] / 2
+                    by = btn.pos[1] + btn.size[1] / 2
+                    d = ((bx - cx) ** 2 + (by - cy) ** 2) ** 0.5
+                    if nearest is None or d < nearest_dist:
+                        nearest = btn
+                        nearest_dist = d
+                except Exception:
+                    continue
+            return nearest, nearest_dist
+        except Exception:
+            return None, None
+
+    def _move_to_nearest_hotspot(self):
+        nearest, _dist = self._nearest_hotspot()
+        if not nearest:
+            return False
+        try:
+            bx = nearest.pos[0] + nearest.size[0] / 2
+            by = nearest.pos[1] + nearest.size[1] / 2
+            self._destination = (bx, by)
+            self._start_moving()
+            return True
+        except Exception:
+            return False
+
+    def _exit_to_menu(self):
+        app = App.get_running_app()
+        try:
+            if getattr(app, "game", None) and getattr(app.game, "player", None):
+                app.game.autosave()
+        except Exception:
+            pass
+        try:
+            if getattr(app, "hud", None):
+                try:
+                    app.hud.unbind_player()
+                except Exception:
+                    app.hud.opacity = 0
+        except Exception:
+            pass
+        self.manager.current = "main_menu"
+
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        if action == "move_up":
+            self._kb_move["up"] = pressed
+            (self._start_kb_move() if pressed else None)
+            return True
+        if action == "move_down":
+            self._kb_move["down"] = pressed
+            (self._start_kb_move() if pressed else None)
+            return True
+        if action == "move_left":
+            self._kb_move["left"] = pressed
+            (self._start_kb_move() if pressed else None)
+            return True
+        if action == "move_right":
+            self._kb_move["right"] = pressed
+            (self._start_kb_move() if pressed else None)
+            return True
+
+        if action == "enter_location" and pressed:
+            eb = getattr(self, "_enter_btn", None)
+            if eb and getattr(eb, "opacity", 0) > 0.5:
+                loc_id = getattr(eb, "_target_loc_id", None)
+                if loc_id:
+                    self.on_select_location(loc_id)
+                    return True
+            return bool(self._move_to_nearest_hotspot())
+
+        if action == "open_inventory" and pressed:
+            from ui.widgets.navigation_buttons import prepare_inventory_navigation
+            app = App.get_running_app()
+            prepare_inventory_navigation("location_select")
+            if getattr(app, "inventory_screen", None):
+                try:
+                    app.inventory_screen.update_inventory()
+                except Exception:
+                    pass
+            if getattr(app, "game", None) and getattr(app.game, "player", None):
+                self.manager.current = "inventory"
+            return True
+
+        if action == "open_status" and pressed:
+            app = App.get_running_app()
+            if getattr(app, "status_screen", None):
+                try:
+                    app.status_screen.update_status()
+                except Exception:
+                    pass
+            if getattr(app, "game", None) and getattr(app.game, "player", None):
+                self.manager.current = "status"
+            return True
+
+        if action == "open_companions" and pressed:
+            app = App.get_running_app()
+            if getattr(app, "companion_management_screen", None):
+                try:
+                    app.companion_management_screen.update_companion()
+                except Exception:
+                    pass
+            if getattr(app, "game", None) and getattr(app.game, "player", None):
+                self.manager.current = "companion_management"
+            return True
+
+        if action == "open_quests" and pressed:
+            app = App.get_running_app()
+            if getattr(app, "active_quests_screen", None):
+                try:
+                    app.active_quests_screen.update_quests()
+                except Exception:
+                    pass
+            if getattr(app, "game", None) and getattr(app.game, "player", None):
+                self.manager.current = "active_quests"
+            return True
+
+        if action == "open_menu" and pressed:
+            self._exit_to_menu()
+            return True
+
+        if action == "open_save" and pressed:
+            app = App.get_running_app()
+            try:
+                if getattr(app, "game", None) and getattr(app.game, "player", None):
+                    app.game.autosave()
+            except Exception:
+                pass
+            return True
+
+        if action == "exit_location" and pressed:
+            self._exit_to_menu()
+            return True
+
+        return False
     
     def update_locations(self):
         """Обновление списка локаций."""

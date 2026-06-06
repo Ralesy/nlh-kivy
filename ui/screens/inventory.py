@@ -15,6 +15,7 @@ from kivy.clock import Clock
 from kivy.metrics import dp
 
 from ui.ui_styles import COLORS
+from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.widgets.navigation_buttons import (
     add_back_to_map_button,
     add_back_to_city_button,
@@ -26,7 +27,7 @@ from data.items import (
 )
 
 
-class InventoryScreen(Screen):
+class InventoryScreen(Screen, KeyboardHandler):
     """Экран инвентаря."""
 
     def __init__(self, **kwargs):
@@ -72,10 +73,21 @@ class InventoryScreen(Screen):
         self._btn_back_map = add_back_to_map_button(self, self.manager)
         self._btn_back_city = add_back_to_city_button(self, self.manager)
         sync_inventory_city_button(self._btn_back_city)
+        self.bind_keyboard()
 
     def on_enter(self, *args):
         """Скрыть «в город», если инвентарь открыт с карты или локации."""
         sync_inventory_city_button(self._btn_back_city)
+
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        if action in ("exit_location", "open_menu", "open_locations") and pressed:
+            try:
+                if getattr(self, "_btn_back_map", None):
+                    self._btn_back_map.trigger_action(duration=0)
+                    return True
+            except Exception:
+                pass
+        return False
 
     def update_inventory(self):
         app = App.get_running_app()

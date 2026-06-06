@@ -51,6 +51,9 @@ class MapWidget(BoxLayout):
         self.orientation = 'vertical'
         self.spacing = dp(8)
         self.padding = dp(12)
+        self._buttons = {}
+        self._base_colors = {}
+        self._selected_loc_id = None
         
         with self.canvas.before:
             Color(0.15, 0.2, 0.15, 1)
@@ -83,8 +86,27 @@ class MapWidget(BoxLayout):
             btn.bind(on_press=lambda x, loc=loc_id: self.game_screen.enter_location(loc))
             loc_box.add_widget(btn)
             locations_layout.add_widget(loc_box)
+            self._buttons[loc_id] = btn
+            self._base_colors[loc_id] = info['color']
         
         self.add_widget(locations_layout)
+
+    def get_location_ids(self):
+        return list(self._buttons.keys())
+
+    def set_selected_location(self, loc_id):
+        self._selected_loc_id = loc_id
+        for lid, btn in self._buttons.items():
+            base = self._base_colors.get(lid, (1, 1, 1, 1))
+            if lid == loc_id:
+                btn.background_color = (
+                    min(base[0] * 1.25, 1),
+                    min(base[1] * 1.25, 1),
+                    min(base[2] * 1.25, 1),
+                    base[3],
+                )
+            else:
+                btn.background_color = base
     
     def update_bg(self, *args):
         self.bg_rect.pos = self.pos

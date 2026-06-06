@@ -31,11 +31,49 @@ def _keycode_to_char(keycode) -> str:
     return mapping.get(keycode, "")
 
 
+def _keycode_to_name(keycode) -> str:
+    if not keycode:
+        return ""
+    if isinstance(keycode, (tuple, list)) and len(keycode) >= 2:
+        return str(keycode[1]).lower()
+    if isinstance(keycode, str):
+        return keycode.lower()
+    if isinstance(keycode, int):
+        return _keycode_to_char(keycode)
+    return str(keycode).lower()
+
+
+def _resolve_action_from_event(keycode, scancode, codepoint):
+    key_str = None
+    action = None
+
+    if codepoint and isinstance(codepoint, str):
+        cp = codepoint.lower()
+        action = key_manager.get_action_for_key(cp)
+        key_str = cp
+
+    if not action:
+        kc = _keycode_to_name(keycode)
+        if kc:
+            action = key_manager.get_action_for_key(kc)
+            key_str = kc
+
+    if not action and scancode:
+        sc = _scancode_to_keyname(scancode)
+        if sc:
+            action = key_manager.get_action_for_key(sc)
+            key_str = sc
+
+    return action, key_str
+
+
+
 def _scancode_to_keyname(scancode) -> str:
     """Преобразовать Kivy scancode в строковое имя клавиши."""
     mapping = {
         27: "escape",
         13: "enter",
+        271: "enter",
         8: "backspace",
         9: "tab",
         32: "space",
@@ -66,26 +104,11 @@ def _get_screen_manager(app):
     return None
 
 
-def _global_key_down(window, key, scancode, codepoint, modifiers):
+def _global_key_down(window, keycode, scancode, codepoint, modifiers):
     """Глобальный обработчик key_down - вызывает handle_keyboard_action текущего экрана."""
     global _kb_pressed_global, _keyboard_bound
 
-    action = None
-    key_str = None
-
-    if codepoint:
-        action = key_manager.get_action_for_key(codepoint)
-        key_str = codepoint.lower()
-    else:
-        key_str = _keycode_to_char(key)
-        if key_str:
-            action = key_manager.get_action_for_key(key_str)
-
-    if not action and scancode:
-        sc_str = _scancode_to_keyname(scancode)
-        if sc_str:
-            action = key_manager.get_action_for_key(sc_str)
-            key_str = sc_str
+    action, key_str = _resolve_action_from_event(keycode, scancode, codepoint)
 
     if key_str:
         _kb_pressed_global[key_str] = True
@@ -104,35 +127,29 @@ def _global_key_down(window, key, scancode, codepoint, modifiers):
     return False
 
 
-def _global_key_up(window, key, scancode):
+def _global_key_up(window, keycode, *args):
     """Глобальный обработчик key_up - сбрасывает состояние клавиши."""
     global _kb_pressed_global
 
-    key_str = _keycode_to_char(key)
-    if not key_str:
-        key_str = _scancode_to_keyname(scancode)
+    scancode = args[0] if len(args) >= 1 else None
+    action, key_str = _resolve_action_from_event(keycode, scancode, None)
 
     if key_str:
         _kb_pressed_global[key_str] = False
 
-    if key_str in ['w', 'a', 's', 'd']:
-        action_map = {
-            'w': 'move_up', 'a': 'move_left',
-            's': 'move_down', 'd': 'move_right',
-        }
-        action = action_map.get(key_str)
-        if action:
-            try:
-                from kivy.app import App
-                app = App.get_running_app()
-                sm = _get_screen_manager(app)
-                if sm:
-                    screen = sm.get_screen(sm.current)
-                    if screen and hasattr(screen, 'handle_keyboard_action'):
-                        screen.handle_keyboard_action(action, pressed=False)
-            except Exception:
-                pass
-    return False
+    handled = False
+    if action:
+        try:
+            from kivy.app import App
+            app = App.get_running_app()
+            sm = _get_screen_manager(app)
+            if sm:
+                screen = sm.get_screen(sm.current)
+                if screen and hasattr(screen, "handle_keyboard_action"):
+                    handled = bool(screen.handle_keyboard_action(action, pressed=False))
+        except Exception:
+            pass
+    return handled
 
 
 class KeyboardHandler:

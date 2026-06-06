@@ -14,10 +14,11 @@ from kivy.uix.popup import Popup
 from kivy.metrics import dp
 
 from ui.ui_styles import COLORS
+from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.widgets.navigation_buttons import add_back_to_map_button, add_back_to_city_button
 from systems.npcs import NPCManager
 
-class TavernScreen(Screen):
+class TavernScreen(Screen, KeyboardHandler):
     """Экран таверны."""
     
     def __init__(self, **kwargs):
@@ -86,11 +87,22 @@ class TavernScreen(Screen):
         
         self.add_widget(layout)
         # add map and city return buttons in top-left
-        add_back_to_map_button(self, self.manager)
+        self._btn_back_map = add_back_to_map_button(self, self.manager)
         add_back_to_city_button(self, self.manager)
         self.current_tab = 'npcs'
         self.npc_manager = None
         self.game_result_label = None
+        self.bind_keyboard()
+
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        if action in ("exit_location", "open_menu", "open_locations") and pressed:
+            try:
+                if getattr(self, "_btn_back_map", None):
+                    self._btn_back_map.trigger_action(duration=0)
+                    return True
+            except Exception:
+                pass
+        return False
     
     def update_tavern(self):
         if not self.npc_manager:

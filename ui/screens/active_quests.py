@@ -11,9 +11,10 @@ from kivy.uix.scrollview import ScrollView
 from kivy.graphics import Color, Rectangle
 from kivy.metrics import dp
 
+from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.widgets.navigation_buttons import add_back_to_map_button
 
-class ActiveQuestsScreen(Screen):
+class ActiveQuestsScreen(Screen, KeyboardHandler):
     """Экран активных квестов."""
     
     def __init__(self, **kwargs):
@@ -66,7 +67,18 @@ class ActiveQuestsScreen(Screen):
         self.add_widget(main_layout)
         # Кнопка назад
         # replace old bottom back with edge 'Back to Map' button
-        add_back_to_map_button(self, self.manager)
+        self._btn_back_map = add_back_to_map_button(self, self.manager)
+        self.bind_keyboard()
+
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        if action in ("exit_location", "open_menu", "open_locations") and pressed:
+            try:
+                if getattr(self, "_btn_back_map", None):
+                    self._btn_back_map.trigger_action(duration=0)
+                    return True
+            except Exception:
+                pass
+        return False
     
     def update_quests(self):
         """Обновить список активных квестов."""

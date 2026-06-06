@@ -13,9 +13,10 @@ from kivy.graphics import Color, Rectangle
 from kivy.metrics import dp
 
 from ui.ui_styles import COLORS
+from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.widgets.navigation_buttons import add_back_to_map_button
 
-class CityMenuScreen(Screen):
+class CityMenuScreen(Screen, KeyboardHandler):
     """Меню города с казино, таверной и магазином."""
     
     def __init__(self, **kwargs):
@@ -68,7 +69,18 @@ class CityMenuScreen(Screen):
         self.add_widget(layout)
 
         # add edge 'Back to Map' button after layout so it's on top
-        add_back_to_map_button(self, self.manager)
+        self._btn_back_map = add_back_to_map_button(self, self.manager)
+        self.bind_keyboard()
+
+    def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
+        if action in ("exit_location", "open_menu", "open_locations") and pressed:
+            try:
+                if getattr(self, "_btn_back_map", None):
+                    self._btn_back_map.trigger_action(duration=0)
+                    return True
+            except Exception:
+                pass
+        return False
     
     def on_tavern(self, instance):
         app = App.get_running_app()
