@@ -8,12 +8,10 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle
-from kivy.clock import Clock
 from kivy.metrics import dp
 
 from ui.ui_styles import COLORS
 from ui.bindings.player_observer import PlayerViewModel
-from ui.widgets.level_up_popup import LevelUpPopup
 
 
 class GameHUD(BoxLayout):
@@ -218,9 +216,6 @@ class GameHUD(BoxLayout):
 
     def _on_vm_level(self, instance, value) -> None:
         self.level_label.text = f"Lvl: {value}"
-        player = self._bound_player or getattr(self._view_model, '_player', None)
-        if value > self._last_level and player and getattr(player, 'skill_points_available', 0) > 0:
-            Clock.schedule_once(lambda dt: LevelUpPopup(player).open(), 0.05)
         self._last_level = value
 
     def _on_vm_health(self, instance, value) -> None:

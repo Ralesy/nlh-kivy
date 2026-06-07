@@ -663,23 +663,25 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
                 def _place_pm(dt=None):
                     try:
+                        if getattr(self, '_position_set', False):
+                            return
                         w = max(1, self.map_overlay.width)
                         h = max(1, self.map_overlay.height)
-                        self._player_world_x = float(w * adj_cx)
-                        self._player_world_y = float(h * adj_cy)
+                        self._player_world_x = float(w * 0.25)
+                        self._player_world_y = float(h * 0.60)
                         self._cam_target_x = self._player_world_x
                         self._cam_target_y = self._player_world_y
                         self._cam_x = self._player_world_x
                         self._cam_y = self._player_world_y
-                        # Set marker to correct screen position
                         sx, sy = self._world_to_screen(self._player_world_x, self._player_world_y)
                         pm.pos = (sx - pm.width / 2, sy - pm.height / 2)
                         _update_pm()
+                        self._position_set = True
                     except Exception:
                         pass
 
                 Clock.schedule_once(_place_pm, 0.06)
-                self.map_overlay.bind(size=lambda i, v: _place_pm())
+                self.map_overlay.bind(size=self._reposition_marker_on_resize)
         except Exception:
             pass
 
@@ -1017,6 +1019,23 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         except Exception:
             pass
 
+    def _reposition_marker_on_resize(self, instance, new_size):
+        """Безопасный обработчик ресайза: не меняет мировые координаты,
+        только пересчитывает экранную позицию маркера."""
+        try:
+            pm = self._player_marker
+            if not pm:
+                return
+            sx, sy = self._world_to_screen(self._player_world_x, self._player_world_y)
+            pm.pos = (sx - pm.width / 2, sy - pm.height / 2)
+            if getattr(self, '_player_label', None):
+                player_label = self._player_label
+                label_x = sx - player_label.width / 2
+                label_y = sy + pm.size[1] + dp(5)
+                player_label.pos = (label_x, label_y)
+        except Exception:
+            pass
+
     def _start_moving(self):
         try:
             if getattr(self, '_move_ev', None):
@@ -1166,6 +1185,12 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             popup.open()
             return
 
+        player = app.game.player
+        player.last_global_pos = (
+            self._player_world_x / max(1, self.map_overlay.width),
+            self._player_world_y / max(1, self.map_overlay.height),
+        )
+
         try:
             location_mgr = app.game.location_manager
             if not location_mgr.is_location_available(loc_id):
@@ -1227,6 +1252,27 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
     def on_enter(self):
         """Обновить карту при входе на экран."""
+        try:
+            app = App.get_running_app()
+            player = app.game.player if app.game else None
+            gp = player.last_global_pos if player else None
+            if gp and hasattr(self, 'map_overlay') and hasattr(self, '_player_marker'):
+                w = max(1, self.map_overlay.width)
+                h = max(1, self.map_overlay.height)
+                self._player_world_x = float(w * gp[0])
+                self._player_world_y = float(h * gp[1])
+                self._cam_target_x = self._player_world_x
+                self._cam_target_y = self._player_world_y
+                self._cam_x = self._player_world_x
+                self._cam_y = self._player_world_y
+                pm = self._player_marker
+                sx, sy = self._world_to_screen(self._player_world_x, self._player_world_y)
+                pm.pos = (sx - pm.width / 2, sy - pm.height / 2)
+                player.last_global_pos = None
+                self._position_set = True
+        except Exception:
+            pass
+
         try:
             self.update_locations()
         except Exception:

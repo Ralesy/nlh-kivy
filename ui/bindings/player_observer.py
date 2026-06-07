@@ -24,6 +24,7 @@ class PlayerViewModel(EventDispatcher):
     coins = NumericProperty(0)
     experience = NumericProperty(0)
     xp_required = NumericProperty(0)
+    move_speed = NumericProperty(200)
     name = StringProperty("")
 
     def __init__(self, **kwargs):
@@ -59,6 +60,7 @@ class PlayerViewModel(EventDispatcher):
         self.max_health = player.max_health
         self.damage = player.damage
         self.defense = player.defense
+        self.move_speed = player.move_speed
         self.coins = player.coins
         self.experience = player.experience
         self.xp_required = player.level * 100 if player.level else 0

@@ -132,10 +132,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._active_zone = None
         self.btn_zone_action.opacity = 0
         self.btn_zone_action.text = "Войти"
+        self._chase_block_label = None
 
-        if self._returning_from_battle:
+        is_combat = self.scene_config and self.scene_config.scene_type == "combat"
+
+        if self._returning_from_battle and is_combat:
             pass
-        elif self.scene_config and self.scene_config.scene_type == "combat":
+        elif is_combat:
             self._player_pos = [self.width * ENTRY_POINT_X, self.height * ENTRY_POINT_Y]
         else:
             player = app.game.player if app.game else None
@@ -162,6 +165,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if player and self.scene_config and self.scene_config.scene_type == "combat":
                 player.last_location_visited = self.scene_id
 
+        self._ensure_safe_spawn()
         self._init_ui()
         self.layout.add_widget(self.btn_zone_action)
         self.layout.add_widget(self._hover_widget)
@@ -583,13 +587,17 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         self._sync_entity_positions()
 
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        base_speed = player.move_speed if player else 200
+
         mx = (1 if self._move["right"] else 0) - (1 if self._move["left"] else 0)
         my = (1 if self._move["up"] else 0) - (1 if self._move["down"] else 0)
         if mx or my:
             self._target_pos = None
             length = (mx * mx + my * my) ** 0.5
             if length:
-                speed = dp(200) * dt
+                speed = dp(base_speed) * dt
                 self._player_pos[0] += (mx / length) * speed
                 self._player_pos[1] += (my / length) * speed
         elif self._target_pos:
@@ -599,7 +607,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if distance < dp(8):
                 self._target_pos = None
             else:
-                speed = dp(200) * dt
+                speed = dp(base_speed) * dt
                 move_dist = min(speed, distance)
                 self._player_pos[0] += (dx / distance) * move_dist
                 self._player_pos[1] += (dy / distance) * move_dist
@@ -804,6 +812,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if not target:
             return
         app = App.get_running_app()
+        self._returning_from_battle = False
         self._save_player_state()
         self._stop_loop()
         from data.local_scenes import enter_local_scene
@@ -1117,6 +1126,32 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     self._player_pos[1] + pr + dp(5),
                 )
 
+    def _ensure_safe_spawn(self) -> None:
+        """Сместить врагов, чья зона аггра перекрывает точку спавна игрока."""
+        if not self.scene_config or self.scene_config.scene_type != "combat":
+            return
+        spawn_x = self.width * ENTRY_POINT_X
+        spawn_y = self.height * ENTRY_POINT_Y
+        safe_margin = RADIAL_AGGRO_RADIUS + dp(30)
+        for ent in self._entities:
+            if ent.get("type") != "enemy" or ent["defeated"]:
+                continue
+            ex, ey = ent["x"], ent["y"]
+            dx = spawn_x - ex
+            dy = spawn_y - ey
+            dist = (dx * dx + dy * dy) ** 0.5
+            if dist < safe_margin:
+                angle = random.uniform(0, 6.2832)
+                shift = safe_margin + dp(60)
+                ent["x"] = spawn_x + math.cos(angle) * shift
+                ent["y"] = spawn_y + math.sin(angle) * shift
+                ent["x_norm"] = max(0.05, min(0.95, ent["x"] / max(1, self.width)))
+                ent["y_norm"] = max(0.05, min(0.95, ent["y"] / max(1, self.height)))
+                ent["spawn_x_norm"] = ent["x_norm"]
+                ent["spawn_y_norm"] = ent["y_norm"]
+                ent["patrol_target_x_norm"] = ent["x_norm"]
+                ent["patrol_target_y_norm"] = ent["y_norm"]
+
     def _save_player_state(self) -> None:
         app = App.get_running_app()
         player = app.game.player if app.game else None
@@ -1169,20 +1204,35 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 return True
         return False
 
+    def _show_chase_block_notification(self) -> None:
+        """Показать компактное уведомление о блокировке выхода в углу экрана."""
+        if self._chase_block_label:
+            return
+        self._chase_block_label = Label(
+            text='⚠️ Вас преследуют! Сначала разберитесь с врагами.',
+            size_hint=(None, None),
+            size=(dp(300), dp(30)),
+            pos_hint={'right': 0.98, 'y': 0.02},
+            font_size=dp(13),
+            color=COLORS.get("warning", (1, 0.6, 0, 1)),
+            halign='right',
+            valign='middle',
+        )
+        self.layout.add_widget(self._chase_block_label)
+        Clock.schedule_once(lambda dt: self._hide_chase_block_notification(), 3.0)
+
+    def _hide_chase_block_notification(self) -> None:
+        if self._chase_block_label:
+            try:
+                self.layout.remove_widget(self._chase_block_label)
+            except Exception:
+                pass
+            self._chase_block_label = None
+
     def _on_exit_location(self, *_args):
         """Выход: на карту региона или в родительскую сцену."""
         if self._is_anyone_chasing():
-            popup = Popup(
-                title='⚠️ Невозможно уйти!',
-                content=Label(
-                    text='Вас преследуют! Сначала разберитесь с врагами.',
-                    halign='center',
-                    valign='middle',
-                    font_size=dp(18),
-                ),
-                size_hint=(0.7, 0.3),
-            )
-            popup.open()
+            self._show_chase_block_notification()
             return
         app = App.get_running_app()
         self._save_player_state()

@@ -57,7 +57,10 @@ class Player(Creature):
         "agility": {"critical_chance": 0.05},
         "luck": {"luck": 0.15},
         "trade": {"selling_multiplier": 0.1},
+        "speed": {"move_speed": 15},
     }
+
+    BASE_MOVE_SPEED = 200
 
     STARTING_SKILL_POINTS = 5
 
@@ -85,12 +88,17 @@ class Player(Creature):
             "agility": 0,
             "luck": 0,
             "trade": 0,
+            "speed": 0,
         }
+
+        self._move_speed = self.BASE_MOVE_SPEED
 
         self._critical_chance = self.BASE_STATS["critical_chance"]
         self._luck = self.BASE_STATS["luck"]
         self._selling_multiplier = self.BASE_STATS["selling_multiplier"]
         self._listeners: List = []
+
+        self.last_global_pos: Optional[Tuple[float, float]] = None
 
         ItemDatabase.initialize()
         if bg["weapon_id"]:
@@ -132,6 +140,7 @@ class Player(Creature):
         self.skill_points_allocated[skill] += 1
         self.skill_points_available -= 1
         self._recalculate_derived_stats()
+        self.notify_listeners("stats_changed")
         return True
 
     def deallocate_skill_point(self, skill: str) -> bool:
@@ -144,6 +153,7 @@ class Player(Creature):
         self.skill_points_allocated[skill] -= 1
         self.skill_points_available += 1
         self._recalculate_derived_stats()
+        self.notify_listeners("stats_changed")
         return True
 
     def _recalculate_derived_stats(self) -> None:
@@ -188,6 +198,12 @@ class Player(Creature):
             * self.STAT_COEFFICIENTS["trade"]["selling_multiplier"]
         )
 
+        self._move_speed = (
+            self.BASE_MOVE_SPEED
+            + self.skill_points_allocated["speed"]
+            * self.STAT_COEFFICIENTS["speed"]["move_speed"]
+        )
+
     @property
     def critical_chance(self) -> float:
         """Шанс критического удара (0.0–1.0)."""
@@ -202,6 +218,11 @@ class Player(Creature):
     def selling_multiplier(self) -> float:
         """Множитель цены при продаже."""
         return max(0.0, self._selling_multiplier)
+
+    @property
+    def move_speed(self) -> int:
+        """Скорость передвижения персонажа по карте."""
+        return max(self.BASE_MOVE_SPEED, int(self._move_speed))
 
     def add_listener(self, callback) -> None:
         """Подписать UI-колбэк на изменения состояния игрока."""
@@ -450,6 +471,9 @@ class Player(Creature):
         data["accepted_quests"] = [quest.to_dict() for quest in self.accepted_quests]
         data["session_stats"] = self.get_session_stats()
         data["last_location_pos"] = self.last_location_pos
+        data["last_global_pos"] = (
+            list(self.last_global_pos) if self.last_global_pos else None
+        )
         data["last_enemy_positions"] = {
             scene_id: [list(pos) for pos in positions]
             for scene_id, positions in self.last_enemy_positions.items()
@@ -512,6 +536,8 @@ class Player(Creature):
             scene_id: tuple(pos)
             for scene_id, pos in data.get("last_location_pos", {}).items()
         }
+        gp = data.get("last_global_pos")
+        player.last_global_pos = tuple(gp) if gp else None
         player.last_enemy_positions = {
             scene_id: [tuple(pos) for pos in positions]
             for scene_id, positions in data.get("last_enemy_positions", {}).items()
