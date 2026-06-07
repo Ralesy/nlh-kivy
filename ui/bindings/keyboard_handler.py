@@ -77,6 +77,7 @@ def _scancode_to_keyname(scancode) -> str:
         8: "backspace",
         9: "tab",
         32: "space",
+        29: "lctrl",
         273: "up",
         274: "down",
         275: "right",

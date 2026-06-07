@@ -11,6 +11,7 @@ from typing import List, Optional, Tuple
 from core.combat.damage import (
     ENEMY_VARIANCE,
     apply_critical,
+    apply_forced_critical,
     armor_ignore_bonus,
     player_crit_chance,
     resolve_hit,
@@ -23,12 +24,18 @@ from core.creatures import Creature, Player
 class Battlefield:
     """Состояние одного боя: игрок, враги, раунд, флаги способностей."""
 
-    def __init__(self, player: Player, enemies: List[Creature]):
+    def __init__(
+        self,
+        player: Player,
+        enemies: List[Creature],
+        surprise_attack: bool = False,
+    ):
         """Инициализировать бой."""
         self.player = player
         self.enemies = list(enemies)
         self.round = 0
         self.ability_used_this_battle = False
+        self.surprise_attack_ready = bool(surprise_attack)
 
     def alive_enemies(self) -> List[Creature]:
         """Список живых врагов."""
@@ -88,12 +95,12 @@ class Battlefield:
         target: Creature,
         damage_multiplier: float = 1.0,
         variance=(-3, 5),
-    ) -> Tuple[int, bool, int]:
+    ) -> Tuple[int, bool, int, bool]:
         """
         Рассчитать удар игрока по цели.
 
         Returns:
-            (фактический урон, был ли крит, проигнорированная броня).
+            (фактический урон, был ли крит, проигнорированная броня, внезапный крит).
         """
         damage = roll_raw_damage(
             int(self.player.damage * damage_multiplier),
@@ -105,12 +112,18 @@ class Battlefield:
         ignored = armor_ignore_bonus(int(target.defense), ignore_ratio)
         damage += ignored
 
-        damage, is_critical = apply_critical(
-            damage,
-            player_crit_chance(self.player),
-        )
+        surprise_critical = self.surprise_attack_ready
+        if surprise_critical:
+            damage = apply_forced_critical(damage)
+            is_critical = True
+            self.surprise_attack_ready = False
+        else:
+            damage, is_critical = apply_critical(
+                damage,
+                player_crit_chance(self.player),
+            )
         dealt = resolve_hit(damage, target)
-        return dealt, is_critical, ignored
+        return dealt, is_critical, ignored, surprise_critical
 
     def player_attack(
         self,
@@ -129,14 +142,19 @@ class Battlefield:
         if target is None:
             return error, False
 
-        dealt, is_critical, armor_ignored = self._build_player_hit(target)
+        dealt, is_critical, armor_ignored, surprise_critical = self._build_player_hit(target)
         ignore_text = (
             f" (игнорируя {armor_ignored} ед. брони)"
             if armor_ignored > 0
             else ""
         )
 
-        if is_critical:
+        if surprise_critical:
+            log = (
+                f"Из засады! ⚡ КРИТИЧЕСКИЙ УДАР! ⚡ Вы наносите "
+                f"{dealt} урона по {target.name}!{ignore_text}"
+            )
+        elif is_critical:
             log = (
                 f"⚡ КРИТИЧЕСКИЙ УДАР! ⚡ Вы наносите "
                 f"{dealt} урона по {target.name}!{ignore_text}"
@@ -175,7 +193,7 @@ class Battlefield:
             target = random.choice(enemies)
             total_damage = 0
             for hit in range(2):
-                dealt, _, _ = self._build_player_hit(
+                dealt, _, _, _ = self._build_player_hit(
                     target,
                     damage_multiplier=1.3,
                     variance=(-1, 3),
@@ -195,7 +213,7 @@ class Battlefield:
         elif weapon_type == "bow":
             targets = random.sample(enemies, min(2, len(enemies)))
             for i, target in enumerate(targets):
-                dealt, _, _ = self._build_player_hit(
+                dealt, _, _, _ = self._build_player_hit(
                     target,
                     variance=(-2, 2),
                 )
@@ -211,7 +229,7 @@ class Battlefield:
             for target in list(enemies):
                 if not target.is_alive:
                     continue
-                dealt, _, _ = self._build_player_hit(
+                dealt, _, _, _ = self._build_player_hit(
                     target,
                     variance=(-3, 2),
                 )

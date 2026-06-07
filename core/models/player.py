@@ -129,6 +129,7 @@ class Player(Creature):
         self.last_enemy_positions: Dict[str, List[Tuple[float, float]]] = {}
         self.last_enemy_creatures: Dict[str, List[Optional[Creature]]] = {}
         self.defeated_bosses = set()
+        self.is_sneaking = False
 
     def allocate_skill_point(self, skill: str) -> bool:
         """Распределить одно очко навыка. Возвращает True при успехе."""
@@ -483,6 +484,7 @@ class Player(Creature):
             for scene_id, creatures in self.last_enemy_creatures.items()
         }
         data["defeated_bosses"] = list(self.defeated_bosses)
+        data["is_sneaking"] = self.is_sneaking
         return data
 
     @classmethod
@@ -552,6 +554,7 @@ class Player(Creature):
                     restored.append(Creature.from_dict(creature_data))
             player.last_enemy_creatures[scene_id] = restored
         player.defeated_bosses = set(data.get("defeated_bosses", []))
+        player.is_sneaking = bool(data.get("is_sneaking", False))
 
         return player
 

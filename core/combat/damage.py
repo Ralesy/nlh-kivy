@@ -60,6 +60,14 @@ def apply_critical(
     return damage, False
 
 
+def apply_forced_critical(
+    damage: int,
+    multiplier: float = DEFAULT_CRIT_MULTIPLIER,
+) -> int:
+    """Гарантированно усилить урон как критический."""
+    return max(MIN_DAMAGE, int(damage * multiplier))
+
+
 def armor_ignore_bonus(target_defense: int, ignore_ratio: float) -> int:
     """
     Дополнительный урон от игнорирования брони (топоры и т.п.).

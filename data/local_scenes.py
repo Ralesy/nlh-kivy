@@ -80,6 +80,11 @@ class LocalSceneConfig:
     exit_target: str  # location_select | parent
     enemy_count: int = 0
     enemy_location_id: Optional[str] = None
+    player_scale: float = 0.8
+    enemy_scale: float = 0.8
+    boss_scale: float = 0.8
+    npc_scale: float = 0.85
+    camera_zoom: float = 1.3
     zones: List[ZoneConfig] = field(default_factory=list)
     npcs: List[NpcSpawnConfig] = field(default_factory=list)
     background_candidates: List[str] = field(default_factory=list)
@@ -149,7 +154,7 @@ def build_scene_config(scene_id: str) -> Optional[LocalSceneConfig]:
             title=title,
             scene_type="combat",
             exit_target="location_select",
-            enemy_count=6,
+            enemy_count=10,
             enemy_location_id=scene_id,
             background_candidates=_bg_candidates(scene_id),
         )

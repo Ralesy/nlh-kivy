@@ -15,7 +15,17 @@ from typing import Optional
 
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.graphics import Color, Ellipse, Line, Mesh, Rectangle
+from kivy.graphics import (
+    Color,
+    Ellipse,
+    Line,
+    Mesh,
+    PopMatrix,
+    PushMatrix,
+    Rectangle,
+    Scale,
+    Translate,
+)
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -36,12 +46,18 @@ from ui.ui_styles import BUTTONS_DIR, COLORS
 from ui.widgets.cover_background import cover_background_image
 
 
-AGGRO_RADIUS = 120
+SOCIAL_AGGRO_RADIUS = 120
 DE_AGGRO_RADIUS = 250
 PATROL_RADIUS = 150
 CONE_ANGLE = 120
 CONE_LENGTH = 200
-RADIAL_AGGRO_RADIUS = 55
+HEARING_RADIUS = 95
+PLAYER_BASE_RADIUS = 12
+ENEMY_BASE_RADIUS = 12
+BOSS_BASE_RADIUS = 18
+NPC_BASE_RADIUS = 14
+LOCAL_CAMERA_ZOOM = 1.3
+LOCAL_CAMERA_LERP_SPEED = 8.0
 ENTRY_POINT_X = 0.5
 ENTRY_POINT_Y = 0.1
 STUN_DURATION = 5.0
@@ -73,6 +89,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._player_invincible_timer = 0.0
         self._paused = False
         self._chasing_active = False
+        self._active_interact = None
+        self._alert_source_id = None
+        self._btn_sneak = None
+        self._world_widget = None
+        self._cam_x = 0.0
+        self._cam_y = 0.0
+        self._cam_target_x = 0.0
+        self._cam_target_y = 0.0
+        self._player_moved_this_frame = False
+        self._saved_enemy_dirs = {}
         self.bind_keyboard()
 
         self.btn_zone_action = Button(
@@ -122,6 +148,14 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         app.local_scene_id = self.scene_id
 
         self.layout.clear_widgets()
+        self._world_widget = FloatLayout(size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
+        with self._world_widget.canvas.before:
+            PushMatrix()
+            self._cam_translate = Translate()
+            self._cam_scale = Scale()
+        with self._world_widget.canvas.after:
+            PopMatrix()
+        self.layout.add_widget(self._world_widget)
         self._load_background()
 
         self._target_pos = None
@@ -130,6 +164,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._current_entity = None
         self._pending_boss_entity = None
         self._active_zone = None
+        self._active_interact = None
+        self._alert_source_id = None
+        self._chasing_active = False
         self.btn_zone_action.opacity = 0
         self.btn_zone_action.text = "Войти"
         self._chase_block_label = None
@@ -139,7 +176,14 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if self._returning_from_battle and is_combat:
             pass
         elif is_combat:
-            self._player_pos = [self.width * ENTRY_POINT_X, self.height * ENTRY_POINT_Y]
+            player = app.game.player if app.game else None
+            pos_key = self.scene_id
+            if (player and pos_key in getattr(player, "last_location_pos", {})
+                    and getattr(player, "last_location_visited", None) == self.scene_id):
+                x_norm, y_norm = player.last_location_pos[pos_key]
+                self._player_pos = [x_norm * self.width, y_norm * self.height]
+            else:
+                self._player_pos = [self.width * ENTRY_POINT_X, self.height * ENTRY_POINT_Y]
         else:
             player = app.game.player if app.game else None
             pos_key = self.scene_id
@@ -150,7 +194,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 self._player_pos = [self.width * 0.5, self.height * 0.5]
 
         self._drawing_widget = Widget(size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
-        self.layout.add_widget(self._drawing_widget)
+        self._world_widget.add_widget(self._drawing_widget)
 
         player = app.game.player if app.game else None
         if (
@@ -166,6 +210,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 player.last_location_visited = self.scene_id
 
         self._ensure_safe_spawn()
+        self._restore_enemy_dirs()
+        self._sync_camera(immediate=True)
         self._init_ui()
         self.layout.add_widget(self.btn_zone_action)
         self.layout.add_widget(self._hover_widget)
@@ -223,6 +269,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if action == "open_quests" and pressed:
             self._open_quests()
             return True
+        if action == "toggle_sneak" and pressed:
+            self._toggle_sneak_mode()
+            return True
         if action == "open_locations" and pressed:
             self._on_exit_location()
             return True
@@ -247,7 +296,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         """Загрузить фон из конфига сцены или залить однотонным цветом."""
         bg_path = self._resolve_scene_background()
         if bg_path:
-            self.layout.add_widget(cover_background_image(bg_path))
+            self._world_widget.add_widget(cover_background_image(bg_path))
         else:
             filler = Widget(size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
             with filler.canvas.before:
@@ -257,7 +306,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 pos=lambda w, v: setattr(filler._bg, "pos", w.pos),
                 size=lambda w, v: setattr(filler._bg, "size", w.size),
             )
-            self.layout.add_widget(filler)
+            self._world_widget.add_widget(filler)
 
     def _init_entities(self, use_saved=False) -> None:
         """Создать сущности сцены: враги, боссы, NPC, зоны."""
@@ -334,13 +383,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     "y": self.height * y_norm,
                     "spawn_x_norm": x_norm,
                     "spawn_y_norm": y_norm,
-                    "radius": dp(12),
+                    "radius": self._enemy_radius(),
                     "defeated": False,
                     "creature": creature,
                     "name": creature.name if creature else "Неизвестный",
                     "level": creature.level if creature else 1,
                     "stun_timer": 0,
                     "ai_state": "patrol",
+                    "aggro_reason": None,
+                    "alert_source_id": None,
                     "patrol_target_x_norm": x_norm,
                     "patrol_target_y_norm": y_norm,
                     "patrol_pause_timer": random.uniform(0, 2),
@@ -381,7 +432,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 "y_norm": boss_cfg.y_norm,
                 "x": self.width * boss_cfg.x_norm,
                 "y": self.height * boss_cfg.y_norm,
-                "radius": dp(18),
+                "radius": self._boss_radius(),
                 "defeated": False,
                 "creature": boss_creature,
                 "name": boss_cfg.name,
@@ -435,12 +486,56 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     "y_norm": npc_cfg.y_norm,
                     "x": self.width * npc_cfg.x_norm,
                     "y": self.height * npc_cfg.y_norm,
-                    "radius": dp(14),
+                    "radius": self._npc_radius(),
                     "defeated": False,
                     "name": display_name,
                     "level": 0,
                 }
             )
+
+    def _scene_value(self, attr_name: str, fallback: float) -> float:
+        if not self.scene_config:
+            return fallback
+        value = getattr(self.scene_config, attr_name, fallback)
+        return float(value if value is not None else fallback)
+
+    def _player_radius(self) -> float:
+        return dp(PLAYER_BASE_RADIUS * self._scene_value("player_scale", 1.0))
+
+    def _enemy_radius(self) -> float:
+        return dp(ENEMY_BASE_RADIUS * self._scene_value("enemy_scale", 1.0))
+
+    def _boss_radius(self) -> float:
+        return dp(BOSS_BASE_RADIUS * self._scene_value("boss_scale", 1.0))
+
+    def _npc_radius(self) -> float:
+        return dp(NPC_BASE_RADIUS * self._scene_value("npc_scale", 1.0))
+
+    def _camera_zoom(self) -> float:
+        return max(1.0, self._scene_value("camera_zoom", LOCAL_CAMERA_ZOOM))
+
+    def _is_player_sneaking(self) -> bool:
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        return bool(getattr(player, "is_sneaking", False))
+
+    def _refresh_sneak_button(self) -> None:
+        if not self._btn_sneak:
+            return
+        if self._is_player_sneaking():
+            self._btn_sneak.text = "Красться: ВКЛ"
+            self._btn_sneak.background_color = (0.25, 0.45, 0.30, 0.95)
+        else:
+            self._btn_sneak.text = "Красться: ВЫКЛ"
+            self._btn_sneak.background_color = COLORS["stone_light"]
+
+    def _toggle_sneak_mode(self, *_args) -> None:
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        if not player:
+            return
+        player.is_sneaking = not bool(getattr(player, "is_sneaking", False))
+        self._refresh_sneak_button()
 
     def _generate_random_positions(self, count=3):
         """Случайные позиции с минимальной дистанцией."""
@@ -500,10 +595,23 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self.layout.add_widget(btn)
             setattr(self, attr, btn)
 
+        self._btn_sneak = Button(
+            text="",
+            size_hint=(None, None),
+            size=(dp(170), dp(44)),
+            pos_hint={"right": 0.98, "y": 0.12},
+        )
+        self._btn_sneak.bind(on_press=self._toggle_sneak_mode)
+        self.layout.add_widget(self._btn_sneak)
+        self._refresh_sneak_button()
+
     def on_touch_down(self, touch):
         """Движение игрока и клики по UI."""
         if self._btn_exit and self._hit_widget(self._btn_exit, touch):
             self._on_exit_location()
+            return True
+        if self._btn_sneak and self._hit_widget(self._btn_sneak, touch):
+            self._toggle_sneak_mode()
             return True
         for btn, handler in (
             (self._btn_inventory, self._open_inventory),
@@ -518,7 +626,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self._on_zone_action()
             return True
         local_x, local_y = self.to_local(touch.x, touch.y)
-        self._target_pos = [local_x, local_y]
+        world_x, world_y = self._screen_to_world(local_x, local_y)
+        self._target_pos = [world_x, world_y]
         return True
 
     @staticmethod
@@ -580,6 +689,58 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             ent["x"] = ent["x_norm"] * w
             ent["y"] = ent["y_norm"] * h
 
+    def _screen_to_world(self, screen_x: float, screen_y: float) -> tuple[float, float]:
+        zoom = self._camera_zoom()
+        world_x = (screen_x - self.width / 2) / zoom + self._cam_x
+        world_y = (screen_y - self.height / 2) / zoom + self._cam_y
+        return world_x, world_y
+
+    def _world_to_screen(self, world_x: float, world_y: float) -> tuple[float, float]:
+        zoom = self._camera_zoom()
+        screen_x = (world_x - self._cam_x) * zoom + self.width / 2
+        screen_y = (world_y - self._cam_y) * zoom + self.height / 2
+        return screen_x, screen_y
+
+    def _clamp_camera_target(self, target_x: float, target_y: float) -> tuple[float, float]:
+        zoom = self._camera_zoom()
+        half_view_w = self.width / max(2.0, 2.0 * zoom)
+        half_view_h = self.height / max(2.0, 2.0 * zoom)
+
+        if half_view_w >= self.width / 2:
+            cam_x = self.width / 2
+        else:
+            cam_x = max(half_view_w, min(self.width - half_view_w, target_x))
+
+        if half_view_h >= self.height / 2:
+            cam_y = self.height / 2
+        else:
+            cam_y = max(half_view_h, min(self.height - half_view_h, target_y))
+
+        return cam_x, cam_y
+
+    def _sync_camera(self, dt: float = 0.0, immediate: bool = False) -> None:
+        if not self._world_widget:
+            return
+
+        self._cam_target_x, self._cam_target_y = self._clamp_camera_target(
+            self._player_pos[0],
+            self._player_pos[1],
+        )
+
+        if immediate:
+            self._cam_x = self._cam_target_x
+            self._cam_y = self._cam_target_y
+        else:
+            lerp_factor = 1.0 - 2.71828 ** (-LOCAL_CAMERA_LERP_SPEED * dt)
+            self._cam_x += (self._cam_target_x - self._cam_x) * lerp_factor
+            self._cam_y += (self._cam_target_y - self._cam_y) * lerp_factor
+
+        zoom = self._camera_zoom()
+        self._cam_scale.x = zoom
+        self._cam_scale.y = zoom
+        self._cam_translate.x = self.width / 2 - self._cam_x * zoom
+        self._cam_translate.y = self.height / 2 - self._cam_y * zoom
+
     def _on_game_update(self, dt):
         """Игровой цикл: движение, столкновения, отрисовка."""
         if not self.scene_id or self._paused:
@@ -590,6 +751,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         app = App.get_running_app()
         player = app.game.player if app.game else None
         base_speed = player.move_speed if player else 200
+        if self._is_player_sneaking():
+            base_speed = int(base_speed * 0.4)
+        prev_x, prev_y = self._player_pos[0], self._player_pos[1]
 
         mx = (1 if self._move["right"] else 0) - (1 if self._move["left"] else 0)
         my = (1 if self._move["up"] else 0) - (1 if self._move["down"] else 0)
@@ -614,6 +778,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         self._player_pos[0] = max(dp(10), min(self.width - dp(10), self._player_pos[0]))
         self._player_pos[1] = max(dp(10), min(self.height - dp(10), self._player_pos[1]))
+        self._player_moved_this_frame = (
+            ((self._player_pos[0] - prev_x) ** 2 + (self._player_pos[1] - prev_y) ** 2) ** 0.5
+            > 0.1
+        )
 
         if self._player_invincible_timer > 0:
             self._player_invincible_timer = max(0, self._player_invincible_timer - dt)
@@ -622,16 +790,115 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if ent.get("stun_timer", 0) > 0:
                 ent["stun_timer"] = max(0, ent["stun_timer"] - dt)
 
-        self._update_enemy_ai(dt)
+        player_is_noisy = self._player_moved_this_frame and not self._is_player_sneaking()
+        self._update_enemy_ai(dt, player_is_noisy=player_is_noisy)
+        self._sync_camera(dt)
         self._check_collisions()
         self._draw_game()
 
-    def _update_enemy_ai(self, dt):
+    def _enemy_sees_player(self, ent, px: float, py: float) -> bool:
+        if not ent or ent.get("type") != "enemy":
+            return False
+        dx_player = px - ent["x"]
+        dy_player = py - ent["y"]
+        dist_to_player = (dx_player**2 + dy_player**2) ** 0.5
+        if dist_to_player <= 0 or dist_to_player > CONE_LENGTH:
+            return False
+
+        edx = ent.get("dir_x", 0)
+        edy = ent.get("dir_y", -1)
+        norm = (edx * edx + edy * edy) ** 0.5
+        if norm <= 0:
+            return False
+
+        cone_angle_rad = math.radians(CONE_ANGLE / 2)
+        dot = (dx_player / dist_to_player * edx / norm) + (
+            dy_player / dist_to_player * edy / norm
+        )
+        return dot >= math.cos(cone_angle_rad)
+
+    def _reset_enemy_aggro(self, ent) -> None:
+        ent["ai_state"] = "patrol"
+        ent["aggro_reason"] = None
+        ent["alert_source_id"] = None
+        ent["patrol_target_x_norm"] = ent.get("spawn_x_norm", ent["x_norm"])
+        ent["patrol_target_y_norm"] = ent.get("spawn_y_norm", ent["y_norm"])
+        ent["patrol_pause_timer"] = 0
+
+    def _get_enemy_by_id(self, enemy_id):
+        if enemy_id is None:
+            return None
+        for ent in self._entities:
+            if ent.get("type") == "enemy" and ent.get("id") == enemy_id and not ent["defeated"]:
+                return ent
+        return None
+
+    def _restore_enemy_dirs(self) -> None:
+        if not self._saved_enemy_dirs:
+            return
+        for ent in self._entities:
+            if ent.get("type") != "enemy" or ent["defeated"]:
+                continue
+            eid = ent.get("id")
+            if eid in self._saved_enemy_dirs:
+                dx, dy = self._saved_enemy_dirs[eid]
+                ent["dir_x"] = dx
+                ent["dir_y"] = dy
+
+    def _trigger_hearing_aggro(self, ent) -> None:
+        ent["ai_state"] = "chase"
+        ent["aggro_reason"] = "hearing"
+        ent["alert_source_id"] = None
+
+    def _clear_social_aggro(self, source_id=None) -> None:
+        for ent in self._entities:
+            if ent.get("type") != "enemy" or ent["defeated"]:
+                continue
+            if ent.get("aggro_reason") not in ("sight_source", "social"):
+                continue
+            if source_id is not None and ent.get("alert_source_id") != source_id:
+                continue
+            self._reset_enemy_aggro(ent)
+
+        if source_id is None or self._alert_source_id == source_id:
+            self._alert_source_id = None
+
+    def _trigger_social_aggro(self, spotter) -> None:
+        source_id = spotter.get("id")
+        if source_id is None:
+            return
+        if self._alert_source_id is not None and self._alert_source_id != source_id:
+            self._clear_social_aggro(self._alert_source_id)
+
+        sx, sy = spotter["x"], spotter["y"]
+        self._alert_source_id = source_id
+        for ent in self._entities:
+            if ent.get("type") != "enemy" or ent["defeated"]:
+                continue
+            if ent.get("stun_timer", 0) > 0:
+                continue
+            dist = ((ent["x"] - sx) ** 2 + (ent["y"] - sy) ** 2) ** 0.5
+            if ent is spotter or dist <= SOCIAL_AGGRO_RADIUS:
+                ent["ai_state"] = "chase"
+                ent["alert_source_id"] = source_id
+                ent["aggro_reason"] = "sight_source" if ent is spotter else "social"
+
+    def _update_enemy_ai(self, dt, player_is_noisy=False):
         """AI врагов: патрулирование, преследование, возврат."""
         px, py = self._player_pos
         w = max(1, self.width)
         h = max(1, self.height)
         player_chasing = False
+
+        active_source = self._get_enemy_by_id(self._alert_source_id)
+        if active_source and (
+            active_source["defeated"] or active_source.get("stun_timer", 0) > 0
+        ):
+            self._clear_social_aggro(self._alert_source_id)
+            active_source = None
+        if active_source and not self._enemy_sees_player(active_source, px, py):
+            self._clear_social_aggro(active_source.get("id"))
+            active_source = None
 
         for ent in self._entities:
             if ent["defeated"] or ent.get("type") not in ("enemy",):
@@ -644,26 +911,18 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             dist_to_player = (dx_player**2 + dy_player**2) ** 0.5
 
             state = ent.get("ai_state", "patrol")
+            sees_player = self._enemy_sees_player(ent, px, py)
+            hears_player = player_is_noisy and dist_to_player <= HEARING_RADIUS
+
+            if sees_player and self._alert_source_id != ent.get("id"):
+                self._trigger_social_aggro(ent)
+                active_source = ent
+                state = ent.get("ai_state", "chase")
+            elif state == "patrol" and hears_player:
+                self._trigger_hearing_aggro(ent)
+                state = "chase"
 
             if state == "patrol":
-                cone_angle_rad = math.radians(CONE_ANGLE / 2)
-                in_cone = False
-                if dist_to_player > 0 and dist_to_player <= CONE_LENGTH:
-                    edx = ent.get("dir_x", 0)
-                    edy = ent.get("dir_y", -1)
-                    norm = (edx * edx + edy * edy) ** 0.5
-                    if norm > 0:
-                        dot = (dx_player / dist_to_player * edx / norm +
-                               dy_player / dist_to_player * edy / norm)
-                        in_cone = dot >= math.cos(cone_angle_rad)
-
-                in_radial = dist_to_player <= RADIAL_AGGRO_RADIUS
-
-                if in_cone or in_radial:
-                    ent["ai_state"] = "chase"
-                    player_chasing = True
-                    continue
-
                 pause = ent.get("patrol_pause_timer", 0)
                 if pause > 0:
                     ent["patrol_pause_timer"] = max(0, pause - dt)
@@ -692,22 +951,33 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 else:
                     speed = ent.get("patrol_speed", dp(20)) * dt
                     step = min(speed, dist_to_target)
-                    ent["dir_x"] = dx / dist_to_target
-                    ent["dir_y"] = dy / dist_to_target
+                    target_dir_x = dx / dist_to_target
+                    target_dir_y = dy / dist_to_target
+                    rot_factor = min(1.0, dt * 4.0)
+                    ent["dir_x"] += (target_dir_x - ent["dir_x"]) * rot_factor
+                    ent["dir_y"] += (target_dir_y - ent["dir_y"]) * rot_factor
+                    dir_norm = (ent["dir_x"] ** 2 + ent["dir_y"] ** 2) ** 0.5
+                    if dir_norm > 0:
+                        ent["dir_x"] /= dir_norm
+                        ent["dir_y"] /= dir_norm
                     ent["x"] += (dx / dist_to_target) * step
                     ent["y"] += (dy / dist_to_target) * step
                     ent["x_norm"] = ent["x"] / w
                     ent["y_norm"] = ent["y"] / h
 
             elif state == "chase":
-                if dist_to_player > DE_AGGRO_RADIUS:
-                    ent["ai_state"] = "patrol"
-                    spawn_x = ent.get("spawn_x_norm", ent["x_norm"])
-                    spawn_y = ent.get("spawn_y_norm", ent["y_norm"])
-                    ent["patrol_target_x_norm"] = spawn_x
-                    ent["patrol_target_y_norm"] = spawn_y
-                    ent["patrol_pause_timer"] = 0
-                    continue
+                aggro_reason = ent.get("aggro_reason")
+                if aggro_reason in ("sight_source", "social"):
+                    source = self._get_enemy_by_id(ent.get("alert_source_id"))
+                    if not source or not self._enemy_sees_player(source, px, py):
+                        self._clear_social_aggro(ent.get("alert_source_id"))
+                        continue
+                elif aggro_reason == "hearing":
+                    if sees_player:
+                        self._trigger_social_aggro(ent)
+                    elif dist_to_player > DE_AGGRO_RADIUS:
+                        self._reset_enemy_aggro(ent)
+                        continue
 
                 player_chasing = True
                 if dist_to_player > 0:
@@ -724,7 +994,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _check_collisions(self):
         """Столкновения игрока с сущностями."""
-        player_r = dp(12)
+        player_r = self._player_radius()
         zone_near = None
         self.btn_zone_action.opacity = 0
         self._active_zone = None
@@ -762,19 +1032,23 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if self._active_interact:
             ent = self._active_interact
             label = "Поговорить" if ent.get("action") == "dialogue" else "Открыть"
+            sx, sy = self._world_to_screen(ent["x"], ent["y"])
+            screen_radius = ent["radius"] * self._camera_zoom()
             self.btn_zone_action.text = f"{label}: {ent.get('name', '')}"
             self.btn_zone_action.opacity = 1
             self.btn_zone_action.pos = (
-                ent["x"] - self.btn_zone_action.width / 2,
-                ent["y"] + ent["radius"] + dp(10),
+                sx - self.btn_zone_action.width / 2,
+                sy + screen_radius + dp(10),
             )
         elif zone_near:
             self._active_zone = zone_near
+            sx, sy = self._world_to_screen(zone_near["x"], zone_near["y"])
+            screen_radius = zone_near["radius"] * self._camera_zoom()
             self.btn_zone_action.text = f"Войти: {zone_near.get('label', '...')}"
             self.btn_zone_action.opacity = 1
             self.btn_zone_action.pos = (
-                zone_near["x"] - self.btn_zone_action.width / 2,
-                zone_near["y"] + zone_near["radius"] + dp(10),
+                sx - self.btn_zone_action.width / 2,
+                sy + screen_radius + dp(10),
             )
 
     def _interact_npc(self, ent) -> None:
@@ -820,7 +1094,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         enter_local_scene(app, target, parent_scene=self.scene_id)
 
     def _collect_nearby_enemies(self, center_entity):
-        """Собрать всех непобеждённых врагов в радиусе AGGRO_RADIUS от центрального."""
+        """Собрать всех непобеждённых врагов в радиусе социального агра."""
         cx, cy = center_entity["x"], center_entity["y"]
         group = [center_entity]
         for ent in self._entities:
@@ -831,9 +1105,18 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             dx = ent["x"] - cx
             dy = ent["y"] - cy
             dist = (dx * dx + dy * dy) ** 0.5
-            if dist <= AGGRO_RADIUS:
+            if dist <= SOCIAL_AGGRO_RADIUS:
                 group.append(ent)
         return group
+
+    def _can_trigger_surprise_attack(self, battle_group) -> bool:
+        if not battle_group:
+            return False
+        if any(ent.get("type") != "enemy" for ent in battle_group):
+            return False
+        if self._alert_source_id is not None:
+            return False
+        return not any(ent.get("ai_state") == "chase" for ent in battle_group)
 
     def _show_boss_confirmation(self, entity):
         """Показать диалог подтверждения перед боем с боссом."""
@@ -898,6 +1181,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             battle_group = [entity]
         else:
             battle_group = self._collect_nearby_enemies(entity)
+        surprise_attack = self._can_trigger_surprise_attack(battle_group)
 
         self._current_battle_group = battle_group
         self._current_entity = battle_group[0]
@@ -909,7 +1193,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         try:
             from systems.battle import Battlefield
 
-            battlefield = Battlefield(player, creatures)
+            battlefield = Battlefield(player, creatures, surprise_attack=surprise_attack)
             app._battle_from_local_location = True
             app.battle_screen.from_local_location = True
             if etype == "boss":
@@ -1002,11 +1286,12 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _on_mouse_pos(self, window, pos):
         local_pos = self.to_local(*pos)
+        world_pos = self._screen_to_world(local_pos[0], local_pos[1])
         for ent in self._entities:
             if ent["defeated"]:
                 continue
-            dx = local_pos[0] - ent["x"]
-            dy = local_pos[1] - ent["y"]
+            dx = world_pos[0] - ent["x"]
+            dy = world_pos[1] - ent["y"]
             if (dx**2 + dy**2) ** 0.5 <= ent["radius"]:
                 etype = ent.get("type")
                 if etype == "enemy":
@@ -1043,15 +1328,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     edy = ent.get("dir_y", -1)
                     dir_norm = (edx * edx + edy * edy) ** 0.5
 
-                    # --- Radial zone (small circle) ---
-                    Color(1, 0.3, 0, 0.08)
+                    # --- Hearing radius ---
+                    Color(0.35, 0.65, 1, 0.06)
                     Ellipse(
-                        pos=(ex - RADIAL_AGGRO_RADIUS, ey - RADIAL_AGGRO_RADIUS),
-                        size=(RADIAL_AGGRO_RADIUS * 2, RADIAL_AGGRO_RADIUS * 2),
+                        pos=(ex - HEARING_RADIUS, ey - HEARING_RADIUS),
+                        size=(HEARING_RADIUS * 2, HEARING_RADIUS * 2),
                     )
-                    Color(1, 0.3, 0, 0.25)
+                    Color(0.35, 0.65, 1, 0.22)
                     Line(
-                        circle=(ex, ey, RADIAL_AGGRO_RADIUS),
+                        circle=(ex, ey, HEARING_RADIUS),
                         width=1,
                     )
 
@@ -1111,19 +1396,27 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     Color(0.8, 0, 0, 1)
                     Line(circle=(ent["x"], ent["y"], r), width=2)
 
-            pr = dp(12)
-            Color(1, 1, 0, 0.8)
+            pr = self._player_radius()
+            if self._is_player_sneaking():
+                Color(0.45, 0.95, 0.65, 0.85)
+            else:
+                Color(1, 1, 0, 0.8)
             Ellipse(
                 pos=(self._player_pos[0] - pr, self._player_pos[1] - pr),
                 size=(pr * 2, pr * 2),
             )
-            Color(1, 0.8, 0, 1)
+            if self._is_player_sneaking():
+                Color(0.2, 0.7, 0.35, 1)
+            else:
+                Color(1, 0.8, 0, 1)
             Line(circle=(self._player_pos[0], self._player_pos[1], pr), width=2)
 
             if self._player_label:
+                label_x, label_y = self._world_to_screen(self._player_pos[0], self._player_pos[1])
+                screen_radius = pr * self._camera_zoom()
                 self._player_label.pos = (
-                    self._player_pos[0] - self._player_label.width / 2,
-                    self._player_pos[1] + pr + dp(5),
+                    label_x - self._player_label.width / 2,
+                    label_y + screen_radius + dp(5),
                 )
 
     def _ensure_safe_spawn(self) -> None:
@@ -1132,7 +1425,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             return
         spawn_x = self.width * ENTRY_POINT_X
         spawn_y = self.height * ENTRY_POINT_Y
-        safe_margin = RADIAL_AGGRO_RADIUS + dp(30)
+        safe_margin = HEARING_RADIUS + dp(30)
         for ent in self._entities:
             if ent.get("type") != "enemy" or ent["defeated"]:
                 continue
@@ -1168,6 +1461,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def on_leave(self):
         self._save_player_state()
+        self._saved_enemy_dirs = {}
+        for ent in self._entities:
+            if ent.get("type") == "enemy" and not ent["defeated"]:
+                eid = ent.get("id")
+                if eid is not None:
+                    self._saved_enemy_dirs[eid] = (
+                        ent.get("dir_x", 0),
+                        ent.get("dir_y", -1),
+                    )
         app = App.get_running_app()
         player = app.game.player if app.game else None
         if player and self.scene_config and self.scene_config.scene_type == "combat":
@@ -1244,7 +1546,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if self.scene_config and self.scene_config.exit_target == "parent":
             parent = self.parent_scene_id or "city"
             from data.local_scenes import enter_local_scene
-
+            self._saved_enemy_dirs = {}
             enter_local_scene(app, parent)
             return
 
@@ -1266,6 +1568,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._current_battle_group = None
         self._pending_boss_entity = None
         self._target_pos = None
+        self._saved_enemy_dirs = {}
 
         try:
             if player:
