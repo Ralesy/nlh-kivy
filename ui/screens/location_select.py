@@ -25,6 +25,9 @@ from data.local_scenes import COMBAT_SCENES, enter_local_scene, resolve_global_m
 from ui.widgets.cover_background import cover_background_image
 from ui.widgets.danger_bar import DangerBar
 from ui.bindings.keyboard_handler import KeyboardHandler
+from systems.roaming_entity_manager import RoamingEntityManager
+from systems.stealth_controller import StealthController, StealthMode, DetectionLevel
+from ui.widgets.encounter_dialog import EncounterDialog
 
 
 class LocationSelectScreen(Screen, KeyboardHandler):
@@ -60,6 +63,16 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self._enter_btn = None
         self._kb_move = {"up": False, "down": False, "left": False, "right": False}
         self._kb_move_ev = None
+
+        self.roaming_manager = RoamingEntityManager()
+        self.stealth_controller = StealthController()
+        self._token_update_ev = None
+        self._token_graphics_inited = False
+        self._stealth_indicator = None
+        self._noise_circle = None
+        self._encounter_active = False
+        self._encounter_cooldown = 0.0
+
         self.bind_keyboard()
 
         # positions on the map (normalized 0..1) for location hotspots
@@ -175,6 +188,9 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             self._kb_move_ev = None
 
     def _kb_move_tick(self, dt):
+        if self._encounter_active:
+            self._stop_kb_move()
+            return
         if not getattr(self, "_player_marker", None) or not getattr(self, "map_overlay", None):
             self._stop_kb_move()
             return
@@ -205,7 +221,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
         ow = max(1, self.map_overlay.width)
         oh = max(1, self.map_overlay.height)
-        speed = self._move_speed * self.GLOBAL_MAP_SPEED_MULTIPLIER * dt
+        speed = self._move_speed * self.GLOBAL_MAP_SPEED_MULTIPLIER * dt * self.stealth_controller.speed_multiplier
         pm_size = self.PLAYER_MARKER_SIZE
 
         nx = self._player_world_x + (mx / length) * speed
@@ -277,18 +293,26 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
     def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
         if action == "move_up":
+            if self._encounter_active:
+                return True
             self._kb_move["up"] = pressed
             (self._start_kb_move() if pressed else None)
             return True
         if action == "move_down":
+            if self._encounter_active:
+                return True
             self._kb_move["down"] = pressed
             (self._start_kb_move() if pressed else None)
             return True
         if action == "move_left":
+            if self._encounter_active:
+                return True
             self._kb_move["left"] = pressed
             (self._start_kb_move() if pressed else None)
             return True
         if action == "move_right":
+            if self._encounter_active:
+                return True
             self._kb_move["right"] = pressed
             (self._start_kb_move() if pressed else None)
             return True
@@ -359,6 +383,14 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                     app.game.autosave()
             except Exception:
                 pass
+            return True
+
+        if action == "toggle_sneak" and pressed:
+            if self.stealth_controller.mode == StealthMode.STEALTH:
+                self.stealth_controller.set_mode(StealthMode.NORMAL)
+            else:
+                self.stealth_controller.set_mode(StealthMode.STEALTH)
+            self._update_camera_zoom()
             return True
 
         if action == "exit_location" and pressed:
@@ -854,6 +886,66 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         quests_btn.bind(on_press=_open_active_quests)
         self.map_container.add_widget(quests_btn)
 
+        # Token spawning + graphics deferred to _start_token_updates (called from on_enter)
+        # when map_overlay has its final layout size
+
+    def _update_tokens(self, dt):
+        try:
+            if self._encounter_active:
+                self.roaming_manager.update_graphics()
+                return
+
+            if self._encounter_cooldown > 0:
+                self._encounter_cooldown = max(0.0, self._encounter_cooldown - dt)
+                px = self._player_world_x
+                py = self._player_world_y
+                moved = abs(px - self._prev_player_world_x) > 0.5 or abs(py - self._prev_player_world_y) > 0.5 if hasattr(self, '_prev_player_world_x') else False
+                is_sneaking = (self.stealth_controller.mode == StealthMode.STEALTH)
+                self.roaming_manager.update(dt, px, py, player_is_noisy=(moved and not is_sneaking), is_sneaking=is_sneaking)
+                self.roaming_manager.update_graphics()
+                self._prev_player_world_x = px
+                self._prev_player_world_y = py
+                return
+
+            px = self._player_world_x
+            py = self._player_world_y
+
+            moved = False
+            if hasattr(self, '_prev_player_world_x'):
+                dx = abs(px - self._prev_player_world_x)
+                dy = abs(py - self._prev_player_world_y)
+                moved = dx > 0.5 or dy > 0.5
+
+            is_sneaking = (self.stealth_controller.mode == StealthMode.STEALTH)
+            player_is_noisy = moved and not is_sneaking
+
+            encounter = self.roaming_manager.update(
+                dt,
+                px,
+                py,
+                player_is_noisy=player_is_noisy,
+                is_sneaking=is_sneaking,
+            )
+            if encounter:
+                self._encounter_active = True
+                self._stop_moving()
+                self._stop_kb_move()
+                self._show_encounter(encounter)
+
+            self.roaming_manager.update_graphics()
+
+            self._prev_player_world_x = px
+            self._prev_player_world_y = py
+        except Exception:
+            pass
+
+    def _destroy_all_token_canvas(self):
+        try:
+            self.roaming_manager.destroy_graphics()
+            self._token_graphics_inited = False
+        except Exception:
+            pass
+
     def _get_location_text(self, location):
         """Получить текст кнопки локации."""
         lock_icon = '🔐' if location.is_locked else '🔓'
@@ -907,12 +999,33 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 except Exception:
                     continue
 
+            if not found:
+                try:
+                    for token in self.roaming_manager.tokens:
+                        if token.id in self.roaming_manager._lockout_ids:
+                            continue
+                        d = ((world_x - token.x) ** 2 + (world_y - token.y) ** 2) ** 0.5
+                        if d < 16.0:
+                            found = token
+                            break
+                except Exception:
+                    pass
+
             if found and getattr(self, '_hover_widget', None):
                 hw = self._hover_widget
                 try:
-                    hw.label.text = found._loc_name
+                    if hasattr(found, '_loc_name'):
+                        hw.label.text = found._loc_name
+                    elif hasattr(found, 'name'):
+                        zone = self.roaming_manager.get_zone_at(
+                            found.x, found.y
+                        )
+                        loc_name = zone.location_id if zone else ""
+                        hw.label.text = f"{found.name} ({loc_name})"
+                    else:
+                        hw.label.text = str(found._loc_id)
                 except Exception:
-                    hw.label.text = str(found._loc_id)
+                    hw.label.text = str(found)
                 try:
                     from kivy.core.window import Window
                     x = mouse_x - hw.width / 2
@@ -967,6 +1080,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
     def _on_map_touch(self, instance, touch):
         """Handle clicks/touches on the map overlay to set destination."""
         try:
+            if self._encounter_active:
+                return False
             if not getattr(self, 'map_overlay', None):
                 return False
             tb = getattr(touch, 'button', None)
@@ -1055,6 +1170,9 @@ class LocationSelectScreen(Screen, KeyboardHandler):
     def _move_player(self, dt):
         """Move the player marker towards destination each frame."""
         try:
+            if self._encounter_active:
+                self._stop_moving()
+                return
             if not getattr(self, '_player_marker', None) or not getattr(self, '_destination', None):
                 self._stop_moving()
                 return
@@ -1086,7 +1204,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 self._stop_moving()
                 self._update_enter_button()
                 return
-            step = self._move_speed * self.GLOBAL_MAP_SPEED_MULTIPLIER * dt
+            step = self._move_speed * self.GLOBAL_MAP_SPEED_MULTIPLIER * dt * self.stealth_controller.speed_multiplier
             if step >= dist:
                 self._player_world_x = dest_x
                 self._player_world_y = dest_y
@@ -1104,6 +1222,102 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             self._update_enter_button()
         except Exception:
             pass
+
+    def _check_roaming_collision(self):
+        pass
+
+    def _show_encounter(self, encounter_data: dict):
+        try:
+            dialog = EncounterDialog(encounter_data)
+            dialog.set_result_handler(self._on_encounter_result)
+            dialog.open()
+        except Exception:
+            self._encounter_active = False
+
+    def _on_encounter_result(self, action_id: str, encounter_data: dict):
+        self._encounter_active = False
+        self._encounter_cooldown = 2.0
+
+        group = encounter_data.get("group", [])
+        main_token_id = encounter_data.get("token_id", "")
+
+        if action_id == "fight":
+            for member in group:
+                self.roaming_manager.remove_token(member.get("token_id", ""))
+            self._start_encounter_battle(encounter_data)
+        else:
+            for member in group:
+                self.roaming_manager.reset_token(member.get("token_id", main_token_id), cooldown=10.0)
+
+    def _start_encounter_battle(self, encounter_data: dict):
+        try:
+            app = App.get_running_app()
+            if not app.game or not app.game.player:
+                return
+            group = encounter_data.get("group", [])
+            if not group:
+                return
+            from data.enemies import EnemyDatabase
+            from core.creatures import Creature
+            player = app.game.player
+            enemies = []
+            names = []
+            for member in group:
+                enemy_type = member.get("enemy_type", "")
+                template = EnemyDatabase.get(enemy_type)
+                if not template:
+                    continue
+                enemy = Creature(
+                    template.name,
+                    template.base_health,
+                    template.base_damage,
+                    template.base_coins,
+                    level=max(1, player.level),
+                )
+                enemies.append(enemy)
+                names.append(member.get("name", template.name))
+            if not enemies:
+                return
+
+            surprise = encounter_data.get("surprise_attack", False)
+            battlefield, _ = app.game.create_battle(enemies)
+            if surprise:
+                battlefield.surprise_attack_ready = True
+            title = ", ".join(names)
+            if len(names) > 1:
+                title = f"⚔️ {title} ({len(names)} врага)"
+            else:
+                title = f"⚔️ {title}"
+            if surprise:
+                title = f"🗡️ Крит! {title}"
+            app.battle_screen.start_battle(battlefield, title)
+            self.manager.current = "battle"
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
+    def _update_camera_zoom(self):
+        self.CAMERA_ZOOM = self.stealth_controller.camera_zoom
+
+    def _start_token_updates(self):
+        if self._token_update_ev:
+            return
+        if not self._token_graphics_inited:
+            try:
+                ow = max(1, self.map_overlay.width)
+                oh = max(1, self.map_overlay.height)
+                self.roaming_manager.set_map_size(ow, oh)
+                self.roaming_manager.init_graphics(self.map_overlay.canvas.before)
+                self._token_graphics_inited = True
+            except Exception:
+                pass
+        self._token_update_ev = Clock.schedule_interval(self._update_tokens, 0.1)
+
+    def _stop_token_updates(self):
+        if self._token_update_ev:
+            self._token_update_ev.cancel()
+            self._token_update_ev = None
+        self._destroy_all_token_canvas()
 
     def _update_enter_button(self):
         """Show enter button if player is near a hotspot, hide otherwise."""
@@ -1190,6 +1404,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             self._player_world_x / max(1, self.map_overlay.width),
             self._player_world_y / max(1, self.map_overlay.height),
         )
+        player.is_sneaking = (self.stealth_controller.mode == StealthMode.STEALTH)
 
         try:
             location_mgr = app.game.location_manager
@@ -1274,9 +1489,23 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             pass
 
         try:
+            app = App.get_running_app()
+            if app.game and app.game.player and app.game.player.is_sneaking:
+                self.stealth_controller.set_mode(StealthMode.STEALTH)
+                self._update_camera_zoom()
+        except Exception:
+            pass
+
+        try:
             self.update_locations()
         except Exception:
             pass
+
+        self._encounter_active = False
+        self._encounter_cooldown = 0.0
+        self._prev_player_world_x = self._player_world_x
+        self._prev_player_world_y = self._player_world_y
+        self._start_token_updates()
 
         try:
             if hasattr(self, 'map_overlay') and hasattr(self, '_player_marker'):
@@ -1359,6 +1588,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         except Exception:
             pass
 
+        self._stop_token_updates()
+
     def _trigger_ambush(self, enemy_id):
         """Начать бой при засаде (danger = 100%) с предупреждением."""
         try:
@@ -1366,17 +1597,25 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             if not app.game or not app.game.player:
                 return
             from data.enemies import EnemyDatabase
-            enemy = EnemyDatabase.create(enemy_id)
-            if not enemy:
+            template = EnemyDatabase.get(enemy_id)
+            if not template:
                 return
-
-            enemy_name = getattr(enemy, 'name', enemy_id)
+            from core.creatures import Creature
+            player = app.game.player
+            enemy = Creature(
+                template.name,
+                template.base_health,
+                template.base_damage,
+                template.base_coins,
+                level=max(1, player.level),
+            )
+            enemy_name = template.name
 
             def _start_ambush_battle(*args):
                 try:
-                    battlefield, battle_service = app.game.create_battle([enemy])
+                    battlefield, _ = app.game.create_battle([enemy])
                     if hasattr(app, 'battle_screen'):
-                        app.battle_screen.start_battle(battlefield, battle_service)
+                        app.battle_screen.start_battle(battlefield, f"⚔️ Засада! {enemy_name}")
                         app.root.current = 'battle'
                 except Exception as e:
                     print(f"[AMBUSH] Battle start error: {e}")
