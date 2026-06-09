@@ -212,6 +212,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             and player
             and getattr(player, "last_location_visited", None) == self.scene_id
         ):
+            self._defeated_enemies.clear()  # При загрузке сохранённых позиций очищаем набор побеждённых
             self._init_entities(use_saved=True)
         else:
             self._init_entities(use_saved=False)
@@ -1205,6 +1206,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         player = app.game.player if app.game else None
 
         if player and self.scene_config and self.scene_config.scene_type == "combat":
+            # Сохраняем позиции и суще указ ТОЛЬКО обычных врагов (не боссов!)
             positions = []
             creatures = []
             for e in self._entities:
@@ -1302,6 +1304,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     app.game.autosave()
                 except Exception:
                     pass
+            # После победы над боссом — удаляем только босса, остальных врагов и игрока оставляем
+            if has_boss and self.scene_config:
+                self._entities = [e for e in self._entities if e.get("type") != "boss"]
+                self._sync_entity_positions()  # Обновить визуалы после удаления босса
         elif self._current_battle_group:
             for ent in self._current_battle_group:
                 if ent.get("type") == "enemy" and ent.get("stun_timer", 0) < 2.0:
@@ -1667,11 +1673,35 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if entity.get("bark_label"):
             self._remove_bark(entity)
 
-        # Определение типа существа
-        c_name = entity.get("name", "").lower()
-        if "волк" in c_name or "wolf" in c_name:
+        creature = entity.get("creature")
+        e_type = (creature.enemy_type.lower() if creature and hasattr(creature, "enemy_type") else "") or entity.get("name", "").lower()
+        if "shaman" in e_type:
+            creature_type = "shaman"
+        elif "goblin" in e_type or "bog" in e_type or "болотник" in e_type:
+            creature_type = "goblin"
+        elif "toad" in e_type:
+            creature_type = "toad"
+        elif "orc" in e_type:
+            creature_type = "orc"
+        elif "draugr" in e_type:
+            creature_type = "draugr"
+        elif "golem" in e_type:
+            creature_type = "golem"
+        elif "skeleton" in e_type:
+            creature_type = "skeleton"
+        elif "greyling" in e_type or "gremlyn" in e_type:
+            creature_type = "greyling"
+        elif "specter" in e_type or "ice" in e_type:
+            creature_type = "specter"
+        elif "dragon" in e_type:
+            creature_type = "dragon"
+        elif "troll" in e_type:
+            creature_type = "troll"
+        elif "giant" in e_type:
+            creature_type = "giant"
+        elif "wolf" in e_type or "волк" in entity.get("name", "").lower():
             creature_type = "wolf"
-        elif "мародёр" in c_name or "мародер" in c_name or "marauder" in c_name:
+        elif "marauder" in e_type or "разведчик" in entity.get("name", "").lower() or "дезертир" in entity.get("name", "").lower():
             creature_type = "marauder"
         else:
             creature_type = "bandit"

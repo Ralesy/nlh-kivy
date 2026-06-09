@@ -1399,10 +1399,34 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         if token.bark_label:
             self._remove_bark(token)
 
-        c_name = token.name.lower()
-        if "волк" in c_name or "wolf" in c_name:
+        e_type = token.enemy_type.lower()
+        if "shaman" in e_type:
+            creature_type = "shaman"
+        elif "goblin" in e_type or "bog" in e_type:
+            creature_type = "goblin"
+        elif "toad" in e_type:
+            creature_type = "toad"
+        elif "orc" in e_type:
+            creature_type = "orc"
+        elif "draugr" in e_type:
+            creature_type = "draugr"
+        elif "golem" in e_type:
+            creature_type = "golem"
+        elif "skeleton" in e_type:
+            creature_type = "skeleton"
+        elif "greyling" in e_type or "gremlyn" in e_type:
+            creature_type = "greyling"
+        elif "specter" in e_type or "ice" in e_type:
+            creature_type = "specter"
+        elif "dragon" in e_type:
+            creature_type = "dragon"
+        elif "troll" in e_type:
+            creature_type = "troll"
+        elif "giant" in e_type:
+            creature_type = "giant"
+        elif "wolf" in e_type or "волк" in token.name.lower():
             creature_type = "wolf"
-        elif "мародёр" in c_name or "мародер" in c_name or "marauder" in c_name:
+        elif "marauder" in e_type or "разведчик" in token.name.lower() or "дезертир" in token.name.lower():
             creature_type = "marauder"
         else:
             creature_type = "bandit"
