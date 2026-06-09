@@ -116,7 +116,6 @@ class RoamingToken:
 
             self._cone_color = Color(1.0, 0.6, 0.0, 0.06)
             self._cone_mesh = Mesh(vertices=[], indices=[], mode='triangle_fan')
-
             self._cone_border_color = Color(1.0, 0.6, 0.0, 0.2)
             self._cone_line_left = Line(points=[], width=1)
             self._cone_line_right = Line(points=[], width=1)
@@ -391,5 +390,7 @@ class RoamingToken:
         if value and self.state is not TokenState.CHASE:
             self.state = TokenState.CHASE
             self.is_chasing = True
+            if self._aggro_reason is None:
+                self._aggro_reason = "sight"
         elif not value and self.state is TokenState.CHASE:
             self._reset_after_lost_player()

@@ -43,8 +43,15 @@ class Enemy:
         """
         loot = []
 
-        # Животные/монстры: только опыт и деньги
+        # Животные/монстры: теперь тоже могут дропать из loot_table
         if self.enemy_type == "animal":
+            if self.loot_table:
+                items = [item_id for item_id, _ in self.loot_table]
+                base_chances = [chance for _, chance in self.loot_table]
+                adj_chances = [max(0.0, c * luck) for c in base_chances]
+                if random.random() < 0.4 * luck:
+                    chosen_item = random.choices(items, weights=adj_chances, k=1)[0]
+                    loot.append((chosen_item, 1))
             return loot
 
         # Гуманоиды: из своего таблицы дропа
@@ -118,7 +125,10 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_forest_wolf", "Волк", "animal",
             base_health=30, base_damage=8, base_coins=8,
-            xp_reward=50
+            xp_reward=50,
+            loot_table=[
+                ("p_small", 0.3),
+            ],
         ))
 
         # Мародёры (гуманоиды - трепьё + железное оружие)
@@ -167,6 +177,13 @@ class EnemyDatabase:
             ]
         ))
 
+        # Лесной разведчик
+        cls.register(Enemy(
+            "enemy_forest_scout", "Лесной разведчик", "humanoid",
+            base_health=35, base_damage=9, base_coins=12,
+            xp_reward=60,
+        ))
+
         # === БОЛОТА "ГНИЮЩИЕ ТОПИ" ===
 
         # Гоблины (гуманоиды - гоблинское оружие)
@@ -188,7 +205,11 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_swamp_giant_toad", "Гигантская жаба", "animal",
             base_health=55, base_damage=13, base_coins=14,
-            xp_reward=65
+            xp_reward=65,
+            loot_table=[
+                ("p_small", 0.4),
+                ("p_med", 0.15),
+            ],
         ))
 
         # Болотники (животные/гуманоиды - часто зелья и оружие)
@@ -202,6 +223,29 @@ class EnemyDatabase:
                 ("w_goblin_spear", 0.25),
                 ("w_goblin_bow", 0.15),
                 ("w_goblin_staff", 0.12)
+            ]
+        ))
+
+        # Гигантская жаба (синоним для глобальной карты)
+        cls.register(Enemy(
+            "enemy_swamp_toad", "Гигантская жаба", "animal",
+            base_health=55, base_damage=13, base_coins=14,
+            xp_reward=65,
+            loot_table=[
+                ("p_small", 0.4),
+                ("p_med", 0.15),
+            ],
+        ))
+
+        # Шаман болот
+        cls.register(Enemy(
+            "enemy_swamp_shamanic", "Шаман болот", "humanoid",
+            base_health=50, base_damage=12, base_coins=22,
+            xp_reward=80,
+            loot_table=[
+                ("w_goblin_staff", 0.5),
+                ("p_small", 0.4),
+                ("p_med", 0.2),
             ]
         ))
 
@@ -241,7 +285,11 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_mines_skeleton", "Скелет", "animal",
             base_health=55, base_damage=12, base_coins=12,
-            xp_reward=60
+            xp_reward=60,
+            loot_table=[
+                ("p_small", 0.3),
+                ("w_iron_dagger", 0.15),
+            ],
         ))
 
         # Крысиный Король (гуманоид)
@@ -274,6 +322,41 @@ class EnemyDatabase:
             ]
         ))
 
+        # Драугр-шахтёр
+        cls.register(Enemy(
+            "enemy_mines_draugr", "Драугр-шахтёр", "humanoid",
+            base_health=60, base_damage=14, base_coins=28,
+            xp_reward=100,
+            loot_table=[
+                ("a_dwarf_plate", 0.2),
+                ("w_dwarf_axe", 0.3),
+                ("w_dwarf_sword", 0.3),
+            ]
+        ))
+
+        # Каменный голем
+        cls.register(Enemy(
+            "enemy_mines_golem", "Каменный голем", "animal",
+            base_health=80, base_damage=18, base_coins=20,
+            xp_reward=110,
+            loot_table=[
+                ("p_small", 0.3),
+                ("w_orc_maul", 0.2),
+                ("a_iron_plate", 0.15),
+            ],
+        ))
+
+        # Серый гремлин
+        cls.register(Enemy(
+            "enemy_mines_greyling", "Серый гремлин", "animal",
+            base_health=40, base_damage=10, base_coins=10,
+            xp_reward=50,
+            loot_table=[
+                ("p_small", 0.25),
+                ("w_iron_dagger", 0.1),
+            ],
+        ))
+
         # === ГОРЫ "ХРЕБЕТ ДРАКОНОВ" ===
 
         # Безумные снеговики (животные)
@@ -281,14 +364,22 @@ class EnemyDatabase:
             "enemy_mountains_mad_snowman", "Безумный снеговик",
             "animal",
             base_health=60, base_damage=13, base_coins=20,
-            xp_reward=80
+            xp_reward=80,
+            loot_table=[
+                ("p_small", 0.35),
+                ("p_med", 0.1),
+            ],
         ))
 
         # Горные волки (животные)
         cls.register(Enemy(
             "enemy_mountains_mountain_wolf", "Горный волк", "animal",
             base_health=65, base_damage=15, base_coins=22,
-            xp_reward=90
+            xp_reward=90,
+            loot_table=[
+                ("p_small", 0.35),
+                ("w_iron_sword", 0.15),
+            ],
         ))
 
         # Ледяные приведения (животные)
@@ -296,7 +387,11 @@ class EnemyDatabase:
             "enemy_mountains_ice_specter", "Ледяное приведение",
             "animal",
             base_health=70, base_damage=16, base_coins=24,
-            xp_reward=100
+            xp_reward=100,
+            loot_table=[
+                ("p_med", 0.25),
+                ("w_steel_staff", 0.1),
+            ],
         ))
 
         # Драконоборец-зомби (гуманоид)
@@ -316,7 +411,58 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_mountains_dragon", "Дракон", "animal",
             base_health=200, base_damage=25, base_coins=120,
-            xp_reward=400
+            xp_reward=400,
+            loot_table=[
+                ("p_large", 0.5),
+                ("w_dragon_sword", 0.05),
+                ("a_dwarf_plate", 0.2),
+            ],
+        ))
+
+        # Горный тролль
+        cls.register(Enemy(
+            "enemy_mountains_troll", "Горный тролль", "humanoid",
+            base_health=100, base_damage=18, base_coins=40,
+            xp_reward=150,
+            loot_table=[
+                ("w_orc_maul", 0.4),
+                ("a_dwarf_plate", 0.25),
+            ]
+        ))
+
+        # Ледяной призрак
+        cls.register(Enemy(
+            "enemy_mountains_specter", "Ледяной призрак", "animal",
+            base_health=65, base_damage=14, base_coins=22,
+            xp_reward=90,
+            loot_table=[
+                ("p_med", 0.25),
+                ("w_steel_staff", 0.1),
+            ],
+        ))
+
+        # Горный великан
+        cls.register(Enemy(
+            "enemy_mountains_giant", "Горный великан", "humanoid",
+            base_health=150, base_damage=22, base_coins=60,
+            xp_reward=200,
+            loot_table=[
+                ("w_orc_maul", 0.5),
+                ("a_steel_plate", 0.3),
+                ("a_orc_mail", 0.25),
+            ]
+        ))
+
+        # Ледяной дракон
+        cls.register(Enemy(
+            "enemy_mountains_drake", "Ледяной дракон", "animal",
+            base_health=180, base_damage=24, base_coins=100,
+            xp_reward=350,
+            loot_table=[
+                ("p_large", 0.4),
+                ("w_dragon_sword", 0.03),
+                ("a_dwarf_plate", 0.15),
+            ],
         ))
 
         # === БОССЫ В ПЕЩЕРЕ ДРЕВНИХ ===

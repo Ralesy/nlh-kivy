@@ -1259,13 +1259,24 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 return
             from data.enemies import EnemyDatabase
             from core.creatures import Creature
+            from core.combat.enemy_spawner import EnemyGenerator
             player = app.game.player
             enemies = []
             names = []
             for member in group:
                 enemy_type = member.get("enemy_type", "")
+                enemy_name = member.get("name", "Враг")
                 template = EnemyDatabase.get(enemy_type)
                 if not template:
+                    enemy = Creature(
+                        enemy_name,
+                        base_health=30,
+                        base_damage=8,
+                        base_coins=5,
+                        level=max(1, player.level),
+                    )
+                    enemies.append(enemy)
+                    names.append(enemy_name)
                     continue
                 enemy = Creature(
                     template.name,
@@ -1274,6 +1285,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                     template.base_coins,
                     level=max(1, player.level),
                 )
+                enemy._template = template
+                EnemyGenerator._equip_from_loot_table(enemy)
                 enemies.append(enemy)
                 names.append(member.get("name", template.name))
             if not enemies:
@@ -1503,6 +1516,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
         self._encounter_active = False
         self._encounter_cooldown = 0.0
+        self.roaming_manager._lockout_ids.clear()
         self._prev_player_world_x = self._player_world_x
         self._prev_player_world_y = self._player_world_y
         self._start_token_updates()

@@ -438,6 +438,16 @@ class BattleScreen(Screen):
                     if loot:
                         for item_id, quantity in loot:
                             loot_drops.append(LootDrop(item_id, quantity))
+
+                    if getattr(enemy, "weapon", None):
+                        weapon_id = getattr(enemy.weapon, "id", None)
+                        if weapon_id:
+                            loot_drops.append(LootDrop(weapon_id, 1))
+
+                    if getattr(enemy, "armor", None):
+                        armor_id = getattr(enemy.armor, "id", None)
+                        if armor_id:
+                            loot_drops.append(LootDrop(armor_id, 1))
                     # Если убит босс — отмечаем его как побежденного
                     try:
                         if hasattr(enemy, '_template') and enemy._template:
