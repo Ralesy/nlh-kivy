@@ -15,9 +15,10 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
-from kivy.graphics import Color, Rectangle, PushMatrix, PopMatrix, Translate, Scale
+from kivy.graphics import Color, Rectangle, PushMatrix, PopMatrix, Translate, Scale, RoundedRectangle
 from kivy.clock import Clock
 from kivy.metrics import dp
+from kivy.logger import Logger
 
 from ui.ui_styles import COLORS, BUTTONS_DIR
 from data.locations import LocationManager
@@ -28,6 +29,19 @@ from ui.bindings.keyboard_handler import KeyboardHandler
 from systems.roaming_entity_manager import RoamingEntityManager
 from systems.stealth_controller import StealthController, StealthMode, DetectionLevel
 from ui.widgets.encounter_dialog import EncounterDialog
+
+from core.config import (
+    GLOBAL_CAMERA_ZOOM,
+    GLOBAL_CAMERA_LERP_SPEED,
+    GLOBAL_MAP_SPEED_MULTIPLIER,
+    GLOBAL_PLAYER_MARKER_SIZE,
+    GLOBAL_PLAYER_MOVE_SPEED,
+    ENEMY_BARKS,
+    ENEMY_ALERT_BARKS,
+    BARK_CHANCE_PER_CHECK,
+    BARK_CHECK_INTERVAL,
+    BARK_DURATION,
+)
 
 
 class LocationSelectScreen(Screen, KeyboardHandler):
@@ -40,10 +54,12 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self.game = None
 
         # --- Camera constants ---
-        self.CAMERA_ZOOM = 2.5
-        self.CAMERA_LERP_SPEED = 6.0
-        self.GLOBAL_MAP_SPEED_MULTIPLIER = 0.4
-        self.PLAYER_MARKER_SIZE = dp(14)
+        # --- Camera constants ---
+        self.CAMERA_ZOOM = GLOBAL_CAMERA_ZOOM
+        self.CAMERA_LERP_SPEED = GLOBAL_CAMERA_LERP_SPEED
+        self.GLOBAL_MAP_SPEED_MULTIPLIER = GLOBAL_MAP_SPEED_MULTIPLIER
+        self.PLAYER_MARKER_SIZE = dp(GLOBAL_PLAYER_MARKER_SIZE)
+
 
         # --- Camera state (world pixel coords) ---
         self._cam_x = 0.0
@@ -59,7 +75,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self._player_marker = None
         self._destination = None
         self._move_ev = None
-        self._move_speed = dp(147)
+        self._move_speed = dp(GLOBAL_PLAYER_MOVE_SPEED)
         self._enter_btn = None
         self._kb_move = {"up": False, "down": False, "left": False, "right": False}
         self._kb_move_ev = None
@@ -212,8 +228,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 if ambush:
                     self._trigger_ambush(ambush)
                     return
-        except Exception:
-            pass
+        except Exception as e:
+            Logger.error(f"GlobalMap: DangerManager update failed. Error: {e}")
 
         length = (mx * mx + my * my) ** 0.5
         if not length:
@@ -333,8 +349,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             if getattr(app, "inventory_screen", None):
                 try:
                     app.inventory_screen.update_inventory()
-                except Exception:
-                    pass
+                except Exception as e:
+                    Logger.warning(f"GlobalMap: Failed to update inventory UI: {e}")
             if getattr(app, "game", None) and getattr(app.game, "player", None):
                 self.manager.current = "inventory"
             return True
@@ -418,7 +434,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                             try:
                                 col, ell = entry
                                 btn = None
-                            except Exception:
+                            except Exception as e:
+                                Logger.debug(f"GlobalMap: Unpacking hotspot tuple failed (expected fallback): {e}")
                                 continue
                         try:
                             if ell in self.map_overlay.canvas.before:
@@ -899,9 +916,12 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 self._encounter_cooldown = max(0.0, self._encounter_cooldown - dt)
                 px = self._player_world_x
                 py = self._player_world_y
+                prev_states = {t.id: t.is_chasing for t in self.roaming_manager.tokens}
                 moved = abs(px - self._prev_player_world_x) > 0.5 or abs(py - self._prev_player_world_y) > 0.5 if hasattr(self, '_prev_player_world_x') else False
                 is_sneaking = (self.stealth_controller.mode == StealthMode.STEALTH)
                 self.roaming_manager.update(dt, px, py, player_is_noisy=(moved and not is_sneaking), is_sneaking=is_sneaking)
+                self._detect_new_chasers(prev_states)
+                self._update_barks(dt)
                 self.roaming_manager.update_graphics()
                 self._prev_player_world_x = px
                 self._prev_player_world_y = py
@@ -919,6 +939,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             is_sneaking = (self.stealth_controller.mode == StealthMode.STEALTH)
             player_is_noisy = moved and not is_sneaking
 
+            prev_states = {t.id: t.is_chasing for t in self.roaming_manager.tokens}
+
             encounter = self.roaming_manager.update(
                 dt,
                 px,
@@ -932,12 +954,21 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 self._stop_kb_move()
                 self._show_encounter(encounter)
 
+            self._detect_new_chasers(prev_states)
+            self._update_barks(dt)
             self.roaming_manager.update_graphics()
 
             self._prev_player_world_x = px
             self._prev_player_world_y = py
         except Exception:
             pass
+
+    def _detect_new_chasers(self, prev_states):
+        for token in self.roaming_manager.tokens:
+            if token.id in self.roaming_manager._lockout_ids:
+                continue
+            if token.is_chasing and not prev_states.get(token.id, False):
+                self._spawn_bark(token, is_alert=True)
 
     def _destroy_all_token_canvas(self):
         try:
@@ -1332,6 +1363,110 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             self._token_update_ev = None
         self._destroy_all_token_canvas()
 
+    # ──────────────────────────────────────────────
+    #  Bark system (реплики над головами токенов)
+    # ──────────────────────────────────────────────
+
+    def _init_bark_system(self):
+        self._bark_timer = 0.0
+
+    def _update_barks(self, dt):
+        for token in self.roaming_manager.tokens:
+            if token.id in self.roaming_manager._lockout_ids:
+                if token.bark_label:
+                    self._remove_bark(token)
+                continue
+            if not token.bark_label:
+                continue
+            sx, sy = self._world_to_screen(token.x, token.y)
+            token.bark_label.center_x = sx
+            token.bark_label.y = sy + dp(12)
+
+        self._bark_timer += dt
+        if self._bark_timer >= BARK_CHECK_INTERVAL:
+            self._bark_timer = 0.0
+            silent_tokens = [
+                t for t in self.roaming_manager.tokens
+                if t.id not in self.roaming_manager._lockout_ids
+                and not t.is_chasing
+                and not t.bark_label
+            ]
+            if silent_tokens and random.random() < BARK_CHANCE_PER_CHECK:
+                lucky = random.choice(silent_tokens)
+                self._spawn_bark(lucky)
+
+    def _spawn_bark(self, token, is_alert=False):
+        if token.bark_label:
+            self._remove_bark(token)
+
+        c_name = token.name.lower()
+        if "волк" in c_name or "wolf" in c_name:
+            creature_type = "wolf"
+        elif "мародёр" in c_name or "мародер" in c_name or "marauder" in c_name:
+            creature_type = "marauder"
+        else:
+            creature_type = "bandit"
+
+        if is_alert:
+            barks = ENEMY_ALERT_BARKS.get(creature_type, ["Ага! Кто тут?!"])
+            duration = 2.0
+        else:
+            barks = ENEMY_BARKS.get(creature_type, ["..."])
+            duration = BARK_DURATION
+
+        text = random.choice(barks)
+
+        bark_label = Label(
+            text=text,
+            font_size=dp(11),
+            color=(1, 0.2, 0.2, 1) if is_alert else (1, 1, 1, 1),
+            bold=is_alert,
+            size_hint=(None, None),
+            halign='center',
+            valign='middle'
+        )
+        bark_label.texture_update()
+        bark_label.size = (bark_label.texture_size[0] + dp(16), bark_label.texture_size[1] + dp(8))
+
+        with bark_label.canvas.before:
+            if is_alert:
+                Color(0.4, 0.0, 0.0, 0.75)
+            else:
+                Color(0.1, 0.1, 0.1, 0.6)
+            bark_label.bg_rect = RoundedRectangle(size=bark_label.size, pos=bark_label.pos, radius=[dp(6)])
+
+        bark_label.bind(pos=lambda inst, val: setattr(inst.bg_rect, 'pos', val))
+
+        self.add_widget(bark_label)
+        token.bark_label = bark_label
+
+        sx, sy = self._world_to_screen(token.x, token.y)
+        bark_label.center_x = sx
+        bark_label.y = sy + dp(12)
+
+        old_timer = token._bark_timer_event
+        if old_timer:
+            old_timer.cancel()
+
+        token._bark_timer_event = Clock.schedule_once(lambda dt: self._remove_bark(token), duration)
+
+    def _remove_bark(self, token):
+        timer = token._bark_timer_event
+        if timer:
+            timer.cancel()
+        token._bark_timer_event = None
+        bark_label = token.bark_label
+        token.bark_label = None
+        if bark_label:
+            try:
+                self.remove_widget(bark_label)
+            except Exception:
+                pass
+
+    def _clear_all_barks(self):
+        for token in self.roaming_manager.tokens:
+            self._remove_bark(token)
+
     def _update_enter_button(self):
         """Show enter button if player is near a hotspot, hide otherwise."""
         try:
@@ -1519,6 +1654,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self.roaming_manager._lockout_ids.clear()
         self._prev_player_world_x = self._player_world_x
         self._prev_player_world_y = self._player_world_y
+        self._init_bark_system()
         self._start_token_updates()
 
         try:
@@ -1602,6 +1738,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         except Exception:
             pass
 
+        self._clear_all_barks()
         self._stop_token_updates()
 
     def _trigger_ambush(self, enemy_id):

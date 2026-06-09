@@ -44,24 +44,33 @@ from data.local_scenes import (
 from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.ui_styles import BUTTONS_DIR, COLORS
 from ui.widgets.cover_background import cover_background_image
+from kivy.graphics import RoundedRectangle # Нужен для красивой плашки текста
 
-
-SOCIAL_AGGRO_RADIUS = 120
-DE_AGGRO_RADIUS = 250
-PATROL_RADIUS = 150
-CONE_ANGLE = 120
-CONE_LENGTH = 200
-HEARING_RADIUS = 95
-PLAYER_BASE_RADIUS = 12
-ENEMY_BASE_RADIUS = 12
-BOSS_BASE_RADIUS = 18
-NPC_BASE_RADIUS = 14
-LOCAL_CAMERA_ZOOM = 1.3
-LOCAL_CAMERA_LERP_SPEED = 8.0
-ENTRY_POINT_X = 0.5
-ENTRY_POINT_Y = 0.1
-STUN_DURATION = 5.0
-INVINCIBILITY_DURATION = 3.0
+from core.config import (
+    SOCIAL_AGGRO_RADIUS,
+    DE_AGGRO_RADIUS,
+    PATROL_RADIUS,
+    CONE_ANGLE,
+    CONE_LENGTH,
+    HEARING_RADIUS,
+    PLAYER_BASE_RADIUS,
+    ENEMY_BASE_RADIUS,
+    BOSS_BASE_RADIUS,
+    NPC_BASE_RADIUS,
+    LOCAL_CAMERA_ZOOM,
+    LOCAL_CAMERA_LERP_SPEED,
+    ENTRY_POINT_X,
+    ENTRY_POINT_Y,
+    STUN_DURATION,
+    INVINCIBILITY_DURATION,
+    LOCAL_ENEMY_PATROL_SPEED,
+    LOCAL_ENEMY_CHASE_SPEED,
+    ENEMY_BARKS,
+    ENEMY_ALERT_BARKS,
+    BARK_CHANCE_PER_CHECK,
+    BARK_CHECK_INTERVAL,
+    BARK_DURATION,
+)
 
 
 class LocalLocationScreen(Screen, KeyboardHandler):
@@ -231,12 +240,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         try:
             Window.bind(mouse_pos=self._on_mouse_pos)
-        except Exception:
-            pass
+        except Exception as e:
+            Logger.warning(f"LocalLocation: Could not bind mouse_pos inside {self.scene_id}. Error: {e}")
 
         if self._update_event:
             self._update_event.cancel()
         self._update_event = Clock.schedule_interval(self._on_game_update, 1 / 60)
+
+        # ... твой существующий код ...
+        self._init_bark_system() # <- ДОБАВИТЬ СЮДА
 
     def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
         if action == "move_up":
@@ -364,15 +376,14 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             else:
                 x_norm, y_norm = random.uniform(0.15, 0.85), random.uniform(0.15, 0.85)
 
-            creature = (
-                saved_creatures[i]
-                if i < len(saved_creatures) and saved_creatures[i]
-                else (
-                    EnemyGenerator.generate_for_location(loc_id, player.level, count=1)[0]
-                    if player
-                    else None
-                )
-            )
+            creature = None
+            if i < len(saved_creatures) and saved_creatures[i]:
+                creature = saved_creatures[i]
+            elif player:
+                try:
+                    creature = EnemyGenerator.generate_for_location(loc_id, player.level, count=1)[0]
+                except Exception as e:
+                    Logger.error(f"LocalLocation: Enemy generator failed for loc {loc_id}. Error: {e}")
             self._entities.append(
                 {
                     "type": "enemy",
@@ -397,8 +408,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     "patrol_pause_timer": random.uniform(0, 2),
                     "dir_x": 0,
                     "dir_y": -1,
-                    "patrol_speed": dp(20),
-                    "chase_speed": dp(170),
+                    "patrol_speed": dp(LOCAL_ENEMY_PATROL_SPEED),
+                    "chase_speed": dp(LOCAL_ENEMY_CHASE_SPEED),
                 }
             )
 
@@ -745,6 +756,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         """Игровой цикл: движение, столкновения, отрисовка."""
         if not self.scene_id or self._paused:
             return
+        self._update_barks(dt)
 
         self._sync_entity_positions()
 
@@ -879,6 +891,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 continue
             dist = ((ent["x"] - sx) ** 2 + (ent["y"] - sy) ** 2) ** 0.5
             if ent is spotter or dist <= SOCIAL_AGGRO_RADIUS:
+                # ТРИГГЕР ТРЕВОГИ: Если этот конкретный враг ещё не гнался за игроком, он кричит
+                if ent.get("ai_state") != "chase":
+                    self._spawn_bark(ent, is_alert=True)
+
                 ent["ai_state"] = "chase"
                 ent["alert_source_id"] = source_id
                 ent["aggro_reason"] = "sight_source" if ent is spotter else "social"
@@ -896,9 +912,17 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         ):
             self._clear_social_aggro(self._alert_source_id)
             active_source = None
+            
+        # Теперь мы сбрасываем общий агр только если источник потерял игрока 
+        # И при этом НИКТО другой из врагов в состоянии "chase" больше не видит игрока
         if active_source and not self._enemy_sees_player(active_source, px, py):
-            self._clear_social_aggro(active_source.get("id"))
-            active_source = None
+            any_other_sees = any(
+                e for e in self._entities 
+                if e.get("type") == "enemy" and not e["defeated"] and e.get("ai_state") == "chase" and self._enemy_sees_player(e, px, py)
+            )
+            if not any_other_sees:
+                self._clear_social_aggro(active_source.get("id"))
+                active_source = None
 
         for ent in self._entities:
             if ent["defeated"] or ent.get("type") not in ("enemy",):
@@ -915,7 +939,17 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             hears_player = player_is_noisy and dist_to_player <= HEARING_RADIUS
 
             if sees_player and self._alert_source_id != ent.get("id"):
-                self._trigger_social_aggro(ent)
+                # Если погоня уже идёт от другого источника — не переключаем его,
+                # а просто присоединяем этого врага к текущей тревоге.
+                # Это предотвращает множественный сброс/создание реплик,
+                # когда несколько врагов видят игрока одновременно.
+                if self._alert_source_id is not None:
+                    if state != "chase":
+                        ent["ai_state"] = "chase"
+                        ent["alert_source_id"] = self._alert_source_id
+                        ent["aggro_reason"] = "social"
+                elif state != "chase":
+                    self._trigger_social_aggro(ent)
                 active_source = ent
                 state = ent.get("ai_state", "chase")
             elif state == "patrol" and hears_player:
@@ -969,9 +1003,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 aggro_reason = ent.get("aggro_reason")
                 if aggro_reason in ("sight_source", "social"):
                     source = self._get_enemy_by_id(ent.get("alert_source_id"))
+                    # Сбрасываем только если игрок действительно потерян ВСЕМИ врагами в этой группе
                     if not source or not self._enemy_sees_player(source, px, py):
-                        self._clear_social_aggro(ent.get("alert_source_id"))
-                        continue
+                        any_other_sees = any(
+                            e for e in self._entities 
+                            if e.get("type") == "enemy" and e.get("alert_source_id") == ent.get("alert_source_id") 
+                            and self._enemy_sees_player(e, px, py)
+                        )
+                        if not any_other_sees:
+                            self._clear_social_aggro(ent.get("alert_source_id"))
+                            continue
                 elif aggro_reason == "hearing":
                     if sees_player:
                         self._trigger_social_aggro(ent)
@@ -1495,7 +1536,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             Window.unbind(mouse_pos=self._on_mouse_pos)
         except Exception:
             pass
+        self._clear_all_barks()
         self._stop_loop()
+
 
     def _is_anyone_chasing(self):
         """Проверить, есть ли враги в состоянии погони."""
@@ -1577,3 +1620,124 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             pass
 
         self.manager.current = "location_select"
+
+    def _init_bark_system(self):
+        """Инициализация таймера системы реплик."""
+        self._bark_timer = 0.0
+
+    def _update_barks(self, dt):
+        """Обновление позиций активных реплик и проверка шанса появления новых."""
+        if self._paused:
+            return
+
+        # 1. Сначала обновляем позиции уже существующих реплик, чтобы они следовали за врагами
+        for entity in self._entities:
+            bark_label = entity.get("bark_label")
+            if bark_label:
+                # Переводим мировые координаты врага в экранные с учетом камеры (_cam_scale и _cam_translate)
+                screen_x = entity["x"] * self._cam_scale.x + self._cam_translate.x
+                screen_y = entity["y"] * self._cam_scale.y + self._cam_translate.y
+                
+                # Радиус врага с учетом масштаба камеры
+                r_offset = self._enemy_radius() * self._cam_scale.y
+                
+                # Центрируем текст над головой
+                bark_label.center_x = screen_x
+                bark_label.y = screen_y + r_offset + dp(12)
+
+        # 2. Каждые BARK_CHECK_INTERVAL секунд пытаемся заставить случайного врага заговорить
+        self._bark_timer += dt
+        if self._bark_timer >= BARK_CHECK_INTERVAL:
+            self._bark_timer = 0.0
+            
+            # Берем только тех врагов, у кого сейчас нет активной реплики
+            silent_entities = [e for e in self._entities if e.get("type") == "enemy" and not e.get("bark_label") and not e.get("defeated")]
+            if silent_entities and random.random() < BARK_CHANCE_PER_CHECK:
+                lucky_entity = random.choice(silent_entities)
+                self._spawn_bark(lucky_entity)
+
+    def _spawn_bark(self, entity, is_alert=False):
+        """Создает текстовое облако над врагом. Поддерживает мирные фразы и тревогу."""
+        creature = entity.get("creature")
+        if not creature:
+            return
+
+        # Если у врага УЖЕ висит какая-то фраза, принудительно удаляем её,
+        # чтобы старый текст не перекрывал срочную тревогу
+        if entity.get("bark_label"):
+            self._remove_bark(entity)
+
+        # Определение типа существа
+        c_name = entity.get("name", "").lower()
+        if "волк" in c_name or "wolf" in c_name:
+            creature_type = "wolf"
+        elif "мародёр" in c_name or "мародер" in c_name or "marauder" in c_name:
+            creature_type = "marauder"
+        else:
+            creature_type = "bandit"
+
+        # Выбираем пул фраз и длительность в зависимости от ситуации
+        if is_alert:
+            barks = ENEMY_ALERT_BARKS.get(creature_type, ["Ага! Кто тут?!"])
+            duration = 2.0  # Боевой клич висит чуть меньше (2 сек), чтобы не засорять экран в бою
+        else:
+            barks = ENEMY_BARKS.get(creature_type, ["..."])
+            duration = BARK_DURATION
+
+        text = random.choice(barks)
+
+        # Создаем Kivy Label (стилизуем под тип реплики)
+        bark_label = Label(
+            text=text,
+            font_size=dp(11),
+            color=(1, 0.2, 0.2, 1) if is_alert else (1, 1, 1, 1), # Красный текст для тревоги
+            bold=is_alert,                                       # Жирный для тревоги
+            size_hint=(None, None),
+            halign='center',
+            valign='middle'
+        )
+        bark_label.texture_update()
+        bark_label.size = (bark_label.texture_size[0] + dp(16), bark_label.texture_size[1] + dp(8))
+
+        # Рисуем подложку
+        with bark_label.canvas.before:
+            if is_alert:
+                Color(0.4, 0.0, 0.0, 0.75) # Темно-красный фон для паники
+            else:
+                Color(0.1, 0.1, 0.1, 0.6)  # Обычный полупрозрачный черный
+            bark_label.bg_rect = RoundedRectangle(size=bark_label.size, pos=bark_label.pos, radius=[dp(6)])
+        
+        bark_label.bind(pos=lambda inst, val: setattr(inst.bg_rect, 'pos', val))
+
+        self.add_widget(bark_label)
+        entity["bark_label"] = bark_label
+
+        # Позиционируем над головой
+        screen_x = entity["x"] * self._cam_scale.x + self._cam_translate.x
+        screen_y = entity["y"] * self._cam_scale.y + self._cam_translate.y
+        r_offset = self._enemy_radius() * self._cam_scale.y
+        bark_label.center_x = screen_x
+        bark_label.y = screen_y + r_offset + dp(12)
+
+        # Отменяем старый таймер, если есть, чтобы избежать преждевременного удаления
+        old_timer = entity.get("_bark_timer_event")
+        if old_timer:
+            old_timer.cancel()
+
+        # Ставим таймер удаления
+        entity["_bark_timer_event"] = Clock.schedule_once(lambda dt: self._remove_bark(entity), duration)
+
+    def _remove_bark(self, entity):
+        """Безопасное удаление реплики с экрана."""
+        # Отменяем запланированный таймер, если он ещё не сработал
+        timer = entity.pop("_bark_timer_event", None)
+        if timer:
+            timer.cancel()
+        bark_label = entity.pop("bark_label", None)
+        if bark_label:
+            self.remove_widget(bark_label)
+            
+    def _clear_all_barks(self):
+        """Уничтожение всех бабблов при выходе из локации."""
+        for entity in self._entities:
+            self._remove_bark(entity)

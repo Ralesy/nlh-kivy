@@ -105,6 +105,9 @@ class RoamingToken:
         self._dot_color: Optional[Color] = None
         self._dot_ell: Optional[Ellipse] = None
 
+        self.bark_label = None
+        self._bark_timer_event = None
+
     def init_graphics(self, canvas) -> None:
         if self._graphics_ready:
             return
