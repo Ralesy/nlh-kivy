@@ -34,7 +34,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.18, center_y=0.45,
             radius=0.18, location_id="forest",
-            color=(0.6, 0.2, 0.08, 0.30),
+            color=(0.6, 0.2, 0.08, 0.08),
             enemy_types=["enemy_forest_wolf", "enemy_forest_bandit", "enemy_forest_raider", "enemy_forest_scout"],
             max_tokens=6,
         ),
@@ -44,7 +44,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.50, center_y=0.60,
             radius=0.16, location_id="swamp",
-            color=(0.25, 0.50, 0.15, 0.30),
+            color=(0.25, 0.50, 0.15, 0.08),
             enemy_types=["enemy_swamp_goblin", "enemy_swamp_toad", "enemy_swamp_shamanic"],
             max_tokens=6,
         ),
@@ -54,7 +54,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.70, center_y=0.20,
             radius=0.15, location_id="mines",
-            color=(0.4, 0.25, 0.1, 0.30),
+            color=(0.4, 0.25, 0.1, 0.08),
             enemy_types=["enemy_mines_orc", "enemy_mines_draugr", "enemy_mines_golem", "enemy_mines_skeleton", "enemy_mines_greyling"],
             max_tokens=6,
         ),
@@ -64,7 +64,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.70, center_y=0.90,
             radius=0.15, location_id="mountains",
-            color=(0.55, 0.45, 0.35, 0.30),
+            color=(0.55, 0.45, 0.35, 0.08),
             enemy_types=["enemy_mountains_dragon", "enemy_mountains_specter", "enemy_mountains_troll", "enemy_mountains_giant", "enemy_mountains_drake"],
             max_tokens=6,
         ),
@@ -245,7 +245,7 @@ class RoamingEntityManager:
             with self._gfx_canvas:
                 fill_col = Color(*zone.color)
                 fill_ell = Ellipse(pos=(cx - r, cy - r), size=(r * 2, r * 2))
-                border_col = Color(zone.color[0], zone.color[1], zone.color[2], 0.6)
+                border_col = Color(zone.color[0], zone.color[1], zone.color[2], 0.18)
                 border_line = Line(circle=(cx, cy, r), width=2)
             self._zone_gfx[key] = (fill_col, fill_ell, border_col, border_line)
 
@@ -602,22 +602,11 @@ class RoamingEntityManager:
             if needed <= 0:
                 continue
             to_spawn = min(needed, zone.max_tokens - current_count)
-            
-            squad_size = random.randint(2, 3)
-            spawned = 0
-            while spawned < to_spawn:
-                actual_squad_size = min(squad_size, to_spawn - spawned)
-                squad_id = f"{zone.id}_squad_{random.randint(1, 999):03d}"
-                for member_idx in range(actual_squad_size):
-                    self._spawn_single_token(zone, squad_id=squad_id, 
-                                             is_squad_leader=(member_idx == 0))
-                    spawned += 1
-            
-            self._removed_per_zone[zone.id] = max(0, self._removed_per_zone.get(zone.id, 0) - spawned)
+            for _ in range(to_spawn):
+                self._spawn_single_token(zone)
+                self._removed_per_zone[zone.id] = max(0, self._removed_per_zone[zone.id] - 1)
 
-    def _spawn_single_token(self, zone: RoamZone, 
-                             squad_id: Optional[str] = None, 
-                             is_squad_leader: bool = True) -> None:
+    def _spawn_single_token(self, zone: RoamZone) -> None:
         etype = random.choice(zone.enemy_types)
         meta = _ENEMY_ENCOUNTER_MAP.get(
             etype, (EncounterType.WILD_BEAST, "Неизвестный", (0.5, 0.5, 0.5))
@@ -653,8 +642,8 @@ class RoamingEntityManager:
             hearing_radius=_HEARING_RADIUS,
             patrol_speed=_PATROL_SPEED,
             chase_speed=_CHASE_SPEED,
-            squad_id=squad_id,
-            is_squad_leader=is_squad_leader,
+            squad_id=None,
+            is_squad_leader=True,
         )
         if self._gfx_canvas is not None:
             token.init_graphics(self._gfx_canvas)
