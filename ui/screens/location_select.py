@@ -1047,16 +1047,43 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 try:
                     if hasattr(found, '_loc_name'):
                         hw.label.text = found._loc_name
+                        hw.label.text_size = (hw.width, hw.height)
                     elif hasattr(found, 'name'):
                         zone = self.roaming_manager.get_zone_at(
                             found.x, found.y
                         )
                         loc_name = zone.location_id if zone else ""
-                        hw.label.text = f"{found.name} ({loc_name})"
+                        if hasattr(found, 'squad_id') and found.squad_id:
+                            squad_members = [
+                                t for t in self.roaming_manager.tokens
+                                if t.squad_id == found.squad_id
+                                and t.id not in self.roaming_manager._lockout_ids
+                            ]
+                            if len(squad_members) > 1:
+                                member_lines = [f"  {m.name}" for m in squad_members]
+                                lines = "\n".join(member_lines)
+                                hw.label.text = f"Отряд ({len(squad_members)}):\n{lines}"
+                                hw.label.text_size = (hw.width, None)
+                                hw.label.texture_update()
+                                new_h = max(dp(40), hw.label.texture_size[1] + dp(16))
+                                hw.size = (dp(200), new_h)
+                                hw.label.text_size = (hw.width, hw.height)
+                            else:
+                                hw.label.text = f"{found.name} ({loc_name})"
+                                hw.label.text_size = (hw.width, hw.height)
+                                hw.size = (dp(180), dp(40))
+                        else:
+                            hw.label.text = f"{found.name} ({loc_name})"
+                            hw.label.text_size = (hw.width, hw.height)
+                            hw.size = (dp(180), dp(40))
                     else:
                         hw.label.text = str(found._loc_id)
+                        hw.label.text_size = (hw.width, hw.height)
+                        hw.size = (dp(180), dp(40))
                 except Exception:
                     hw.label.text = str(found)
+                    hw.label.text_size = (hw.width, hw.height)
+                    hw.size = (dp(180), dp(40))
                 try:
                     from kivy.core.window import Window
                     x = mouse_x - hw.width / 2
@@ -1275,12 +1302,12 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         if action_id == "fight":
             for member in group:
                 self.roaming_manager.remove_token(member.get("token_id", ""))
-            self._start_encounter_battle(encounter_data)
+            self._start_ambush_scene(encounter_data)
         else:
             for member in group:
                 self.roaming_manager.reset_token(member.get("token_id", main_token_id), cooldown=10.0)
 
-    def _start_encounter_battle(self, encounter_data: dict):
+    def _start_ambush_scene(self, encounter_data: dict):
         try:
             app = App.get_running_app()
             if not app.game or not app.game.player:
@@ -1288,54 +1315,28 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             group = encounter_data.get("group", [])
             if not group:
                 return
-            from data.enemies import EnemyDatabase
-            from core.creatures import Creature
-            from core.combat.enemy_spawner import EnemyGenerator
-            player = app.game.player
-            enemies = []
-            names = []
+
+            zone_name = encounter_data.get("zone_name", "forest")
+            ambush_enemies = []
             for member in group:
-                enemy_type = member.get("enemy_type", "")
-                enemy_name = member.get("name", "Враг")
-                template = EnemyDatabase.get(enemy_type)
-                if not template:
-                    enemy = Creature(
-                        enemy_name,
-                        base_health=30,
-                        base_damage=8,
-                        base_coins=5,
-                        level=max(1, player.level),
-                    )
-                    enemies.append(enemy)
-                    names.append(enemy_name)
-                    continue
-                enemy = Creature(
-                    template.name,
-                    template.base_health,
-                    template.base_damage,
-                    template.base_coins,
-                    level=max(1, player.level),
-                )
-                enemy._template = template
-                EnemyGenerator._equip_from_loot_table(enemy)
-                enemies.append(enemy)
-                names.append(member.get("name", template.name))
-            if not enemies:
+                ambush_enemies.append({
+                    "enemy_type": member.get("enemy_type", ""),
+                    "name": member.get("name", "Враг"),
+                })
+            if not ambush_enemies:
                 return
 
-            surprise = encounter_data.get("surprise_attack", False)
-            battlefield, _ = app.game.create_battle(enemies)
-            if surprise:
-                battlefield.surprise_attack_ready = True
-            title = ", ".join(names)
-            if len(names) > 1:
-                title = f"⚔️ {title} ({len(names)} врага)"
-            else:
-                title = f"⚔️ {title}"
-            if surprise:
-                title = f"🗡️ Крит! {title}"
-            app.battle_screen.start_battle(battlefield, title)
-            self.manager.current = "battle"
+            screen = app.local_location_screen
+            if not screen:
+                return
+
+            screen.setup_ambush_scene(
+                enemies_data=ambush_enemies,
+                zone_id=zone_name,
+            )
+            mgr = screen.manager
+            if mgr:
+                mgr.current = "local_location"
         except Exception as e:
             import traceback
             traceback.print_exc()

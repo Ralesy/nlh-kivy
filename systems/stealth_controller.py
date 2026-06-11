@@ -29,8 +29,8 @@ _NOISE_RADII = {
 }
 
 _ZOOM_VALUES = {
-    StealthMode.NORMAL: 2.0,
-    StealthMode.STEALTH: 3.5,
+    StealthMode.NORMAL: 3,
+    StealthMode.STEALTH: 4,
     StealthMode.RUNNING: 1.5,
 }
 

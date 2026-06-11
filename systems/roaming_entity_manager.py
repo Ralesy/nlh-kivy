@@ -28,45 +28,45 @@ def _token_id(prefix: str, index: int) -> str:
 
 def _build_all_zones() -> List[RoamZone]:
     return [
-        # ── Forest (0.18, 0.45) hotspot ~120px radius ──
+        # ── Forest (0.18, 0.45) ──
         RoamZone(
             id="forest_wild",
             zone_type=ZoneType.WILD,
             center_x=0.18, center_y=0.45,
-            radius=0.14, location_id="forest",
+            radius=0.18, location_id="forest",
             color=(0.6, 0.2, 0.08, 0.30),
             enemy_types=["enemy_forest_wolf", "enemy_forest_bandit", "enemy_forest_raider", "enemy_forest_scout"],
-            max_tokens=5,
+            max_tokens=6,
         ),
-        # ── Swamp (0.50, 0.60) hotspot ~120px radius ──
+        # ── Swamp (0.50, 0.60) ──
         RoamZone(
             id="swamp_wild",
             zone_type=ZoneType.WILD,
             center_x=0.50, center_y=0.60,
-            radius=0.12, location_id="swamp",
+            radius=0.16, location_id="swamp",
             color=(0.25, 0.50, 0.15, 0.30),
             enemy_types=["enemy_swamp_goblin", "enemy_swamp_toad", "enemy_swamp_shamanic"],
-            max_tokens=4,
+            max_tokens=6,
         ),
-        # ── Mines (0.70, 0.20) hotspot ~120px radius ──
+        # ── Mines (0.70, 0.20) ──
         RoamZone(
             id="mines_wild",
             zone_type=ZoneType.WILD,
             center_x=0.70, center_y=0.20,
-            radius=0.11, location_id="mines",
+            radius=0.15, location_id="mines",
             color=(0.4, 0.25, 0.1, 0.30),
             enemy_types=["enemy_mines_orc", "enemy_mines_draugr", "enemy_mines_golem", "enemy_mines_skeleton", "enemy_mines_greyling"],
-            max_tokens=5,
+            max_tokens=6,
         ),
-        # ── Mountains (0.70, 0.90) hotspot ~120px radius ──
+        # ── Mountains (0.70, 0.90) ──
         RoamZone(
             id="mountains_wild",
             zone_type=ZoneType.WILD,
             center_x=0.70, center_y=0.90,
-            radius=0.11, location_id="mountains",
+            radius=0.15, location_id="mountains",
             color=(0.55, 0.45, 0.35, 0.30),
             enemy_types=["enemy_mountains_dragon", "enemy_mountains_specter", "enemy_mountains_troll", "enemy_mountains_giant", "enemy_mountains_drake"],
-            max_tokens=4,
+            max_tokens=6,
         ),
         # ── Safe zones ──
         RoamZone(
@@ -166,34 +166,60 @@ class RoamingEntityManager:
         home_wx, home_wy = self._norm_to_world(zone.center_x, zone.center_y)
         home_wr = self._norm_r_to_world(zone.radius)
 
-        for i in range(zone.max_tokens):
-            etype = random.choice(zone.enemy_types)
-            meta = _ENEMY_ENCOUNTER_MAP.get(
-                etype, (EncounterType.WILD_BEAST, "Неизвестный", (0.5, 0.5, 0.5))
-            )
-            encounter_type, name, color = meta
+        squad_size = random.randint(2, 3)
+        num_squads = max(1, zone.max_tokens // squad_size)
+        token_index = 0
 
-            px, py = zone.random_point_in_zone()
-            wx, wy = self._norm_to_world(px, py)
+        for squad_idx in range(num_squads):
+            if token_index >= zone.max_tokens:
+                break
+            squad_id = f"{zone.id}_squad_{squad_idx:03d}"
 
-            token = RoamingToken(
-                token_id=_token_id(zone.id, i),
-                enemy_type=etype,
-                encounter_type=encounter_type,
-                zone_id=zone.id,
-                x=wx, y=wy,
-                home_x=home_wx, home_y=home_wy,
-                home_radius=home_wr,
-                name=name,
-                behaviour=TokenBehaviour.RANDOM_WALK,
-                color=(*color, 1.0),
-                vision_radius=_VISION_RADIUS,
-                vision_angle=_VISION_ANGLE,
-                hearing_radius=_HEARING_RADIUS,
-                patrol_speed=_PATROL_SPEED,
-                chase_speed=_CHASE_SPEED,
-            )
-            self.tokens.append(token)
+            for member_idx in range(squad_size):
+                if token_index >= zone.max_tokens:
+                    break
+                etype = random.choice(zone.enemy_types)
+                meta = _ENEMY_ENCOUNTER_MAP.get(
+                    etype, (EncounterType.WILD_BEAST, "Неизвестный", (0.5, 0.5, 0.5))
+                )
+                encounter_type, name, color = meta
+
+                if member_idx == 0:
+                    px, py = zone.random_point_in_zone()
+                else:
+                    angle = random.uniform(0.0, 6.2832)
+                    offset = random.uniform(15.0, 40.0)
+                    px = first_px + offset * math.cos(angle) / max(1.0, self._map_w)
+                    py = first_py + offset * math.sin(angle) / max(1.0, self._map_h)
+                    px = max(0.01, min(0.99, px))
+                    py = max(0.01, min(0.99, py))
+
+                wx, wy = self._norm_to_world(px, py)
+
+                if member_idx == 0:
+                    first_px, first_py = px, py
+
+                token = RoamingToken(
+                    token_id=_token_id(zone.id, token_index),
+                    enemy_type=etype,
+                    encounter_type=encounter_type,
+                    zone_id=zone.id,
+                    x=wx, y=wy,
+                    home_x=home_wx, home_y=home_wy,
+                    home_radius=home_wr,
+                    name=name,
+                    behaviour=TokenBehaviour.RANDOM_WALK,
+                    color=(*color, 1.0),
+                    vision_radius=_VISION_RADIUS,
+                    vision_angle=_VISION_ANGLE,
+                    hearing_radius=_HEARING_RADIUS,
+                    patrol_speed=_PATROL_SPEED,
+                    chase_speed=_CHASE_SPEED,
+                    squad_id=squad_id,
+                    is_squad_leader=(member_idx == 0),
+                )
+                self.tokens.append(token)
+                token_index += 1
 
     # ──────────────────────────────────────────────
     #  Graphics lifecycle
@@ -279,8 +305,10 @@ class RoamingEntityManager:
     ) -> Optional[dict]:
         ai_dt = min(dt, 0.1)
         self._update_ai(ai_dt, player_x, player_y, player_is_noisy)
+        self._update_squad_movement(ai_dt)
 
         self._check_zone_proximity(player_x, player_y, is_sneaking)
+        self._check_zone_exit_reset(player_x, player_y)
 
         self._respawn_timer += ai_dt
         if self._respawn_timer >= 10.0:
@@ -304,20 +332,40 @@ class RoamingEntityManager:
             except Exception:
                 pass
 
-        chasing = [t for t in self.tokens if t.is_chasing and t.id not in self._lockout_ids]
-        for chaser in chasing:
-            for other in self.tokens:
-                if other.id in self._lockout_ids:
-                    continue
-                if other.id == chaser.id:
-                    continue
-                if other.is_chasing:
-                    continue
-                if other.zone_id != chaser.zone_id:
-                    continue
-                d = other.distance_to(chaser.x, chaser.y)
-                if d < _ALLY_RADIUS:
-                    other.trigger_chase(player_x, player_y)
+    def _update_squad_movement(self, dt: float) -> None:
+        followers_follow_distance = 30.0
+        leader_lookup: dict = {}
+        for token in self.tokens:
+            if token.id in self._lockout_ids:
+                continue
+            if token.squad_id and token.is_squad_leader:
+                leader_lookup[token.squad_id] = token
+
+        for token in self.tokens:
+            if token.id in self._lockout_ids:
+                continue
+            if not token.squad_id or token.is_squad_leader:
+                continue
+            if token.is_chasing:
+                continue
+            if token.state is TokenState.RETURN:
+                continue
+            leader = leader_lookup.get(token.squad_id)
+            if not leader or leader.id in self._lockout_ids:
+                continue
+            if leader.is_chasing:
+                token.trigger_chase(leader.x, leader.y)
+                continue
+            d = token.distance_to(leader.x, leader.y)
+            if d > followers_follow_distance:
+                step = min(token.patrol_speed * dt, d - followers_follow_distance)
+                dx = leader.x - token.x
+                dy = leader.y - token.y
+                if d > 0:
+                    token.x += (dx / d) * step
+                    token.y += (dy / d) * step
+                    token._direction_x = dx / d
+                    token._direction_y = dy / d
 
     def _check_zone_proximity(
         self,
@@ -341,7 +389,22 @@ class RoamingEntityManager:
                     continue
                 if token.zone_id != zone.id:
                     continue
-                token.trigger_chase(player_x, player_y)
+                if token.sees_player(player_x, player_y):
+                    token.trigger_chase(player_x, player_y)
+
+    def _check_zone_exit_reset(self, player_x: float, player_y: float) -> None:
+        npx = player_x / max(1.0, self._map_w)
+        npy = player_y / max(1.0, self._map_h)
+        for token in self.tokens:
+            if not token.is_chasing:
+                continue
+            if token.id in self._lockout_ids:
+                continue
+            zone = self._zone_by_id(token.zone_id)
+            if not zone:
+                continue
+            if not zone.contains_point(npx, npy):
+                token.reset_chase(cooldown=0.0)
 
     def _check_encounter_collisions(
         self,
@@ -361,19 +424,53 @@ class RoamingEntityManager:
         player_x: float,
         player_y: float,
     ) -> List[RoamingToken]:
-        """Собрать живые токены рядом с игроком в SOCIAL_COMBAT_RADIUS."""
-        nearby = [token]
-        for other in self.tokens:
-            if other.id in self._lockout_ids:
+        collected: set = set()
+        collected_ids: set = set()
+
+        def _add_token(t: RoamingToken) -> None:
+            if t.id in self._lockout_ids or t.id in collected_ids:
+                return
+            collected.add(t)
+            collected_ids.add(t.id)
+
+        _add_token(token)
+
+        squad_ids_to_collect = set()
+        if token.squad_id:
+            squad_ids_to_collect.add(token.squad_id)
+
+        for t in self.tokens:
+            if t.id in self._lockout_ids or t.id == token.id:
                 continue
-            if other.id == token.id:
+            if not t.is_chasing:
+                continue
+            _add_token(t)
+            if t.squad_id:
+                squad_ids_to_collect.add(t.squad_id)
+
+        for sid in squad_ids_to_collect:
+            for t in self.tokens:
+                if t.id in collected_ids or t.id in self._lockout_ids:
+                    continue
+                if t.squad_id == sid:
+                    _add_token(t)
+
+        for other in self.tokens:
+            if other.id in collected_ids or other.id in self._lockout_ids:
                 continue
             if other.zone_id != token.zone_id:
                 continue
             d = other.distance_to(player_x, player_y)
             if d < _SOCIAL_COMBAT_RADIUS:
-                nearby.append(other)
-        return nearby
+                _add_token(other)
+                if other.squad_id:
+                    for t in self.tokens:
+                        if t.id in collected_ids or t.id in self._lockout_ids:
+                            continue
+                        if t.squad_id == other.squad_id:
+                            _add_token(t)
+
+        return list(collected)
 
     def _prepare_encounter_social(
         self,
@@ -545,6 +642,8 @@ class RoamingEntityManager:
             hearing_radius=_HEARING_RADIUS,
             patrol_speed=_PATROL_SPEED,
             chase_speed=_CHASE_SPEED,
+            squad_id=None,
+            is_squad_leader=True,
         )
         if self._gfx_canvas is not None:
             token.init_graphics(self._gfx_canvas)

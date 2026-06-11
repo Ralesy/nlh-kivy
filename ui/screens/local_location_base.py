@@ -40,6 +40,7 @@ from data.local_scenes import (
     COMBAT_SCENES,
     LOCATION_BOSSES,
     build_scene_config,
+    scene_background_path,
 )
 from ui.bindings.keyboard_handler import KeyboardHandler
 from ui.ui_styles import BUTTONS_DIR, COLORS
@@ -67,6 +68,7 @@ from core.config import (
     LOCAL_ENEMY_CHASE_SPEED,
     ENEMY_BARKS,
     ENEMY_ALERT_BARKS,
+    AMBUSH_SEARCH_BARKS,
     BARK_CHANCE_PER_CHECK,
     BARK_CHECK_INTERVAL,
     BARK_DURATION,
@@ -108,6 +110,11 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._cam_target_y = 0.0
         self._player_moved_this_frame = False
         self._saved_enemy_dirs = {}
+        self._is_ambush = False
+        self._ambush_total_enemies = 0
+        self._ambush_zone_id = None
+        self._ambush_exit_block_label = None
+        self._ambush_enemies_data = None
         self.bind_keyboard()
 
         self.btn_zone_action = Button(
@@ -141,6 +148,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def setup_scene(self, scene_id: str, parent_scene: str = None) -> None:
         """Настроить сцену перед переходом на экран."""
+        self._is_ambush = False
+        self._ambush_total_enemies = 0
+        self._ambush_zone_id = None
+        self._ambush_enemies_data = None
         self.scene_id = scene_id
         self.location_id = scene_id
         self.scene_config = build_scene_config(scene_id)
@@ -149,6 +160,32 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self.location_name = self.scene_config.title
         else:
             self.location_name = scene_id
+
+    def setup_ambush_scene(self, enemies_data: list, zone_id: str) -> None:
+        self._is_ambush = True
+        self._ambush_enemies_data = list(enemies_data)
+        self._ambush_zone_id = zone_id
+        self._ambush_total_enemies = len(enemies_data)
+        self._defeated_enemies.clear()
+        self.scene_id = f"ambush_{zone_id}"
+        self.location_id = zone_id
+        self.scene_config = build_scene_config(zone_id)
+        self.parent_scene_id = None
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        if player:
+            player._ambush_defeated_set = set()
+            if hasattr(player, "last_enemy_positions"):
+                player.last_enemy_positions.pop(self.scene_id, None)
+            if hasattr(player, "last_enemy_creatures"):
+                player.last_enemy_creatures.pop(self.scene_id, None)
+        zone_titles = {
+            "forest": "🌲 Засада в лесу",
+            "swamp": "🏞️ Засада на болотах",
+            "mines": "⛏️ Засада в шахтах",
+            "mountains": "⛰️ Засада в горах",
+        }
+        self.location_name = zone_titles.get(zone_id, f"Засада в {zone_id}")
 
     def on_enter(self):
         """Инициализация сцены при входе."""
@@ -169,7 +206,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         self._target_pos = None
         self._move = {"up": False, "down": False, "left": False, "right": False}
-        self._entities = []
         self._current_entity = None
         self._pending_boss_entity = None
         self._active_zone = None
@@ -179,13 +215,23 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self.btn_zone_action.opacity = 0
         self.btn_zone_action.text = "Войти"
         self._chase_block_label = None
+        self._ambush_exit_block_label = None
 
         is_combat = self.scene_config and self.scene_config.scene_type == "combat"
 
+        player = app.game.player if app.game else None
+
+        # -- Position --
         if self._returning_from_battle and is_combat:
             pass
+        elif self._is_ambush:
+            pos_key = self.scene_id
+            if (player and pos_key in getattr(player, "last_location_pos", {})):
+                x_norm, y_norm = player.last_location_pos[pos_key]
+                self._player_pos = [x_norm * self.width, y_norm * self.height]
+            else:
+                self._player_pos = [self.width * ENTRY_POINT_X, self.height * ENTRY_POINT_Y]
         elif is_combat:
-            player = app.game.player if app.game else None
             pos_key = self.scene_id
             if (player and pos_key in getattr(player, "last_location_pos", {})
                     and getattr(player, "last_location_visited", None) == self.scene_id):
@@ -194,7 +240,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             else:
                 self._player_pos = [self.width * ENTRY_POINT_X, self.height * ENTRY_POINT_Y]
         else:
-            player = app.game.player if app.game else None
             pos_key = self.scene_id
             if player and pos_key in getattr(player, "last_location_pos", {}):
                 x_norm, y_norm = player.last_location_pos[pos_key]
@@ -202,23 +247,34 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             else:
                 self._player_pos = [self.width * 0.5, self.height * 0.5]
 
+        # -- Entities --
+        skip_init = self._returning_from_battle and is_combat
+
+        if not skip_init:
+            self._entities = []
+            if self._is_ambush:
+                self._defeated_enemies.clear()
+                if player and hasattr(player, "_ambush_defeated_set") and player._ambush_defeated_set:
+                    self._defeated_enemies = set(player._ambush_defeated_set)
+                    player._ambush_defeated_set = set()
+                self._init_ambush_entities()
+            elif (
+                self.scene_config
+                and self.scene_config.scene_type == "combat"
+                and player
+                and getattr(player, "last_location_visited", None) == self.scene_id
+            ):
+                self._defeated_enemies.clear()
+                self._init_entities(use_saved=True)
+            else:
+                self._init_entities(use_saved=False)
+                if player and self.scene_config and self.scene_config.scene_type == "combat":
+                    player.last_location_visited = self.scene_id
+
         self._drawing_widget = Widget(size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
         self._world_widget.add_widget(self._drawing_widget)
 
-        player = app.game.player if app.game else None
-        if (
-            self.scene_config
-            and self.scene_config.scene_type == "combat"
-            and player
-            and getattr(player, "last_location_visited", None) == self.scene_id
-        ):
-            self._defeated_enemies.clear()  # При загрузке сохранённых позиций очищаем набор побеждённых
-            self._init_entities(use_saved=True)
-        else:
-            self._init_entities(use_saved=False)
-            if player and self.scene_config and self.scene_config.scene_type == "combat":
-                player.last_location_visited = self.scene_id
-
+        self._returning_from_battle = False
         self._ensure_safe_spawn()
         self._restore_enemy_dirs()
         self._sync_camera(immediate=True)
@@ -248,8 +304,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self._update_event.cancel()
         self._update_event = Clock.schedule_interval(self._on_game_update, 1 / 60)
 
-        # ... твой существующий код ...
-        self._init_bark_system() # <- ДОБАВИТЬ СЮДА
+        self._init_bark_system()
+
+        if self._is_ambush and not self._returning_from_battle:
+            Clock.schedule_once(lambda dt: self._trigger_ambush_starting_barks(), 0.3)
 
     def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
         if action == "move_up":
@@ -307,6 +365,11 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _load_background(self) -> None:
         """Загрузить фон из конфига сцены или залить однотонным цветом."""
+        if self._is_ambush and self._ambush_zone_id:
+            bg_path = scene_background_path(self._ambush_zone_id)
+            if bg_path and os.path.isfile(bg_path):
+                self._world_widget.add_widget(cover_background_image(bg_path))
+                return
         bg_path = self._resolve_scene_background()
         if bg_path:
             self._world_widget.add_widget(cover_background_image(bg_path))
@@ -320,6 +383,122 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 size=lambda w, v: setattr(filler._bg, "size", w.size),
             )
             self._world_widget.add_widget(filler)
+
+    def _init_ambush_entities(self) -> None:
+        if not self._ambush_enemies_data:
+            return
+        from systems.battle import EnemyGenerator
+        from data.enemies import EnemyDatabase
+
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+        player_level = player.level if player else 1
+
+        saved_positions = []
+        saved_creatures = []
+        if (
+            player
+            and hasattr(player, "last_enemy_positions")
+            and self.scene_id in player.last_enemy_positions
+        ):
+            saved_positions = player.last_enemy_positions[self.scene_id]
+            if hasattr(player, "last_enemy_creatures") and self.scene_id in player.last_enemy_creatures:
+                saved_creatures = player.last_enemy_creatures[self.scene_id]
+        else:
+            saved_positions = self._generate_random_positions(len(self._ambush_enemies_data))
+            saved_creatures = []
+            for i in range(len(self._ambush_enemies_data)):
+                if i in self._defeated_enemies:
+                    saved_creatures.append(None)
+                    continue
+                member = self._ambush_enemies_data[i]
+                enemy_type = member.get("enemy_type", "")
+                template = EnemyDatabase.get(enemy_type)
+                if template:
+                    from core.creatures import Creature
+                    creature = Creature(
+                        template.name,
+                        template.base_health,
+                        template.base_damage,
+                        template.base_coins,
+                        level=max(1, player_level),
+                    )
+                    creature._template = template
+                    EnemyGenerator._equip_from_loot_table(creature)
+                    saved_creatures.append(creature)
+                else:
+                    saved_creatures.append(None)
+            if player:
+                player.last_enemy_positions[self.scene_id] = saved_positions
+                player.last_enemy_creatures[self.scene_id] = saved_creatures
+
+        for i, member in enumerate(self._ambush_enemies_data):
+            if i in self._defeated_enemies:
+                continue
+
+            enemy_type = member.get("enemy_type", "")
+            enemy_name = member.get("name", "Враг")
+            template = EnemyDatabase.get(enemy_type)
+
+            if i < len(saved_positions):
+                x_norm, y_norm = saved_positions[i]
+            else:
+                x_norm = random.uniform(0.15, 0.85)
+                y_norm = random.uniform(0.15, 0.85)
+
+            creature = None
+            if i < len(saved_creatures) and saved_creatures[i]:
+                creature = saved_creatures[i]
+                display_name = creature.name
+            elif template:
+                from core.creatures import Creature
+                creature = Creature(
+                    template.name,
+                    template.base_health,
+                    template.base_damage,
+                    template.base_coins,
+                    level=max(1, player_level),
+                )
+                creature._template = template
+                EnemyGenerator._equip_from_loot_table(creature)
+                display_name = template.name
+            else:
+                from core.creatures import Creature
+                creature = Creature(
+                    enemy_name,
+                    base_health=30,
+                    base_damage=8,
+                    base_coins=5,
+                    level=max(1, player_level),
+                )
+                display_name = enemy_name
+
+            self._entities.append({
+                "type": "enemy",
+                "id": i,
+                "x_norm": x_norm,
+                "y_norm": y_norm,
+                "x": self.width * x_norm,
+                "y": self.height * y_norm,
+                "spawn_x_norm": x_norm,
+                "spawn_y_norm": y_norm,
+                "radius": self._enemy_radius(),
+                "defeated": False,
+                "creature": creature,
+                "name": display_name,
+                "level": creature.level,
+                "stun_timer": 0,
+                "ai_state": "patrol",
+                "aggro_reason": None,
+                "alert_source_id": None,
+                "patrol_target_x_norm": x_norm,
+                "patrol_target_y_norm": y_norm,
+                "patrol_pause_timer": random.uniform(0, 2),
+                "dir_x": 0,
+                "dir_y": -1,
+                "patrol_speed": dp(LOCAL_ENEMY_PATROL_SPEED),
+                "chase_speed": dp(LOCAL_ENEMY_CHASE_SPEED),
+            })
 
     def _init_entities(self, use_saved=False) -> None:
         """Создать сущности сцены: враги, боссы, NPC, зоны."""
@@ -1299,15 +1478,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 elif etype == "enemy":
                     ent["defeated"] = True
                     self._defeated_enemies.add(ent["id"])
+            self._player_invincible_timer = INVINCIBILITY_DURATION
             if has_boss and player and app.game:
                 try:
                     app.game.autosave()
                 except Exception:
                     pass
-            # После победы над боссом — удаляем только босса, остальных врагов и игрока оставляем
-            if has_boss and self.scene_config:
-                self._entities = [e for e in self._entities if e.get("type") != "boss"]
-                self._sync_entity_positions()  # Обновить визуалы после удаления босса
+
         elif self._current_battle_group:
             for ent in self._current_battle_group:
                 if ent.get("type") == "enemy" and ent.get("stun_timer", 0) < 2.0:
@@ -1317,14 +1494,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         self._current_entity = None
         self._current_battle_group = None
-        if player and self.scene_config and self.scene_config.scene_type == "combat":
-            positions = [
-                (e["x_norm"], e["y_norm"])
-                for e in self._entities
-                if e.get("type") == "enemy" and not e["defeated"]
-            ]
-            if positions:
-                player.last_enemy_positions[self.scene_id] = positions
+
+        # При возврате из боя нужно удалить только побеждённого босса, остальных врагов не трогать
+        if victory and self._current_battle_group:
+            for ent in self._current_battle_group:
+                if ent.get("type") == "boss":
+                    ent["defeated"] = True
+                    self._entities = [e for e in self._entities if e.get("type") != "boss"]
+                    if hasattr(self, '_drawing_widget') and self._drawing_widget:
+                        self._draw_game()
+                    break
 
         if self._update_event:
             self._update_event.cancel()
@@ -1500,6 +1679,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 self._player_pos[0] / max(1, self.width),
                 self._player_pos[1] / max(1, self.height),
             )
+        if player and self._is_ambush:
+            player._ambush_defeated_set = set(self._defeated_enemies)
 
     def _stop_loop(self) -> None:
         if self._update_event:
@@ -1543,6 +1724,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         except Exception:
             pass
         self._clear_all_barks()
+        self._hide_ambush_exit_block_notification()
         self._stop_loop()
 
 
@@ -1585,12 +1767,38 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if self._is_anyone_chasing():
             self._show_chase_block_notification()
             return
+
+        if self._is_ambush and not self._can_exit_ambush():
+            self._show_ambush_exit_block_notification()
+            return
+
         app = App.get_running_app()
         self._save_player_state()
         self._stop_loop()
         self._returning_from_battle = False
         self._player_invincible_timer = 0
         self._paused = False
+
+        if self._is_ambush:
+            self._is_ambush = False
+            self._ambush_enemies_data = None
+            app.return_to_local_location = False
+            player = app.game.player if app.game else None
+            self.scene_id = None
+            self.location_id = None
+            self._entities = []
+            self._current_entity = None
+            self._current_battle_group = None
+            self._pending_boss_entity = None
+            self._target_pos = None
+            self._saved_enemy_dirs = {}
+            try:
+                if player:
+                    app.game.autosave()
+            except Exception:
+                pass
+            self.manager.current = "location_select"
+            return
 
         if self.scene_config and self.scene_config.exit_target == "parent":
             parent = self.parent_scene_id or "city"
@@ -1626,6 +1834,77 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             pass
 
         self.manager.current = "location_select"
+
+    def _can_exit_ambush(self) -> bool:
+        if self._ambush_total_enemies <= 0:
+            return True
+        defeated_count = len(self._defeated_enemies)
+        return defeated_count >= self._ambush_total_enemies / 2
+
+    def _show_ambush_exit_block_notification(self) -> None:
+        if self._ambush_exit_block_label:
+            return
+        defeated_count = len(self._defeated_enemies)
+        needed = max(1, self._ambush_total_enemies // 2)
+        remaining = max(0, needed - defeated_count)
+        self._ambush_exit_block_label = Label(
+            text=f'⚠️ Чтобы покинуть засаду, уничтожьте ещё {remaining} врагов (нужно {needed}/{self._ambush_total_enemies})',
+            size_hint=(None, None),
+            size=(dp(400), dp(35)),
+            pos_hint={'right': 0.98, 'y': 0.02},
+            font_size=dp(13),
+            color=COLORS.get("warning", (1, 0.6, 0, 1)),
+            halign='right',
+            valign='middle',
+        )
+        self.layout.add_widget(self._ambush_exit_block_label)
+        Clock.schedule_once(lambda dt: self._hide_ambush_exit_block_notification(), 4.0)
+
+    def _hide_ambush_exit_block_notification(self) -> None:
+        if self._ambush_exit_block_label:
+            try:
+                self.layout.remove_widget(self._ambush_exit_block_label)
+            except Exception:
+                pass
+            self._ambush_exit_block_label = None
+
+    def _trigger_ambush_starting_barks(self) -> None:
+        for entity in self._entities:
+            if entity.get("type") != "enemy" or entity.get("defeated"):
+                continue
+            if AMBUSH_SEARCH_BARKS:
+                text = random.choice(AMBUSH_SEARCH_BARKS)
+                self._spawn_bark_with_text(entity, text, duration=BARK_DURATION)
+
+    def _spawn_bark_with_text(self, entity, text: str, duration: float = 3.5, is_alert: bool = False):
+        if entity.get("bark_label"):
+            self._remove_bark(entity)
+        bark_label = Label(
+            text=text,
+            font_size=dp(11),
+            color=(1, 0.85, 0.6, 1) if not is_alert else (1, 0.2, 0.2, 1),
+            bold=False,
+            size_hint=(None, None),
+            halign='center',
+            valign='middle'
+        )
+        bark_label.texture_update()
+        bark_label.size = (bark_label.texture_size[0] + dp(16), bark_label.texture_size[1] + dp(8))
+        with bark_label.canvas.before:
+            Color(0.1, 0.1, 0.1, 0.65)
+            bark_label.bg_rect = RoundedRectangle(size=bark_label.size, pos=bark_label.pos, radius=[dp(6)])
+        bark_label.bind(pos=lambda inst, val: setattr(inst.bg_rect, 'pos', val))
+        self.add_widget(bark_label)
+        entity["bark_label"] = bark_label
+        screen_x = entity["x"] * self._cam_scale.x + self._cam_translate.x
+        screen_y = entity["y"] * self._cam_scale.y + self._cam_translate.y
+        r_offset = self._enemy_radius() * self._cam_scale.y
+        bark_label.center_x = screen_x
+        bark_label.y = screen_y + r_offset + dp(12)
+        old_timer = entity.get("_bark_timer_event")
+        if old_timer:
+            old_timer.cancel()
+        entity["_bark_timer_event"] = Clock.schedule_once(lambda dt: self._remove_bark(entity), duration)
 
     def _init_bark_system(self):
         """Инициализация таймера системы реплик."""

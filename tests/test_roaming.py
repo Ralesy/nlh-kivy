@@ -199,7 +199,7 @@ def test_zone_queries(rm):
 
 # ─── 9. Zone proximity detection (not sneaking in zone → chase) ───
 def test_zone_proximity_detection(rm):
-    """Player in zone without sneaking should trigger chase."""
+    """Player in zone without sneaking should trigger chase for visible tokens."""
     print("\n=== 9. Zone proximity detection ===")
     rm._lockout_ids.clear()
     zone = None
@@ -208,11 +208,14 @@ def test_zone_proximity_detection(rm):
             zone = z
             break
     if zone:
-        npx, npy = zone.random_point_in_zone()
-        wx = npx * MAP_W
-        wy = npy * MAP_H
-        player_in_zone_x = wx
-        player_in_zone_y = wy
+        target_token = None
+        for t in rm.tokens:
+            if t.zone_id == zone.id:
+                target_token = t
+                break
+
+        if not target_token:
+            pytest.skip("No tokens in zone")
 
         for t in rm.tokens:
             if t.zone_id == zone.id:
@@ -221,14 +224,16 @@ def test_zone_proximity_detection(rm):
                 t._chase_cooldown = 0.0
                 t.is_chasing = False
                 t._aggro_reason = None
-                # Face same direction for consistency
                 t._direction_x = 1.0
                 t._direction_y = 0.0
+
+        player_in_zone_x = target_token.x + target_token.vision_radius * 0.5
+        player_in_zone_y = target_token.y
 
         rm.update(0.1, player_in_zone_x, player_in_zone_y, player_is_noisy=True, is_sneaking=False)
         zone_chasing = [t for t in rm.tokens if t.is_chasing and t.zone_id == zone.id]
         print(f"  Player in zone {zone.id}: {len(zone_chasing)}/{zone.max_tokens} chasing")
-        assert len(zone_chasing) > 0, "Tokens in zone should chase when player is not sneaking"
+        assert target_token.is_chasing, "Token that sees player should chase when player is not sneaking"
         print("  ✓ Zone proximity triggers chase when not sneaking")
 
         # Now test with sneaking

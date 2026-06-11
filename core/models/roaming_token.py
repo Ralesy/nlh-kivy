@@ -60,6 +60,8 @@ class RoamingToken:
         hearing_radius: float = HEARING_RADIUS,
         patrol_speed: float = 20.0,
         chase_speed: float = 85.0,
+        squad_id: Optional[str] = None,
+        is_squad_leader: bool = False,
     ):
         self.id = token_id
         self.enemy_type = enemy_type
@@ -79,6 +81,8 @@ class RoamingToken:
         self.hearing_radius = hearing_radius
         self.patrol_speed = patrol_speed
         self.chase_speed = chase_speed
+        self.squad_id = squad_id
+        self.is_squad_leader = is_squad_leader
 
         self.state: TokenState = TokenState.IDLE
         self.is_chasing: bool = False
@@ -220,6 +224,12 @@ class RoamingToken:
               (dy / dist) * (self._direction_y / dir_norm)
         return dot >= math.cos(cone_half)
 
+    def sees_player(self, px: float, py: float) -> bool:
+        return self._enemy_sees_player(px, py)
+
+    def _player_in_home_zone(self, px: float, py: float) -> bool:
+        return math.hypot(px - self.home_x, py - self.home_y) <= self.home_radius
+
     def update_ai(
         self,
         dt: float,
@@ -269,19 +279,15 @@ class RoamingToken:
         elif self.state is TokenState.CHASE:
             if sees_player:
                 target_x, target_y = player_x, player_y
-            elif self._aggro_reason == "hearing" and dist_to_player <= self.hearing_radius:
-                target_x, target_y = player_x, player_y
             elif self._aggro_reason == "ally":
                 target_x, target_y = player_x, player_y
-            elif self._aggro_reason == "sight" and dist_to_player <= self.vision_radius:
+            elif self._player_in_home_zone(player_x, player_y):
                 target_x, target_y = player_x, player_y
             else:
                 self._reset_after_lost_player()
                 return False
 
             self._move_towards(target_x, target_y, self.chase_speed * dt)
-            if self._clamp_to_zone():
-                self._reset_after_lost_player()
 
         elif self.state is TokenState.RETURN:
             d_h = math.hypot(self.home_x - self.x, self.home_y - self.y)
