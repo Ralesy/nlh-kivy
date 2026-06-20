@@ -1017,30 +1017,32 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 print(f"[DEBUG _on_mouse_pos] _hotspot_buttons count: {len(self._hotspot_buttons)}")
                 self._debug_logged_mouse = True
 
-            for btn in self._hotspot_buttons:
+            # CHECK TOKENS FIRST (priority over hotspots)
+            for token in self.roaming_manager.tokens:
+                if token.id in self.roaming_manager._lockout_ids:
+                    continue
                 try:
-                    btn_x = btn.pos[0]
-                    btn_y = btn.pos[1]
-                    btn_right = btn_x + btn.size[0]
-                    btn_top = btn_y + btn.size[1]
-
-                    if btn_x <= world_x <= btn_right and btn_y <= world_y <= btn_top:
-                        found = btn
+                    d = ((world_x - token.x) ** 2 + (world_y - token.y) ** 2) ** 0.5
+                    if d < 16.0:
+                        found = token
                         break
                 except Exception:
                     continue
 
+            # Only check hotspots if no token found
             if not found:
-                try:
-                    for token in self.roaming_manager.tokens:
-                        if token.id in self.roaming_manager._lockout_ids:
-                            continue
-                        d = ((world_x - token.x) ** 2 + (world_y - token.y) ** 2) ** 0.5
-                        if d < 16.0:
-                            found = token
+                for btn in self._hotspot_buttons:
+                    try:
+                        btn_x = btn.pos[0]
+                        btn_y = btn.pos[1]
+                        btn_right = btn_x + btn.size[0]
+                        btn_top = btn_y + btn.size[1]
+
+                        if btn_x <= world_x <= btn_right and btn_y <= world_y <= btn_top:
+                            found = btn
                             break
-                except Exception:
-                    pass
+                    except Exception:
+                        continue
 
             if found and getattr(self, '_hover_widget', None):
                 hw = self._hover_widget
@@ -1049,31 +1051,28 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                         hw.label.text = found._loc_name
                         hw.label.text_size = (hw.width, hw.height)
                     elif hasattr(found, 'name'):
-                        zone = self.roaming_manager.get_zone_at(
-                            found.x, found.y
-                        )
-                        loc_name = zone.location_id if zone else ""
+                        # Show enemy squad/group info instead of location name
+                        squad_members = []
                         if hasattr(found, 'squad_id') and found.squad_id:
                             squad_members = [
                                 t for t in self.roaming_manager.tokens
                                 if t.squad_id == found.squad_id
                                 and t.id not in self.roaming_manager._lockout_ids
                             ]
-                            if len(squad_members) > 1:
-                                member_lines = [f"  {m.name}" for m in squad_members]
-                                lines = "\n".join(member_lines)
-                                hw.label.text = f"Отряд ({len(squad_members)}):\n{lines}"
-                                hw.label.text_size = (hw.width, None)
-                                hw.label.texture_update()
-                                new_h = max(dp(40), hw.label.texture_size[1] + dp(16))
-                                hw.size = (dp(200), new_h)
-                                hw.label.text_size = (hw.width, hw.height)
-                            else:
-                                hw.label.text = f"{found.name} ({loc_name})"
-                                hw.label.text_size = (hw.width, hw.height)
-                                hw.size = (dp(180), dp(40))
+
+                        if len(squad_members) > 1:
+                            # Show squad composition with levels
+                            member_lines = [f"  {m.name}" for m in squad_members]
+                            lines = "\n".join(member_lines)
+                            hw.label.text = f"Отряд ({len(squad_members)}):\n{lines}"
+                            hw.label.text_size = (hw.width, None)
+                            hw.label.texture_update()
+                            new_h = max(dp(40), hw.label.texture_size[1] + dp(16))
+                            hw.size = (dp(200), new_h)
+                            hw.label.text_size = (hw.width, hw.height)
                         else:
-                            hw.label.text = f"{found.name} ({loc_name})"
+                            # Single token - show only name, no location
+                            hw.label.text = found.name
                             hw.label.text_size = (hw.width, hw.height)
                             hw.size = (dp(180), dp(40))
                     else:
