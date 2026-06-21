@@ -27,6 +27,7 @@ SCENE_BACKGROUND_FILES: Dict[str, Tuple[str, ...]] = {
     "mountains": ("locations", "mountains", "bg_mountains.png"),
     "city": ("locations", "town", "bg_town.png"),
     "tavern": ("locations", "tavern", "bg_tavern.png"),
+    "shop": ("locations", "town", "bg_trading_area.png"),
 }
 
 _GLOBAL_MAP_CANDIDATES = [
@@ -166,8 +167,8 @@ def build_scene_config(scene_id: str) -> Optional[LocalSceneConfig]:
             scene_type="city",
             exit_target="location_select",
             zones=[
-                ZoneConfig("tavern_door", "Таверна", "tavern", 0.28, 0.62, 0.12),
-                ZoneConfig("shop_door", "Магазин", "shop", 0.72, 0.55, 0.12),
+                ZoneConfig("tavern_door", "Таверна", "tavern", 0.19, 0.22, 0.06),
+                ZoneConfig("shop_door", "Торговый квартал", "shop", 0.79, 0.20, 0.2),
             ],
             background_candidates=_bg_candidates(scene_id),
         )
@@ -179,12 +180,12 @@ def build_scene_config(scene_id: str) -> Optional[LocalSceneConfig]:
             scene_type="tavern",
             exit_target="parent",
             npcs=[
-                NpcSpawnConfig("npc_captain", "Капитан Редард", 0.22, 0.45),
-                NpcSpawnConfig("npc_tracker", "Болотный следопыт", 0.40, 0.55),
-                NpcSpawnConfig("npc_miner", "Безумный шахтёр", 0.58, 0.48),
-                NpcSpawnConfig("npc_collector", "Коллекционер", 0.75, 0.52),
+                NpcSpawnConfig("npc_captain", "Капитан Редард", 0.1, 0.41),
+                NpcSpawnConfig("npc_tracker", "Болотный следопыт", 0.39, 0.53),
+                NpcSpawnConfig("npc_miner", "Безумный шахтёр", 0.575, 0.48),
+                NpcSpawnConfig("npc_collector", "Коллекционер", 0.74, 0.32),
                 NpcSpawnConfig("npc_dragonslayer", "Драконоборец", 0.85, 0.40),
-                NpcSpawnConfig("bartender", "Бармен", 0.50, 0.30, action="tavern_menu"),
+                NpcSpawnConfig("bartender", "Бармен", 0.34, 0.58, action="tavern_menu"),
             ],
             background_candidates=_bg_candidates(scene_id),
         )
@@ -196,10 +197,10 @@ def build_scene_config(scene_id: str) -> Optional[LocalSceneConfig]:
             scene_type="shop",
             exit_target="parent",
             npcs=[
-                NpcSpawnConfig("shopkeeper", "Торговец", 0.50, 0.50, action="shop"),
+                NpcSpawnConfig("shopkeeper", "Торговец", 0.52, 0.66, action="shop"),
             ],
             # Отдельного bg_shop пока нет — однотонная заливка на экране.
-            background_candidates=[],
+            background_candidates=_bg_candidates(scene_id),
         )
 
     return None
