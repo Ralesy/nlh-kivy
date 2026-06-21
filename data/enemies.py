@@ -181,14 +181,14 @@ class EnemyDatabase:
         cls.register(Enemy(
             "enemy_forest_scout", "Лесной разведчик", "humanoid",
             base_health=35, base_damage=9, base_coins=12,
-            xp_reward=60,
+            xp_reward=60,        
             loot_table=[
-                ("w_goblin_dagger", 0.35),
-                ("w_goblin_cleaver", 0.35),
-                ("w_goblin_spear", 0.25),
-                ("w_goblin_bow", 0.2),
-                ("w_goblin_kris", 0.15),
-                ("w_goblin_staff", 0.12)
+                ("a_leather_armor", 0.7),
+                ("w_iron_sword", 0.35),
+                ("w_iron_axe", 0.35),
+                ("w_goblin_dagger", 0.25),
+                ("w_iron_bow", 0.2),
+                ("w_iron_staff", 0.15)
             ]
         ))
 
