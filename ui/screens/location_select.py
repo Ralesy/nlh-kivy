@@ -515,7 +515,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
             try:
                 from kivy.graphics import Color, Ellipse
-                col = Color(0.35, 0.22, 0.10, 0.16)
+                col = Color(0.35, 0.22, 0.10, 0.02)
                 ell = Ellipse(pos=(0, 0), size=(size_dp, size_dp))
                 self.map_overlay.canvas.before.add(col)
                 self.map_overlay.canvas.before.add(ell)
@@ -558,7 +558,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
             try:
                 from kivy.graphics import Color, Ellipse
-                col = Color(0.35, 0.22, 0.10, 0.16)
+                col = Color(0.35, 0.22, 0.10, 0.02)
                 ell = Ellipse(pos=city_btn.pos, size=city_btn.size)
                 self.map_overlay.canvas.before.add(col)
                 self.map_overlay.canvas.before.add(ell)
@@ -600,7 +600,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
                 try:
                     from kivy.graphics import Color, Ellipse
-                    col = Color(0.35, 0.22, 0.10, 0.16)
+                    col = Color(0.35, 0.22, 0.10, 0.02)
                     ell = Ellipse(pos=village_btn.pos, size=village_btn.size)
                     self.map_overlay.canvas.before.add(col)
                     self.map_overlay.canvas.before.add(ell)

@@ -34,7 +34,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.18, center_y=0.45,
             radius=0.18, location_id="forest",
-            color=(0.6, 0.2, 0.08, 0.30),
+            color=(0.6, 0.2, 0.08, 0.01),
             enemy_types=["enemy_forest_wolf", "enemy_forest_bandit", "enemy_forest_raider", "enemy_forest_scout"],
             max_tokens=6,
         ),
@@ -44,7 +44,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.50, center_y=0.60,
             radius=0.16, location_id="swamp",
-            color=(0.25, 0.50, 0.15, 0.30),
+            color=(0.25, 0.50, 0.15, 0.01),
             enemy_types=["enemy_swamp_goblin", "enemy_swamp_toad", "enemy_swamp_shamanic"],
             max_tokens=6,
         ),
@@ -54,7 +54,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.70, center_y=0.20,
             radius=0.15, location_id="mines",
-            color=(0.4, 0.25, 0.1, 0.30),
+            color=(0.4, 0.25, 0.1, 0.01),
             enemy_types=["enemy_mines_orc", "enemy_mines_draugr", "enemy_mines_golem", "enemy_mines_skeleton", "enemy_mines_greyling"],
             max_tokens=6,
         ),
@@ -64,7 +64,7 @@ def _build_all_zones() -> List[RoamZone]:
             zone_type=ZoneType.WILD,
             center_x=0.70, center_y=0.90,
             radius=0.15, location_id="mountains",
-            color=(0.55, 0.45, 0.35, 0.30),
+            color=(0.55, 0.45, 0.35, 0.01),
             enemy_types=["enemy_mountains_dragon", "enemy_mountains_specter", "enemy_mountains_troll", "enemy_mountains_giant", "enemy_mountains_drake"],
             max_tokens=6,
         ),
@@ -72,12 +72,12 @@ def _build_all_zones() -> List[RoamZone]:
         RoamZone(
             id="city_safe", zone_type=ZoneType.SAFE,
             center_x=0.19, center_y=0.85, radius=0.08,
-            location_id="city", color=(0.3, 0.5, 0.2, 0.10), max_tokens=0,
+            location_id="city", color=(0.3, 0.5, 0.2, 0.01), max_tokens=0,
         ),
         RoamZone(
             id="village_safe", zone_type=ZoneType.SAFE,
             center_x=0.73, center_y=0.52, radius=0.08,
-            location_id="village", color=(0.3, 0.5, 0.2, 0.10), max_tokens=0,
+            location_id="village", color=(0.3, 0.5, 0.2, 0.01), max_tokens=0,
         ),
     ]
 
@@ -245,7 +245,7 @@ class RoamingEntityManager:
             with self._gfx_canvas:
                 fill_col = Color(*zone.color)
                 fill_ell = Ellipse(pos=(cx - r, cy - r), size=(r * 2, r * 2))
-                border_col = Color(zone.color[0], zone.color[1], zone.color[2], 0.6)
+                border_col = Color(zone.color[0], zone.color[1], zone.color[2], 0.02)
                 border_line = Line(circle=(cx, cy, r), width=2)
             self._zone_gfx[key] = (fill_col, fill_ell, border_col, border_line)
 
