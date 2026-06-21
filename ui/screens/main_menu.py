@@ -7,6 +7,7 @@ import sys
 
 from kivy.app import App
 from kivy.uix.screenmanager import Screen
+from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
@@ -44,12 +45,12 @@ class MainMenuScreen(Screen):
         )
         layout.add_widget(title)
 
-        button_layout = BoxLayout(orientation="vertical", spacing=dp(15), size_hint_y=None)
+        button_container = AnchorLayout(anchor_x='center', anchor_y='center')
+        button_layout = BoxLayout(orientation="vertical", spacing=dp(14), size_hint_y=None, size_hint_x=None, width=dp(380))
         button_layout.bind(minimum_height=button_layout.setter("height"))
 
         btn_continue = StyledButton(
-            text="▶️ ПРОДОЛЖИТЬ",
-            color=COLORS["hp_green"],
+            text="ПРОДОЛЖИТЬ",
             size_hint_y=None,
             height=dp(60),
             font_size=dp(20),
@@ -58,8 +59,7 @@ class MainMenuScreen(Screen):
         button_layout.add_widget(btn_continue)
 
         btn_new = StyledButton(
-            text="🆕 НОВАЯ ИГРА",
-            color=COLORS["gold"],
+            text="НОВАЯ ИГРА",
             size_hint_y=None,
             height=dp(60),
             font_size=dp(20),
@@ -68,8 +68,7 @@ class MainMenuScreen(Screen):
         button_layout.add_widget(btn_new)
 
         btn_load = StyledButton(
-            text="📂 ЗАГРУЗИТЬ",
-            color=COLORS["stone_light"],
+            text="ЗАГРУЗИТЬ",
             size_hint_y=None,
             height=dp(60),
             font_size=dp(20),
@@ -78,8 +77,7 @@ class MainMenuScreen(Screen):
         button_layout.add_widget(btn_load)
 
         btn_save = StyledButton(
-            text="💾 СОХРАНИТЬ",
-            color=COLORS["hp_green"],
+            text="СОХРАНИТЬ",
             size_hint_y=None,
             height=dp(60),
             font_size=dp(20),
@@ -88,8 +86,7 @@ class MainMenuScreen(Screen):
         button_layout.add_widget(btn_save)
 
         btn_exit = StyledButton(
-            text="❌ ВЫХОД",
-            color=COLORS["hp_red"],
+            text="ВЫХОД",
             size_hint_y=None,
             height=dp(60),
             font_size=dp(20),
@@ -97,7 +94,8 @@ class MainMenuScreen(Screen):
         btn_exit.bind(on_press=self.on_exit)
         button_layout.add_widget(btn_exit)
 
-        layout.add_widget(button_layout)
+        button_container.add_widget(button_layout)
+        layout.add_widget(button_container)
         self.add_widget(layout)
 
     def on_new_game(self, instance):

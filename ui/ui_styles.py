@@ -14,7 +14,6 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle, Line, RoundedRectangle
 from kivy.metrics import dp
-from kivy.animation import Animation
 
 # Repo root (ui/ui_styles.py -> ui/ -> project root)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -71,140 +70,62 @@ COLORS = {
 # ============================================================================
 
 class StyledButton(Button):
-    """Современная кнопка с градиентом и эффектами."""
+    """Dark RPG кнопка с темным фоном и золотой рамкой."""
 
-    def __init__(self, text="Button", color=None, **kwargs):
+    def __init__(self, text="Button", **kwargs):
         super().__init__(**kwargs)
         self.text = text
         self.background_normal = ''
         self.background_down = ''
-        self.background_color = (0, 0, 0, 0)  # прозрачный фон, чтобы canvas был виден
+        self.background_color = (0, 0, 0, 0)
         self.font_size = kwargs.get('font_size', dp(18))
         self.bold = True
         self.color = COLORS['text_light']
+        self.halign = 'center'
+        self.valign = 'middle'
 
-        # Сохраняем переданный цвет (по умолчанию золотой)
-        self.button_color = color or COLORS['gold']
+        self.button_bg_color = (0.1, 0.1, 0.12, 0.9)
+        self.button_border_color = (0.7, 0.55, 0.3, 0.6)
+        self.pressed = False
 
-        # Запоминаем исходные размеры для анимаций
-        self.original_size = self.size[:] if self.size else (dp(100), dp(40))
-        self.original_font_size = self.font_size
-
-        # Рисуем кнопку
         self._update_canvas()
         self.bind(
             pos=lambda i, v: self._update_canvas(),
             size=lambda i, v: self._update_canvas()
         )
 
-    def _darken_color(self, color, factor=0.7):
-        """Затемнить цвет на factor."""
-        return (
-            min(1, color[0] * factor),
-            min(1, color[1] * factor),
-            min(1, color[2] * factor),
-            color[3] if len(color) > 3 else 1
-        )
-
-    def _lighten_color(self, color, factor=1.3):
-        """Осветлить цвет на factor."""
-        return (
-            min(1, color[0] * factor),
-            min(1, color[1] * factor),
-            min(1, color[2] * factor),
-            color[3] if len(color) > 3 else 1
-        )
-
     def _update_canvas(self):
-        """Обновить canvas с градиентом и эффектами."""
+        """Отрендерить кнопку с темным фоном и золотой рамкой."""
         self.canvas.before.clear()
         with self.canvas.before:
-            # Тень под кнопкой
-            Color(*COLORS['shadow'])
+            Color(*self.button_bg_color)
             RoundedRectangle(
-                pos=(self.x + dp(2), self.y - dp(2)),
+                pos=self.pos,
                 size=self.size,
                 radius=[dp(6)]
             )
-
-            # Градиентный фон на основе цвета кнопки
-            # Верхняя часть (светлая)
-            top_color = self._lighten_color(self.button_color)
-            Color(*top_color)
-            RoundedRectangle(
-                pos=self.pos,
-                size=(self.width, self.height * 0.6),
-                radius=[dp(6)]
-            )
-
-            # Нижняя часть (тёмная)
-            bottom_color = self._darken_color(self.button_color)
-            Color(*bottom_color)
-            RoundedRectangle(
-                pos=(self.x, self.y + self.height * 0.4),
-                size=(self.width, self.height * 0.6),
-                radius=[dp(6)]
-            )
-
-            # Золотая граница
-            Color(*COLORS['border_gold'])
+            Color(*self.button_border_color)
             Line(
                 rounded_rectangle=(
                     self.x, self.y, self.width, self.height, dp(6)
                 ),
-                width=dp(1.5)
+                width=dp(1.2)
             )
-
-    def on_enter(self):
-        """Эффект при наведении мыши - увеличение и свечение."""
-        Animation.cancel_all(self)
-        anim = Animation(
-            size=(self.width * 1.05, self.height * 1.05),
-            font_size=self.font_size * 1.05,
-            duration=0.15
-        )
-        anim.start(self)
-
-        # Эффект свечения
-        self.canvas.after.clear()
-        with self.canvas.after:
-            Color(*COLORS['glow'])
-            RoundedRectangle(
-                pos=(self.x - dp(3), self.y - dp(3)),
-                size=(self.width + dp(6), self.height + dp(6)),
-                radius=[dp(8)]
-            )
-
-    def on_leave(self):
-        """Возврат к исходному состоянию при уходе мыши."""
-        Animation.cancel_all(self)
-        anim = Animation(
-            size=self.original_size,
-            font_size=self.original_font_size,
-            duration=0.2
-        )
-        anim.start(self)
-        self.canvas.after.clear()
 
     def on_touch_down(self, touch):
-        """Эффект при нажатии - уменьшение."""
         if self.collide_point(*touch.pos):
-            Animation.cancel_all(self)
-            anim = Animation(
-                size=(self.width * 0.95, self.height * 0.95),
-                duration=0.1
-            )
-            anim.start(self)
+            self.pressed = True
+            self.button_bg_color = (0.15, 0.15, 0.2, 1)
+            self.button_border_color = (0.9, 0.7, 0.4, 0.8)
+            self._update_canvas()
         return super().on_touch_down(touch)
 
     def on_touch_up(self, touch):
-        """Восстановление после нажатия."""
-        Animation.cancel_all(self)
-        anim = Animation(
-            size=self.original_size,
-            duration=0.15
-        )
-        anim.start(self)
+        if self.pressed:
+            self.pressed = False
+            self.button_bg_color = (0.1, 0.1, 0.12, 0.9)
+            self.button_border_color = (0.7, 0.55, 0.3, 0.6)
+            self._update_canvas()
         return super().on_touch_up(touch)
 
 
