@@ -11,6 +11,7 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle, Line, RoundedRectangle
 from kivy.metrics import dp
@@ -35,6 +36,7 @@ COLORS = {
     'gold_light': (0.95, 0.82, 0.40, 1),        # Светлое золото
     'gold': (0.85, 0.70, 0.30, 1),              # Основное золото
     'gold_dark': (0.65, 0.55, 0.20, 1),         # Тёмное золото
+    'bronze': (0.75, 0.6, 0.35, 1),              # Бронзовое золото для заголовков
 
     # Зелень
     'green_leaf': (0.50, 0.60, 0.40, 1),        # Листва
@@ -130,7 +132,7 @@ class StyledButton(Button):
 
 
 class StyledLabel(Label):
-    """Стилизованная метка с тенью и иерархией."""
+    """Стилизованная метка с тенью и иераршией."""
 
     def __init__(self, text="", color=None, font_size=dp(18),
                  bold=True, shadow=True, **kwargs):
@@ -145,6 +147,43 @@ class StyledLabel(Label):
         if shadow:
             self.shadow_offset = (dp(1), -dp(1))
             self.shadow_color = (0, 0, 0, 0.7)
+
+
+class StyledTextInput(TextInput):
+    """Styled text input с темным фоном и тонкой рамкой."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.background_normal = ''
+        self.background_color = (0, 0, 0, 0)
+        self.font_size = kwargs.get('font_size', dp(18))
+        self.foreground_color = COLORS['text_light']
+        self.cursor_color = COLORS['gold']
+        self.padding_x = dp(12)
+        self.padding_y = dp(12)
+
+        self._bg_color = (0.1, 0.1, 0.12, 0.9)
+        self._border_color = (0.7, 0.55, 0.3, 0.6)
+        self._update_canvas()
+        self.bind(pos=lambda i, v: self._update_canvas(),
+                size=lambda i, v: self._update_canvas())
+
+    def _update_canvas(self):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            Color(*self._bg_color)
+            RoundedRectangle(
+                pos=self.pos,
+                size=self.size,
+                radius=[dp(6)]
+            )
+            Color(*self._border_color)
+            Line(
+                rounded_rectangle=(
+                    self.x, self.y, self.width, self.height, dp(6)
+                ),
+                width=dp(1.2)
+            )
 
 
 class StyledPanel(BoxLayout):
