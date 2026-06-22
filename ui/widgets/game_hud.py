@@ -6,8 +6,8 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
-from kivy.uix.widget import Widget
-from kivy.graphics import Color, Rectangle
+from kivy.uix.relativelayout import RelativeLayout
+from kivy.graphics import Color, Line, RoundedRectangle
 from kivy.metrics import dp
 
 from ui.ui_styles import COLORS
@@ -20,89 +20,116 @@ class GameHUD(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.size_hint = (None, None)
-        self.width = dp(600)
-        self.height = dp(85)
-        self.pos_hint = {'x': 0, 'top': 0.98}
-        self.orientation = 'vertical'
-        self.padding = dp(6)
-        self.spacing = dp(3)
-        self.opacity = 0
+        self.width = dp(620)  # Комфортная ширина под горизонтальный ряд
+        self.height = dp(40)  # Компактная высота в один ряд
+        self.orientation = 'horizontal'
+        self.padding = [dp(12), dp(0), dp(12), dp(0)]
+        self.spacing = dp(14)
 
         with self.canvas.before:
-            Color(0.14, 0.14, 0.14, 0.92)
-            self._bg_rect = Rectangle(pos=self.pos, size=self.size)
+            Color(0.08, 0.08, 0.1, 0.7)
+            self._bg_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(4)])
+            Color(*COLORS['border_gold'])
+            self._border_line = Line(
+                rounded_rectangle=(self.x, self.y, self.width, self.height, dp(4)),
+                width=dp(1.2)
+            )
         self.bind(
-            pos=lambda i, v: setattr(self._bg_rect, 'pos', i.pos),
-            size=lambda i, v: setattr(self._bg_rect, 'size', i.size),
+            pos=lambda i, v: self._update_canvas(),
+            size=lambda i, v: self._update_canvas()
         )
 
-        top = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(20), spacing=dp(6))
+        # 1. Уровень
         self.level_label = Label(
-            text='Lvl: -', font_size=dp(13), size_hint_x=None, width=dp(70), halign='left',
+            text='Lvl: -', font_size=dp(13), size_hint_x=None, width=dp(45), 
+            halign='left', valign='middle', color=COLORS['text_light']
         )
-        top.add_widget(self.level_label)
-        self.add_widget(top)
+        self.level_label.bind(size=self._trigger_label_render)
+        self.add_widget(self.level_label)
 
-        hp_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(22), spacing=dp(8))
-        self.hp_label = Label(
-            text='HP: -/-', font_size=dp(11), size_hint_x=None, width=dp(90), halign='left',
-        )
-        hp_row.add_widget(self.hp_label)
-        self._hp_bar_container = Widget(size_hint_x=1, size_hint_y=None, height=dp(18))
-        with self._hp_bar_container.canvas:
-            Color(0.12, 0.12, 0.12, 1)
-            self._hp_bar_bg = Rectangle(
-                pos=self._hp_bar_container.pos, size=self._hp_bar_container.size,
-            )
+        # 2. Полоса HP (RelativeLayout контейнер для удержания текста по центру)
+        self._hp_bar_container = RelativeLayout(size_hint_x=None, width=dp(110), size_hint_y=None, height=dp(16))
+        self._hp_bar_container.pos_hint = {'center_y': 0.5}
+        with self._hp_bar_container.canvas.before:
+            Color(0.2, 0.05, 0.05, 1)
+            self._hp_bar_bg = RoundedRectangle(pos=(0, 0), size=self._hp_bar_container.size, radius=[dp(3)])
             Color(*COLORS['hp_red'])
-            self._hp_bar_fg = Rectangle(
-                pos=self._hp_bar_container.pos, size=(0, self._hp_bar_container.height),
-            )
-        self._hp_bar_container.bind(pos=lambda i, v: setattr(self._hp_bar_bg, 'pos', i.pos))
-        self._hp_bar_container.bind(size=lambda i, v: setattr(self._hp_bar_bg, 'size', i.size))
-        self._hp_bar_container.bind(pos=lambda i, v: setattr(self._hp_bar_fg, 'pos', (i.x, i.y)))
-        hp_row.add_widget(self._hp_bar_container)
-        self.add_widget(hp_row)
-
-        xp_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(22), spacing=dp(8))
-        self.xp_label = Label(
-            text='XP: -/-', font_size=dp(11), size_hint_x=None, width=dp(90), halign='left',
+            self._hp_bar_fg = RoundedRectangle(pos=(0, 0), size=(0, self._hp_bar_container.height), radius=[dp(3)])
+        
+        self.hp_label = Label(
+            text='HP: -/-', font_size=dp(10), bold=True, color=(1, 1, 1, 1),
+            pos_hint={'center_x': 0.5, 'center_y': 0.5}
         )
-        xp_row.add_widget(self.xp_label)
-        self._xp_bar_container = Widget(size_hint_x=1, size_hint_y=None, height=dp(18))
-        with self._xp_bar_container.canvas:
-            Color(0.12, 0.12, 0.12, 1)
-            self._xp_bar_bg = Rectangle(
-                pos=self._xp_bar_container.pos, size=self._xp_bar_container.size,
-            )
+        self._hp_bar_container.add_widget(self.hp_label)
+        self._hp_bar_container.bind(size=self._on_hp_container_size)
+        self.add_widget(self._hp_bar_container)
+
+        # 3. Полоса XP
+        self._xp_bar_container = RelativeLayout(size_hint_x=None, width=dp(110), size_hint_y=None, height=dp(16))
+        self._xp_bar_container.pos_hint = {'center_y': 0.5}
+        with self._xp_bar_container.canvas.before:
+            Color(0.05, 0.1, 0.2, 1)
+            self._xp_bar_bg = RoundedRectangle(pos=(0, 0), size=self._xp_bar_container.size, radius=[dp(3)])
             Color(*COLORS['xp_purple'])
-            self._xp_bar_fg = Rectangle(
-                pos=self._xp_bar_container.pos, size=(0, self._xp_bar_container.height),
-            )
-        self._xp_bar_container.bind(pos=lambda i, v: setattr(self._xp_bar_bg, 'pos', i.pos))
-        self._xp_bar_container.bind(size=lambda i, v: setattr(self._xp_bar_bg, 'size', i.size))
-        self._xp_bar_container.bind(pos=lambda i, v: setattr(self._xp_bar_fg, 'pos', (i.x, i.y)))
-        xp_row.add_widget(self._xp_bar_container)
-        self.add_widget(xp_row)
-
-        stats = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(20), spacing=dp(8))
-        self.dmg_label = Label(
-            text='DMG: -', font_size=dp(11), size_hint_x=None, width=dp(70), halign='left',
+            self._xp_bar_fg = RoundedRectangle(pos=(0, 0), size=(0, self._xp_bar_container.height), radius=[dp(3)])
+        
+        self.xp_label = Label(
+            text='XP: -/-', font_size=dp(10), bold=True, color=(1, 1, 1, 1),
+            pos_hint={'center_x': 0.5, 'center_y': 0.5}
         )
-        self.def_label = Label(
-            text='DEF: -', font_size=dp(11), size_hint_x=None, width=dp(70), halign='left',
-        )
-        self.coins_label_small = Label(text='COINS: -', font_size=dp(11), halign='left')
-        stats.add_widget(self.dmg_label)
-        stats.add_widget(self.def_label)
-        stats.add_widget(self.coins_label_small)
-        self.add_widget(stats)
+        self._xp_bar_container.add_widget(self.xp_label)
+        self._xp_bar_container.bind(size=self._on_xp_container_size)
+        self.add_widget(self._xp_bar_container)
 
+        # 4. Текстовые характеристики статов (DMG, DEF, COINS)
+        label_kwargs = {
+            'font_size': dp(13),
+            'color': COLORS['text_light'],
+            'size_hint_y': 1,
+            'valign': 'middle',
+            'halign': 'center'
+        }
+        self.dmg_label = Label(text='DMG: -', **label_kwargs)
+        self.def_label = Label(text='DEF: -', **label_kwargs)
+        self.coins_label = Label(text='COINS: -', **label_kwargs)
+
+        for lbl in (self.dmg_label, self.def_label, self.coins_label):
+            lbl.bind(size=self._trigger_label_render)
+
+        self.add_widget(self.dmg_label)
+        self.add_widget(self.def_label)
+        self.add_widget(self.coins_label)
+
+        # Внутреннее состояние (оригинальные переменные)
         self._view_model = None
         self._bound_player = None
         self._last_level = 0
         self._vm_bound = False
 
+    def _trigger_label_render(self, instance, size):
+        instance.text_size = instance.size
+
+    def _update_canvas(self):
+        self._bg_rect.pos = self.pos
+        self._bg_rect.size = self.size
+        self._border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(4))
+
+    def _on_hp_container_size(self, instance, size):
+        self._hp_bar_bg.size = size
+        if self._view_model:
+            self._update_bar(self._hp_bar_container, self._hp_bar_fg, self._view_model.health, self._view_model.max_health)
+        elif self._bound_player:
+            self._update_bar(self._hp_bar_container, self._hp_bar_fg, self._bound_player.health, self._bound_player.max_health)
+
+    def _on_xp_container_size(self, instance, size):
+        self._xp_bar_bg.size = size
+        if self._view_model:
+            self._update_bar(self._xp_bar_container, self._xp_bar_fg, self._view_model.experience, self._view_model.xp_required)
+        elif self._bound_player:
+            self._update_bar(self._xp_bar_container, self._xp_bar_fg, self._bound_player.experience, self._bound_player.level * 100)
+
+    # --- ОРИГИНАЛЬНОЕ API СВЯЗЫВАНИЯ ДАННЫХ ---
+    
     def bind_to_view_model(self, view_model: PlayerViewModel) -> None:
         """Привязать HUD к PlayerViewModel (реактивное обновление)."""
         try:
@@ -142,7 +169,7 @@ class GameHUD(BoxLayout):
             pass
 
     def unbind_player(self) -> None:
-        """Отвязать HUD от текущей модели (не трогает app.player_view)."""
+        """Отвязать HUD от текущей модели."""
         try:
             self._unbind_view_model()
             self._bound_player = None
@@ -190,9 +217,7 @@ class GameHUD(BoxLayout):
             vm.coins, vm.experience, vm.xp_required,
         )
 
-    def _apply_stats(
-        self, level, health, max_health, damage, defense, coins, experience, xp_required,
-    ) -> None:
+    def _apply_stats(self, level, health, max_health, damage, defense, coins, experience, xp_required) -> None:
         try:
             self.level_label.text = f"Lvl: {level}"
             self.hp_label.text = f"HP: {health}/{max_health}"
@@ -201,7 +226,7 @@ class GameHUD(BoxLayout):
             self._update_bar(self._xp_bar_container, self._xp_bar_fg, experience, xp_required)
             self.dmg_label.text = f"DMG: {damage}"
             self.def_label.text = f"DEF: {defense}"
-            self.coins_label_small.text = f"COINS: {coins}"
+            self.coins_label.text = f"COINS: {coins}"
         except Exception:
             pass
 
@@ -213,6 +238,8 @@ class GameHUD(BoxLayout):
             fg_rect.size = (fg_w, container.height)
         except Exception:
             pass
+
+    # --- ОРИГИНАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ VIEWMODEL ---
 
     def _on_vm_level(self, instance, value) -> None:
         self.level_label.text = f"Lvl: {value}"
@@ -235,7 +262,7 @@ class GameHUD(BoxLayout):
         self.def_label.text = f"DEF: {value}"
 
     def _on_vm_coins(self, instance, value) -> None:
-        self.coins_label_small.text = f"COINS: {value}"
+        self.coins_label.text = f"COINS: {value}"
 
     def _on_vm_experience(self, instance, value) -> None:
         req = self._view_model.xp_required if self._view_model else 0

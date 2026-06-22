@@ -3,125 +3,94 @@
 
 """
 Виджет шкалы глобальной опасности (Danger Bar).
-
-Отображает полоску опасности с цветовой индикацией и текстом
-текущей градации. Автоматически обновляется из DangerManager.
+Отображает полоску опасности с цветовой индикацией и текстом поверх неё.
 """
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
-from kivy.uix.widget import Widget
+from kivy.uix.relativelayout import RelativeLayout
 from kivy.graphics import Color, Line, RoundedRectangle
 from kivy.metrics import dp
 from kivy.app import App
 from kivy.clock import Clock
 
-
-# Цвета шкалы в зависимости от градации
+# Премиальные чистые цвета для градаций опасности
 _TIER_COLORS = {
-    "Безопасно":            (0.35, 0.55, 0.30, 1),   # зелёный
-    "Повышенная опасность": (0.75, 0.65, 0.20, 1),   # жёлтый/янтарный
-    "Критическая опасность": (0.80, 0.35, 0.20, 1),  # оранжево-красный
-    "Апокалипсис":          (0.75, 0.10, 0.10, 1),   # ярко-красный
+    "Безопасно":            (0.25, 0.55, 0.25, 0.85),   # Изумрудно-зелёный
+    "Повышенная опасность": (0.75, 0.55, 0.15, 0.85),   # Янтарно-жёлтый
+    "Критическая опасность": (0.85, 0.35, 0.15, 0.85),  # Огненно-оранжевый
+    "Апокалипсис":          (0.75, 0.10, 0.10, 0.85),   # Глубокий красный
 }
-
-_TIER_ICONS = {
-    "Безопасно":            "🟢",
-    "Повышенная опасность": "🟡",
-    "Критическая опасность": "🟠",
-    "Апокалипсис":          "🔴",
-}
-
 
 class DangerBar(BoxLayout):
-    """Компактная полоса опасности для отображения на HUD / карте."""
+    """Компактная полоса опасности, стилизованная под основной HUD."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.orientation = "horizontal"
         self.size_hint = (None, None)
-        self.size = (dp(260), dp(36))
-        self.spacing = dp(4)
-        self.padding = [dp(6), dp(4), dp(6), dp(4)]
+        self.width = dp(240)   # Оптимальная ширина для правого угла
+        self.height = dp(40)  # Идеально совпадает по высоте с GameHUD
+        self.padding = [dp(6), dp(6), dp(6), dp(6)]
 
-        # Фон панели
+        # Глобальный фон панели (точно такой же, как у GameHUD)
         with self.canvas.before:
-            Color(0.10, 0.08, 0.06, 0.88)
+            Color(0.08, 0.08, 0.1, 0.7)
             self._bg = RoundedRectangle(
-                pos=self.pos, size=self.size, radius=[dp(6)]
+                pos=self.pos, size=self.size, radius=[dp(4)]
             )
-            Color(0.55, 0.45, 0.25, 0.5)
+            Color(0.55, 0.45, 0.25, 0.5) # Золотая рамка
             self._border = Line(
-                rounded_rectangle=(*self.pos, *self.size, dp(6)),
-                width=dp(1),
+                rounded_rectangle=(*self.pos, *self.size, dp(4)),
+                width=dp(1.2),
             )
         self.bind(pos=self._redraw, size=self._redraw)
 
-        # Иконка градации
-        self._icon_label = Label(
-            text="🟢",
-            size_hint=(None, 1),
-            width=dp(28),
-            font_size=dp(16),
-        )
-        self.add_widget(self._icon_label)
+        # Контейнер RelativeLayout, чтобы текст лежал строго поверх полосы закраски
+        self._bar_container = RelativeLayout(size_hint=(1, 1))
+        
+        with self._bar_container.canvas.before:
+            # Внутренний фон шкалы (куда заливается цвет)
+            Color(0.05, 0.05, 0.07, 0.6)
+            self._bar_bg_rect = RoundedRectangle(pos=(0, 0), size=self._bar_container.size, radius=[dp(3)])
+            # Сама полоса прогресса
+            self._bar_fg_color = Color(0.25, 0.55, 0.25, 0.85)
+            self._bar_fg_rect = RoundedRectangle(pos=(0, 0), size=(0, self._bar_container.height), radius=[dp(3)])
 
-        # Контейнер для полосы (вложенный Widget с canvas)
-        self._bar_container = Widget(size_hint=(1, 1))
+        # Текст по центру полосы
+        self._text_label = Label(
+            text="Опасность: 0%",
+            font_size=dp(11),
+            bold=True,
+            color=(1, 1, 1, 1),
+            pos_hint={'center_x': 0.5, 'center_y': 0.5}
+        )
+        
+        self._bar_container.add_widget(self._text_label)
+        self._bar_container.bind(size=self._draw_bar)
         self.add_widget(self._bar_container)
 
-        # Текст справа (процент + название)
-        self._text_label = Label(
-            text="30% Безопасно",
-            size_hint=(None, 1),
-            width=dp(130),
-            font_size=dp(11),
-            color=(0.9, 0.88, 0.8, 1),
-            halign="right",
-            valign="middle",
-        )
-        self._text_label.text_size = (dp(130), None)
-        self.add_widget(self._text_label)
-
-        # Начальные значения
-        self._danger = 30.0
+        # Логические переменные
+        self._danger = 0.0
         self._tier = "Безопасно"
-        self._bar_bg_color = Color(0.18, 0.16, 0.14, 1)
-        self._bar_fg_color = Color(*_TIER_COLORS["Безопасно"])
-        self._bar_bg_rect = None
-        self._bar_fg_rect = None
-
-        # Рисуем полосу внутри контейнера (отложенно, после layout)
-        Clock.schedule_once(self._draw_bar, 0.01)
-        self._bar_container.bind(pos=self._draw_bar, size=self._draw_bar)
 
         # Периодическое авто-обновление из DangerManager
-        self._update_ev = Clock.schedule_interval(self._auto_update, 0.5)
-
-    # ------------------------------------------------------------------
-    # Публичные методы
-    # ------------------------------------------------------------------
+        self._update_ev = Clock.schedule_interval(self._auto_update, 0.4)
 
     def set_danger(self, danger_level: float, tier_name: str) -> None:
-        """Обновить отображение опасности."""
+        """Обновить уровень угрозы и перерисовать интерфейс."""
         self._danger = max(0.0, min(100.0, danger_level))
         self._tier = tier_name
 
-        icon = _TIER_ICONS.get(tier_name, "🟢")
-        bar_color = _TIER_COLORS.get(tier_name, _TIER_COLORS["Безопасно"])
-
-        self._icon_label.text = icon
-        self._text_label.text = f"{self._danger:.0f}% {tier_name}"
+        # Обновляем текст и цвет полосы
+        self._text_label.text = f"Угроза: {self._danger:.0f}% [{tier_name}]"
+        bar_color = _TIER_COLORS.get(tier_name, (0.25, 0.55, 0.25, 0.85))
         self._bar_fg_color.rgba = bar_color
 
-        self._update_bar_width()
-
-    # ------------------------------------------------------------------
-    # Внутренние методы
-    # ------------------------------------------------------------------
+        # Триггерим перерисовку заполнения
+        self._draw_bar(self._bar_container, self._bar_container.size)
 
     def _auto_update(self, dt):
-        """Автоматически считывать состояние из DangerManager."""
         try:
             app = App.get_running_app()
             dm = getattr(getattr(app, "game", None), "danger_manager", None)
@@ -130,44 +99,20 @@ class DangerBar(BoxLayout):
         except Exception:
             pass
 
-    def _draw_bar(self, *args):
-        """Нарисовать фон и полосу внутри контейнера."""
-        c = self._bar_container
-        c.canvas.before.clear()
-        with c.canvas.before:
-            # Фон полосы
-            Color(0.18, 0.16, 0.14, 1)
-            RoundedRectangle(
-                pos=c.pos, size=c.size, radius=[dp(4)]
-            )
-            # Заполненная часть
-            ratio = self._danger / 100.0 if self._danger > 0 else 0
-            fill_w = max(0, c.width * ratio)
-            bar_color = _TIER_COLORS.get(self._tier, _TIER_COLORS["Безопасно"])
-            Color(*bar_color)
-            if fill_w > 0:
-                RoundedRectangle(
-                    pos=c.pos, size=(fill_w, c.height), radius=[dp(4)]
-                )
-            # Рамка
-            Color(0.55, 0.45, 0.25, 0.4)
-            Line(
-                rounded_rectangle=(*c.pos, *c.size, dp(4)),
-                width=dp(0.8),
-            )
-
-    def _update_bar_width(self):
-        """Перерисовать полосу (вызывается при изменении danger)."""
-        self._draw_bar()
+    def _draw_bar(self, instance, size):
+        """Динамически пересчитывает ширину заполнения при изменении размеров или данных."""
+        self._bar_bg_rect.size = size
+        
+        ratio = self._danger / 100.0
+        fill_w = max(0, size[0] * ratio)
+        self._bar_fg_rect.size = (fill_w, size[1])
 
     def _redraw(self, *args):
-        """Обновить фон и рамку самого виджета."""
         self._bg.pos = self.pos
         self._bg.size = self.size
-        self._border.rounded_rectangle = (*self.pos, *self.size, dp(6))
+        self._border.rounded_rectangle = (*self.pos, *self.size, dp(4))
 
     def cleanup(self):
-        """Остановить авто-обновление (вызывать при удалении виджета)."""
         if self._update_ev:
             self._update_ev.cancel()
             self._update_ev = None

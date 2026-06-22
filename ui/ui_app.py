@@ -20,6 +20,7 @@ Window.clearcolor = (0, 0, 0, 1)
 
 from kivy.uix.screenmanager import ScreenManager
 from kivy.uix.floatlayout import FloatLayout
+from kivy.metrics import dp
 
 from ui.local_location_screen import LocalLocationScreen
 from ui.widgets.game_hud import GameHUD
@@ -183,6 +184,7 @@ class RPGApp(App):
 
         try:
             self.hud = GameHUD()
+            self.hud.pos = (dp(12), Window.height - dp(56))
             root.add_widget(self.hud)
             sm.bind(current=self.on_screen_change)
         except Exception:

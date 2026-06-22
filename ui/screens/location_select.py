@@ -735,16 +735,34 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             pass
 
         # Danger Bar
+# Danger Bar (Индикатор опасности)
         def _place_danger_bar(dt=None):
             try:
-                ow = self.map_container.width
-                oh = self.map_container.height
+                # Теперь считаем размеры от стабильного ЭКРАНА (self), а не от карты
+                ow = self.width
+                oh = self.height
                 db = self._danger_bar
-                if not db or db.width <= 0 or db.height <= 0:
+                if not db:
                     return
-                x = int(ow * 0.82) - db.width
-                y = oh - db.height - dp(8)
-                db.pos = (max(dp(4), x), max(dp(4), y))
+                
+                # Принудительно отключаем автоматическое растягивание Kivy
+                db.size_hint = (None, None)
+                
+                # Если размеры сбросились до дефолтных 100x100, задаем пропорции HUD
+                if db.width == 100 or db.width <= 0:
+                    db.width = dp(240)
+                if db.height == 100 or db.height <= 0:
+                    db.height = dp(42)
+                
+                # ИДЕАЛЬНОЕ ПОЗИЦИОНИРОВАНИЕ В СТАТИЧНЫХ КООРДИНАТАХ:
+                # x: Прижимаем вправо с отступом dp(12) — симметрично левому GameHUD
+                x = ow - db.width - dp(12)
+                
+                # y: Выравниваем верхнюю линию полоски тютелька в тютельку с GameHUD.
+                # Математически это: Высота_Экрана - Высота_Виджета - Отступ_Сверху(14dp)
+                y = oh - db.height - dp(14)
+                
+                db.pos = (max(dp(12), x), max(dp(12), y))
             except Exception:
                 pass
 
@@ -753,16 +771,24 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 if getattr(self, '_danger_bar', None):
                     self._danger_bar.cleanup()
                 danger_bar = DangerBar()
-                self.map_container.add_widget(danger_bar)
+                
+                # КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Добавляем прямо на экран (self), а не в map_container!
+                # Это полностью изолирует HUD от зума, перетаскивания и сдвигов карты.
+                self.add_widget(danger_bar)
                 self._danger_bar = danger_bar
+                
                 Clock.schedule_once(_place_danger_bar, 0.12)
-                self.map_container.bind(size=lambda i, v: _place_danger_bar())
+                # Перепривязываем отслеживание к изменению размеров самого экрана
+                self.bind(size=lambda i, v: _place_danger_bar())
             else:
                 try:
-                    self.map_container.remove_widget(self._danger_bar)
+                    if self._danger_bar.parent:
+                        self._danger_bar.parent.remove_widget(self._danger_bar)
                 except Exception:
                     pass
-                self.map_container.add_widget(self._danger_bar)
+                # Перевыводим на передний план поверх карты
+                self.add_widget(self._danger_bar)
+                Clock.schedule_once(_place_danger_bar, 0.05)
         except Exception:
             pass
 
