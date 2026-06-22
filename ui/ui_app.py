@@ -5,6 +5,8 @@
 Kivy UI для RPG игры.
 """
 
+import os
+
 from kivy.app import App
 from kivy.config import Config
 
@@ -20,6 +22,7 @@ Window.clearcolor = (0, 0, 0, 1)
 
 from kivy.uix.screenmanager import ScreenManager
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.image import Image
 from kivy.metrics import dp
 
 from ui.local_location_screen import LocalLocationScreen
@@ -190,7 +193,32 @@ class RPGApp(App):
         except Exception:
             pass
 
+        # --- Кастомный курсор-компас ---
+        try:
+            compass_dir = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                os.pardir, "assets", "ui", "сursors"
+            )
+            compass_path = os.path.join(compass_dir, "сompass.png")
+            if os.path.isfile(compass_path):
+                Window.show_cursor = False
+                self._cursor_image = Image(
+                    source=compass_path,
+                    size_hint=(None, None),
+                    size=(dp(32), dp(32)),
+                    allow_stretch=True,
+                )
+                root.add_widget(self._cursor_image)
+                Window.bind(mouse_pos=self._on_cursor_mouse_pos)
+        except Exception:
+            pass
+
         return root
+
+    def _on_cursor_mouse_pos(self, window, pos):
+        """Обновить позицию кастомного курсора вслед за мышью."""
+        if hasattr(self, '_cursor_image'):
+            self._cursor_image.pos = (pos[0] - dp(16), pos[1] - dp(16))
 
     def on_screen_change(self, instance, value):
         """Обновить HUD при смене экрана."""

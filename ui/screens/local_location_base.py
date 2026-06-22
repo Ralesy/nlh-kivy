@@ -1623,19 +1623,19 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     Line(circle=(ent["x"], ent["y"], r), width=2)
 
             pr = self._player_radius()
+            knight_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "assets", "sprites", "local_map_sprites", "knight.png"
+            )
             if self._is_player_sneaking():
-                Color(0.45, 0.95, 0.65, 0.85)
+                Color(0.3, 0.8, 0.4, 0.7)
             else:
-                Color(1, 1, 0, 0.8)
-            Ellipse(
+                Color(1, 1, 1, 1)
+            Rectangle(
+                source=knight_path,
                 pos=(self._player_pos[0] - pr, self._player_pos[1] - pr),
                 size=(pr * 2, pr * 2),
             )
-            if self._is_player_sneaking():
-                Color(0.2, 0.7, 0.35, 1)
-            else:
-                Color(1, 0.8, 0, 1)
-            Line(circle=(self._player_pos[0], self._player_pos[1], pr), width=2)
 
             if self._player_label:
                 label_x, label_y = self._world_to_screen(self._player_pos[0], self._player_pos[1])
