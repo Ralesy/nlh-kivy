@@ -199,7 +199,8 @@ def build_scene_config(scene_id: str) -> Optional[LocalSceneConfig]:
             npcs=[
                 NpcSpawnConfig("shopkeeper", "Торговец", 0.52, 0.66, action="shop"),
             ],
-            # Отдельного bg_shop пока нет — однотонная заливка на экране.
+            player_scale=1.8,  # Игрок больше в магазине (0.8 → 1.7)
+            enemy_scale=0.8,   # Можно задать и масштаб врагов, если понадобится
             background_candidates=_bg_candidates(scene_id),
         )
 
