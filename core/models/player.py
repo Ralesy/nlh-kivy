@@ -54,7 +54,7 @@ class Player(Creature):
     STAT_COEFFICIENTS = {
         "endurance": {"health": 15},
         "strength": {"damage": 2, "inventory_capacity": 5},
-        "agility": {"critical_chance": 0.05},
+        "agility": {"critical_chance": 0.05, "dexterity": 3},
         "luck": {"luck": 0.15},
         "trade": {"selling_multiplier": 0.1},
         "speed": {"move_speed": 15},
@@ -130,6 +130,11 @@ class Player(Creature):
         self.last_enemy_creatures: Dict[str, List[Optional[Creature]]] = {}
         self.defeated_bosses = set()
         self.is_sneaking = False
+        # Стойка в real-time combat:
+        # "aggressive" — атакует всех врагов в радиусе (по умолчанию)
+        # "passive" — не атакует, пока не атакуют его
+        # "defensive" — атакует, но с повышенным шансом блока
+        self.stance = "aggressive"
 
     def allocate_skill_point(self, skill: str) -> bool:
         """Распределить одно очко навыка. Возвращает True при успехе."""
@@ -204,6 +209,10 @@ class Player(Creature):
             + self.skill_points_allocated["speed"]
             * self.STAT_COEFFICIENTS["speed"]["move_speed"]
         )
+
+        # Ловкость (dexterity) для real-time combat (1..20)
+        # База 5 + agility * 3 за очко навыка
+        self.dexterity = 5 + self.skill_points_allocated["agility"] * 3
 
     @property
     def critical_chance(self) -> float:
@@ -485,6 +494,7 @@ class Player(Creature):
         }
         data["defeated_bosses"] = list(self.defeated_bosses)
         data["is_sneaking"] = self.is_sneaking
+        data["stance"] = self.stance
         return data
 
     @classmethod
@@ -555,6 +565,7 @@ class Player(Creature):
             player.last_enemy_creatures[scene_id] = restored
         player.defeated_bosses = set(data.get("defeated_bosses", []))
         player.is_sneaking = bool(data.get("is_sneaking", False))
+        player.stance = data.get("stance", "aggressive")
 
         return player
 

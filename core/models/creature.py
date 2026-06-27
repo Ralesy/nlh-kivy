@@ -43,6 +43,11 @@ class Creature:
         self.cause_of_death: Optional[str] = None
         self._template = None  # ссылка на шаблон врага для лута и XP
 
+        # Ловкость (1-20): влияет на скорость атаки в real-time combat.
+        # Для игрока пересчитывается из навыка agility; для врагов задаётся
+        # при генерации из шаблона.
+        self.dexterity: int = 5
+
     def _scale_stat(self, base: int) -> int:
         """Масштабировать характеристику по уровню."""
         return int(base + (self.level - 1) * (base * 0.12))
@@ -191,6 +196,7 @@ class Creature:
             "coins": self.coins,
             "weapon_id": self.weapon.id if self.weapon else None,
             "armor_id": self.armor.id if self.armor else None,
+            "dexterity": self.dexterity,
         }
 
     @classmethod
@@ -207,6 +213,7 @@ class Creature:
         )
         creature.health = data["health"]
         creature.coins = data["coins"]
+        creature.dexterity = data.get("dexterity", 5)
 
         ItemDatabase.initialize()
         if data.get("weapon_id"):

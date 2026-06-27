@@ -33,6 +33,8 @@ class Companion(Creature):
             level,
         )
         self.role = role
+        # Стойка в real-time combat (по умолчанию агрессивная)
+        self.stance = "aggressive"
 
     def to_dict(self) -> dict:
         """Сериализация для сохранения."""

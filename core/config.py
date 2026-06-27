@@ -173,13 +173,13 @@ LOG_LEVEL = "INFO"
 # ============================================================================
 # НАСТРОЙКИ ЛОКАЛЬНЫХ СЦЕН (СИСТЕМЫ ИИ, РАДИУСЫ, СТЕЛС)
 # ============================================================================
-SOCIAL_AGGRO_RADIUS = 120
-DE_AGGRO_RADIUS = 250
+SOCIAL_AGGRO_RADIUS = 200
+DE_AGGRO_RADIUS = 400
 PATROL_RADIUS = 150
 CONE_ANGLE = 120
 CONE_LENGTH = 200
 HEARING_RADIUS = 95
-PLAYER_BASE_RADIUS = 20
+PLAYER_BASE_RADIUS = 12
 ENEMY_BASE_RADIUS = 12
 BOSS_BASE_RADIUS = 18
 NPC_BASE_RADIUS = 14

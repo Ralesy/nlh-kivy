@@ -199,7 +199,7 @@ class RPGApp(App):
                 os.path.dirname(os.path.abspath(__file__)),
                 os.pardir, "assets", "ui", "сursors"
             )
-            compass_path = os.path.join(compass_dir, "сompass.png")
+            compass_path = os.path.join(compass_dir, "compass.png")
             if os.path.isfile(compass_path):
                 Window.show_cursor = False
                 self._cursor_image = Image(
@@ -208,10 +208,13 @@ class RPGApp(App):
                     size=(dp(32), dp(32)),
                     allow_stretch=True,
                 )
+                # Добавляем в root (FloatLayout) — курсор виден поверх ScreenManager
                 root.add_widget(self._cursor_image)
                 Window.bind(mouse_pos=self._on_cursor_mouse_pos)
+            else:
+                Window.show_cursor = True
         except Exception:
-            pass
+            Window.show_cursor = True
 
         return root
 

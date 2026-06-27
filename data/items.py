@@ -128,6 +128,9 @@ class Weapon(Item):
         cond = condition if condition in WEAPON_CONDITIONS else "normal"
         self.condition = cond
         
+        # Вес оружия (для real-time combat — влияет на скорость замаха)
+        self.weight = self._detect_weight(weapon_type or self._detect_weapon_type(id_, name))
+        
         # Определяем тип оружия автоматически если не указан
         if weapon_type is None:
             weapon_type = self._detect_weapon_type(id_, name)
@@ -139,6 +142,17 @@ class Weapon(Item):
             weapon_type, is_unique, id_
         )
     
+    # Веса оружия по типам (для real-time combat)
+    WEAPON_WEIGHTS = {
+        "dagger": 0.5,    # кинжал — очень лёгкий
+        "sword": 1.5,     # меч — средний
+        "axe": 2.5,       # топор — тяжёлый
+        "spear": 1.8,     # копьё — средне-тяжёлое
+        "bow": 1.2,       # лук — лёгкий
+        "mace": 4.0,      # молот/булава — очень тяжёлый
+        "staff": 2.0,     # посох — средний
+    }
+
     @staticmethod
     def _detect_weapon_type(item_id: str, name: str) -> str:
         """Автоматически определить тип оружия по ID или названию."""
@@ -162,6 +176,11 @@ class Weapon(Item):
             return "staff"
         else:
             return "sword"  # По умолчанию
+
+    @staticmethod
+    def _detect_weight(weapon_type: str) -> float:
+        """Определить вес оружия по его типу."""
+        return Weapon.WEAPON_WEIGHTS.get(weapon_type, 1.5)
 
     @property
     def damage_bonus(self) -> int:
@@ -200,7 +219,8 @@ class Weapon(Item):
         data.update({
             "material": self.material,
             "base_damage": self.base_damage,
-            "condition": self.condition
+            "condition": self.condition,
+            "weight": self.weight,
         })
         return data
 

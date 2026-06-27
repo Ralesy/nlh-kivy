@@ -15,17 +15,26 @@ class LootWindow(BoxLayout):
     - Правая колонка: инвентарь игрока
     - Снизу кнопка "Готово"
     """
-    def __init__(self, loot_items, player_inventory, on_done, gold: int = 0, xp: int = 0, **kwargs):
+    def __init__(self, loot_items, player_inventory, on_done, gold: int = 0, xp: int = 0,
+                 left_title="Лут", right_title="Инвентарь", **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.spacing = dp(10)
         self.padding = dp(10)
+        # Полупрозрачный фон
+        with self.canvas.before:
+            Color(0.08, 0.1, 0.15, 0.88)
+            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos),
+                  size=lambda i, v: setattr(self.bg_rect, 'size', i.size))
         self.loot_items = loot_items.copy() if loot_items else []
         self.player_inventory = player_inventory
         self.on_done = on_done
         self.gold = gold
         self.xp = xp
         self.selected = []
+        self.left_title = left_title
+        self.right_title = right_title
 
         # Заголовок
         title = Label(
@@ -59,7 +68,7 @@ class LootWindow(BoxLayout):
             size_hint_x=0.5
         )
         loot_title = Label(
-            text='📦 ЛУТ',
+            text=f'📦 {self.left_title}',
             font_size=dp(18),
             size_hint_y=None,
             height=dp(35)
@@ -121,7 +130,7 @@ class LootWindow(BoxLayout):
             )
 
         inv_title = Label(
-            text='🎒 ИНВЕНТАРЬ',
+            text=f'🎒 {self.right_title}',
             font_size=dp(18),
             size_hint_y=None,
             height=dp(35),

@@ -74,6 +74,15 @@ class EnemyGenerator:
                 level=level,
             )
             enemy._template = enemy_template
+            # Ловкость для real-time combat: зависит от типа и уровня
+            if enemy_template.enemy_type == "animal":
+                enemy.dexterity = max(1, min(20, 3 + level))
+            elif enemy_template.enemy_type == "humanoid":
+                enemy.dexterity = max(1, min(20, 5 + int(level * 1.5)))
+            elif enemy_template.is_boss:
+                enemy.dexterity = max(1, min(20, 7 + int(level * 1.5)))
+            else:
+                enemy.dexterity = max(1, min(20, 5 + level))
             EnemyGenerator._equip_from_loot_table(enemy)
             enemies.append(enemy)
 
@@ -99,5 +108,6 @@ class EnemyGenerator:
             level=10,
         )
         enemy._template = enemy_template
+        enemy.dexterity = max(1, min(20, 7 + int(enemy.level * 1.5)))
         EnemyGenerator._equip_from_loot_table(enemy)
         return enemy
