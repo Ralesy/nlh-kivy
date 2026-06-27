@@ -957,10 +957,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self.manager.current = "active_quests"
 
     def _sync_entity_positions(self) -> None:
-        """Пересчитать экранные координаты сущностей по нормализованным."""
+        """Пересчитать экранные координаты сущностей по нормализованным.
+        НЕ затираем позиции тех, кто в real-time бою — ими управляет _update_rt_combat.
+        """
         w = max(1, self.width)
         h = max(1, self.height)
         for ent in self._entities:
+            if ent.get("in_combat"):
+                # Combat-система сама двигает ent["x"]/ent["y"] через close_speed и анимации
+                continue
             ent["x"] = ent["x_norm"] * w
             ent["y"] = ent["y_norm"] * h
 
@@ -1030,6 +1035,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         base_speed = player.move_speed if player else 200
         if self._is_player_sneaking():
             base_speed = int(base_speed * 0.4)
+        # В бою скорость игрока снижена вдвое — напряжение и готовность к защите
+        if self._player_entity and self._player_entity.get("in_combat"):
+            base_speed = int(base_speed * 0.5)
         prev_x, prev_y = self._player_pos[0], self._player_pos[1]
 
         mx = (1 if self._move["right"] else 0) - (1 if self._move["left"] else 0)
@@ -1093,10 +1101,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         # Real-time combat
         any_combat = self._is_any_combat_active()
         if any_combat:
+            # Обновляем entity игрока до актуальной позиции
+            self._sync_combat_to_player_pos()
             self._update_combat_targeting()
             self._update_rt_combat(dt)
             self._update_combat_facing()  # поворот к цели
             self._check_combat_end()
+            # Ещё раз синхронизируем — анимации могли изменить позицию
             self._sync_combat_to_player_pos()
 
         self._sync_camera(dt)
@@ -1341,13 +1352,19 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._chasing_active = player_chasing
 
     def _push_entities_apart(self):
-        """Раздвинуть накладывающиеся друг на друга entity (игрок + враги)."""
+        """Раздвинуть накладывающиеся друг на друга entity.
+        Все живые entity не должны перекрываться — ни в бою, ни вне боя.
+        Для участников боя дополнительно синхронизируем rest_x/rest_y,
+        чтобы combat-фазы (recovery/attack) не возвращали в старое место.
+        """
         all_ents = []
         if self._player_entity and not self._player_entity.get("defeated"):
             all_ents.append(self._player_entity)
         for ent in self._entities:
             if not ent.get("defeated") and ent.get("type") in ("enemy", "boss"):
                 all_ents.append(ent)
+        w = max(1, self.width)
+        h = max(1, self.height)
         for i, a in enumerate(all_ents):
             for b in all_ents[i + 1:]:
                 dx = b["x"] - a["x"]
@@ -1363,6 +1380,14 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     a["y"] -= ny * push
                     b["x"] += nx * push
                     b["y"] += ny * push
+                    # Если раздвинули участника боя — синхронизируем
+                    # rest (чтоб recovery не утащил обратно) и норм-координаты
+                    for ent in (a, b):
+                        if ent.get("in_combat"):
+                            ent["rest_x"] = ent["x"]
+                            ent["rest_y"] = ent["y"]
+                            ent["x_norm"] = ent["x"] / w
+                            ent["y_norm"] = ent["y"] / h
 
     def _check_collisions(self):
         """Столкновения игрока с сущностями."""
@@ -1655,11 +1680,22 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             ent["rest_y"] = self._player_pos[1]
 
     def _sync_combat_to_player_pos(self) -> None:
-        """Перенести combat-позицию entity обратно в _player_pos (для рендера)."""
+        """Синхронизировать игрока между entity и _player_pos."""
         ent = self._player_entity
-        if ent and ent.get("in_combat"):
+        if not ent:
+            return
+        phase = ent.get("attack_phase", "idle")
+        # Во время анимации атаки/отбрасывания entity диктует позицию
+        if ent.get("in_combat") and phase in ("windup", "strike", "knockback", "recovery"):
             self._player_pos[0] = ent["x"]
             self._player_pos[1] = ent["y"]
+        else:
+            # Обычно игрок управляет, entity следует
+            ent["x"] = self._player_pos[0]
+            ent["y"] = self._player_pos[1]
+            if ent.get("in_combat"):
+                ent["rest_x"] = ent["x"]
+                ent["rest_y"] = ent["y"]
 
     def _collect_nearby_enemies(self, center_entity):
         """Собрать всех непобеждённых врагов в радиусе социального агра."""
@@ -2028,43 +2064,47 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     dn["float_y"] += dt * dp(40)
                 ent["damage_numbers"] = [dn for dn in ent["damage_numbers"] if dn["timer"] > 0]
 
-            # ---- IDLE: копим readiness + сближение с целью ----
+            # ---- IDLE: копим readiness + постоянное сближение с целью ----
             if phase == "idle":
                 # Anti-freeze: если слишком долго в idle без атаки — форсируем
                 idle_time = ent.setdefault("_idle_time", 0.0) + dt
                 ent["_idle_time"] = idle_time
 
-                # Сближение с целью (если далеко)
-                max_attack_range = ent.get("radius", dp(12)) + (target["radius"] if target else dp(12)) + dp(30)
+                # Постоянное сближение с целью (враги всегда пытаются подойти вплотную)
+                min_melee_dist = dp(5)  # минимальная дистанция "вплотную"
                 if target and not target.get("defeated"):
                     dx = target["x"] - ent["x"]
                     dy = target["y"] - ent["y"]
                     dist_to_target = (dx * dx + dy * dy) ** 0.5
-                    if dist_to_target > max_attack_range:
-                        # Плавное сближение
-                        close_speed = dp(150) * dt
-                        step = min(close_speed, dist_to_target - max_attack_range)
+                    # Только враги двигаются к цели, игрок ходит сам
+                    if ent.get("type") != "player" and dist_to_target > min_melee_dist:
+                        close_speed = dp(90) * dt  # ×0.5 — в бою враги медленнее (напряжение)
+                        step = min(close_speed, dist_to_target - min_melee_dist)
                         ent["x"] += (dx / max(1, dist_to_target)) * step
                         ent["y"] += (dy / max(1, dist_to_target)) * step
                         ent["rest_x"] = ent["x"]
                         ent["rest_y"] = ent["y"]
-                    # Если слишком далеко от цели — сбрасываем readiness
-                    if dist_to_target > max_attack_range * 2.5:
-                        ent["readiness"] = max(0, ent["readiness"] - dt * 0.5)
-                    # Anti-freeze: idle > 3 секунд → принудительная атака
-                    if idle_time > 3.0 and dist_to_target <= max_attack_range * 2:
-                        ent["readiness"] = 1.0
+                        # Синхронизируем нормализованные координаты, чтобы
+                        # при возврате из боя перехода не было рывка
+                        w = max(1, self.width)
+                        h = max(1, self.height)
+                        ent["x_norm"] = ent["x"] / w
+                        ent["y_norm"] = ent["y"] / h
 
+                # Readiness заряжается всегда
                 self._tick_readiness(ent, creature, dt)
+
+                # Готовность атаковать — только если есть цель и достаточно близко
                 if ent["readiness"] >= 1.0:
                     if target and not target.get("defeated"):
                         dx2 = target["x"] - ent["x"]
                         dy2 = target["y"] - ent["y"]
+                        max_attack_range = ent.get("radius", dp(12)) + (target["radius"] if target else dp(12)) + dp(30)
                         if (dx2 * dx2 + dy2 * dy2) ** 0.5 <= max_attack_range * 1.5:
                             ent["_idle_time"] = 0.0
                             self._start_attack_windup(ent, creature, target)
                         else:
-                            ent["readiness"] = 0.8  # сброс не полностью, подождём сближения
+                            ent["readiness"] = 0.8  # слишком далеко — ждём сближения
 
             # ---- WINDUP: оттягивание назад ----
             elif phase == "windup":
