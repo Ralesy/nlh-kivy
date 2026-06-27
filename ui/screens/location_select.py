@@ -343,16 +343,25 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             return bool(self._move_to_nearest_hotspot())
 
         if action == "open_inventory" and pressed:
-            from ui.widgets.navigation_buttons import prepare_inventory_navigation
+            from ui.inventory_popup import InventoryPopup
             app = App.get_running_app()
-            prepare_inventory_navigation("location_select")
-            if getattr(app, "inventory_screen", None):
-                try:
-                    app.inventory_screen.update_inventory()
-                except Exception as e:
-                    Logger.warning(f"GlobalMap: Failed to update inventory UI: {e}")
-            if getattr(app, "game", None) and getattr(app.game, "player", None):
-                self.manager.current = "inventory"
+            player = app.game.player if app.game else None
+            if not player:
+                return True
+            def on_close():
+                popup.dismiss()
+            inv_content = InventoryPopup(player, on_done=on_close)
+            popup = Popup(
+                title='',
+                content=inv_content,
+                size_hint=(0.35, 0.85),
+                pos_hint={'x': 0.02, 'y': 0.07},
+                auto_dismiss=True,
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
+            )
+            popup.open()
             return True
 
         if action == "open_status" and pressed:
@@ -824,20 +833,28 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
         # Inventory quick-access button
         def _open_inventory(*args):
-            from ui.widgets.navigation_buttons import prepare_inventory_navigation
+            from ui.inventory_popup import InventoryPopup
 
             app = App.get_running_app()
-            prepare_inventory_navigation('location_select')
-            if getattr(app, 'inventory_screen', None):
-                try:
-                    app.inventory_screen.update_inventory()
-                except Exception:
-                    pass
-            if getattr(app, 'game', None) and getattr(app.game, 'player', None):
-                try:
-                    self.manager.current = 'inventory'
-                except Exception:
-                    pass
+            player = app.game.player if app.game else None
+            if not player:
+                return
+
+            def on_close():
+                popup.dismiss()
+
+            inv_content = InventoryPopup(player, on_done=on_close)
+            popup = Popup(
+                title='',
+                content=inv_content,
+                size_hint=(0.35, 0.85),
+                pos_hint={'x': 0.02, 'y': 0.07},
+                auto_dismiss=True,
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
+            )
+            popup.open()
 
         inv_btn = Button(
             text='',

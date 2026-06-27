@@ -830,17 +830,29 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         return x <= touch.x <= x + w and y <= touch.y <= y + h
 
     def _open_inventory(self, *args):
-        from ui.widgets.navigation_buttons import prepare_inventory_navigation
+        """Открыть инвентарь как всплывающее полупрозрачное окно слева."""
+        from ui.inventory_popup import InventoryPopup
 
-        prepare_inventory_navigation("local_location")
         app = App.get_running_app()
-        if getattr(app, "inventory_screen", None):
-            try:
-                app.inventory_screen.update_inventory()
-            except Exception:
-                pass
-        if getattr(app, "game", None) and getattr(app.game, "player", None):
-            self.manager.current = "inventory"
+        player = app.game.player if app.game else None
+        if not player:
+            return
+
+        def on_close():
+            popup.dismiss()
+
+        inv_content = InventoryPopup(player, on_done=on_close)
+        popup = Popup(
+            title='',
+            content=inv_content,
+            size_hint=(0.35, 0.85),
+            pos_hint={'x': 0.02, 'y': 0.07},
+            auto_dismiss=True,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
+        )
+        popup.open()
 
     def _open_status(self, *args):
         app = App.get_running_app()
