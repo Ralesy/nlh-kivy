@@ -492,6 +492,7 @@ class RoamingEntityManager:
         for gt in group:
             group_data.append({
                 "token_id": gt.id,
+                "squad_id": gt.squad_id,
                 "enemy_type": gt.enemy_type,
                 "name": gt.name,
             })

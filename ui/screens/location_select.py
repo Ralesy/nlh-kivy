@@ -1325,12 +1325,44 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         main_token_id = encounter_data.get("token_id", "")
 
         if action_id == "fight":
-            for member in group:
-                self.roaming_manager.remove_token(member.get("token_id", ""))
+            # НЕ удаляем токены — они остаются в lockout у roaming_manager.
+            # Сохраняем данные группы (token_id, squad_id per enemy index)
+            # для обработки при возврате из засады.
+            app = App.get_running_app()
+            app._pending_ambush_group = list(group)
             self._start_ambush_scene(encounter_data)
         else:
             for member in group:
                 self.roaming_manager.reset_token(member.get("token_id", main_token_id), cooldown=10.0)
+
+    def _handle_ambush_return(self):
+        """Обработать возврат из засады на глобальной карте.
+
+        Для каждого токена из группы засады:
+        - Если соответствующее существо было убито (индекс в _ambush_defeated_set)
+          → удаляем токен с глобальной карты навсегда.
+        - Если существо выжило → сбрасываем погоню токена (он теряет интерес и уходит).
+        """
+        app = App.get_running_app()
+        pending = getattr(app, "_pending_ambush_group", None)
+        if not pending:
+            return
+        player = app.game.player if app.game else None
+        if not player:
+            return
+        defeated = set(getattr(player, "_ambush_defeated_set", set()))
+
+        for idx, member in enumerate(pending):
+            token_id = member.get("token_id", "")
+            if not token_id:
+                continue
+            if idx in defeated:
+                self.roaming_manager.remove_token(token_id)
+            else:
+                self.roaming_manager.reset_token(token_id, cooldown=10.0)
+
+        app._pending_ambush_group = None
+        player._ambush_defeated_set = set()
 
     def _start_ambush_scene(self, encounter_data: dict):
         try:
@@ -1701,6 +1733,10 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
         self._encounter_active = False
         self._encounter_cooldown = 0.0
+
+        # Обработать возврат из засады: определить какие токены удалить, какие восстановить
+        self._handle_ambush_return()
+
         self.roaming_manager._lockout_ids.clear()
         self._prev_player_world_x = self._player_world_x
         self._prev_player_world_y = self._player_world_y
