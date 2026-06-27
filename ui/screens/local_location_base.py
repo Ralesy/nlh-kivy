@@ -2006,7 +2006,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 ent["_idle_time"] = idle_time
 
                 # Постоянное сближение с целью (враги всегда пытаются подойти вплотную)
-                min_melee_dist = dp(5)  # минимальная дистанция "вплотную"
+                min_melee_dist = max(dp(5), ent.get("radius", 0) + (target.get("radius", 0) if target else 0))  # ≥ push_entities_apart equilibrium (24px)
                 if target and not target.get("defeated"):
                     dx = target["x"] - ent["x"]
                     dy = target["y"] - ent["y"]
@@ -2014,7 +2014,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     # Только враги двигаются к цели, игрок ходит сам
                     if ent.get("type") != "player" and dist_to_target > min_melee_dist:
                         close_speed = dp(90) * dt  # ×0.5 — в бою враги медленнее (напряжение)
-                        step = min(close_speed, dist_to_target - min_melee_dist)
+                        # step не должен пытаться зайти за min_melee_dist
+                        max_step = dist_to_target - min_melee_dist
+                        step = min(close_speed, max_step)
                         ent["x"] += (dx / max(1, dist_to_target)) * step
                         ent["y"] += (dy / max(1, dist_to_target)) * step
                         ent["rest_x"] = ent["x"]
@@ -2222,12 +2224,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         attacker_ent["phase_duration"] = attacker_ent.get("_strike_duration", 0.15)
 
     def _check_combat_end(self):
-        """Проверить, закончился ли бой."""
+        """Проверить, закончился ли бой.
+        Учитываем ТОЛЬКО тех врагов, кто in_combat — иначе другие враги
+        на карте, не вступившие в бой, блокируют завершение.
+        """
         alive_enemies = [e for e in self._entities
-                         if e.get("type") in ("enemy", "boss") and not e["defeated"]]
+                         if e.get("type") in ("enemy", "boss") and not e["defeated"]
+                         and e.get("in_combat")]
 
         if not alive_enemies:
-            # Все враги мертвы → победа
+            # Все враги, участвовавшие в бою, мертвы → победа
             self._end_rt_combat(victory=True)
             return
 
