@@ -222,6 +222,11 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._chase_block_label = None
         self._ambush_exit_block_label = None
 
+        # Если мы в таверне после поражения — показать нарратив
+        if (self.scene_config and self.scene_config.scene_type == "tavern"
+                and getattr(app, "_defeat_event", -1) >= 0):
+            self._show_defeat_narrative(app)
+
         is_combat = self.scene_config and self.scene_config.scene_type == "combat"
 
         player = app.game.player if app.game else None
@@ -1006,16 +1011,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if player_ent and player_ent.get("in_combat"):
             creature = player_ent.get("creature")
             if creature and not creature.is_alive:
-                # Смерть в RT combat
-                self._end_rt_combat(victory=False)
-                self.prepare_defeat_state(from_rt=True)
-                # Показываем popup
-                from kivy.uix.popup import Popup
-                from kivy.uix.label import Label
-                popup = Popup(title="Поражение",
-                              content=Label(text="Вы пали в бою..."),
-                              size_hint=(0.6, 0.4))
-                popup.open()
+                # Смерть в RT combat — применяем случайное событие поражения
+                # и телепортируем игрока в таверну города
+                self._handle_rt_defeat()
                 return
 
         if self._player_invincible_timer > 0:
@@ -1907,6 +1905,47 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if self._combat_status_label:
             self._combat_status_label.opacity = 0
 
+    def _show_defeat_narrative(self, app):
+        """Показать нарративное окно поражения при входе в таверну."""
+        from systems.defeat_events import DEFEAT_EVENTS
+        idx = app._defeat_event
+        app._defeat_event = -1
+        if idx < 0 or idx >= len(DEFEAT_EVENTS):
+            return
+        text = DEFEAT_EVENTS[idx]["text"]
+        content = BoxLayout(orientation='vertical', spacing=dp(15), padding=dp(20))
+        scroll = ScrollView()
+        label = Label(
+            text=text,
+            font_size=dp(15),
+            size_hint_y=None,
+            text_size=(dp(500), None),
+            halign='center',
+            valign='middle',
+            color=(0.9, 0.85, 0.8, 1),
+        )
+        label.bind(texture_size=label.setter('size'))
+        scroll.add_widget(label)
+        content.add_widget(scroll)
+
+        btn_ok = Button(
+            text='☠️ Я помню…',
+            size_hint_y=None,
+            height=dp(50),
+            font_size=dp(18),
+            background_color=(0.25, 0.2, 0.15, 1),
+        )
+        content.add_widget(btn_ok)
+
+        popup = Popup(
+            title='💀 Поражение',
+            content=content,
+            size_hint=(0.7, 0.75),
+            auto_dismiss=False,
+        )
+        btn_ok.bind(on_press=popup.dismiss)
+        popup.open()
+
     def _add_damage_label(self, world_x, world_y, text, color, is_crit=False):
         """Создать плавающий Label с текстом урона в screen-координатах."""
         from kivy.uix.label import Label
@@ -2305,6 +2344,50 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             # (чтобы при возвращении бой продолжился с теми же HP)
             pass
 
+    def _handle_rt_defeat(self):
+        """Смерть в real-time бою: применить событие поражения, телепорт к городу на глобальной карте."""
+        from systems.defeat_events import apply_random_defeat
+
+        self._end_rt_combat(victory=False)
+
+        app = App.get_running_app()
+        player = app.game.player if app.game else None
+
+        # Применяем случайное событие поражения к игроку
+        defeat_idx = -1
+        if player:
+            player.health = max(1, player.max_health // 4)
+            defeat_idx = apply_random_defeat(player)
+
+            # Телепорт к городу на глобальной карте
+            player.last_global_pos = (0.19, 0.85)
+
+            # Сбрасываем рестартовые флаги
+            app._pending_ambush_group = None
+            self._player_invincible_timer = 0.0
+
+            app.game.autosave()
+
+        app._defeat_event = defeat_idx
+
+        # Останавливаем цикл и переключаемся на глобальную карту
+        self._stop_loop()
+        self._player_invincible_timer = 0.0
+        self._paused = False
+
+        from kivy.clock import Clock
+        Clock.schedule_once(lambda dt: self._go_to_global_map_after_defeat(), 0.0)
+
+    def _go_to_global_map_after_defeat(self):
+        """Переключиться на глобальную карту после смерти.
+        Таверна не открывается автоматически — игрок и так видит город
+        рядом с собой и может войти в него. Нарратив покажем на глобальной карте.
+        """
+        app = App.get_running_app()
+        mgr = self.manager
+        if mgr:
+            mgr.current = "location_select"
+
     def prepare_defeat_state(self, from_rt=False):
         """Подготовить карту после поражения: стан врагам, бессмертие игроку."""
         if from_rt:
@@ -2315,17 +2398,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self._player_invincible_timer = INVINCIBILITY_DURATION
             self._current_entity = None
             self._current_battle_group = None
-            app = App.get_running_app()
-            player = app.game.player if app.game else None
-            if player and self.scene_config and self.scene_config.scene_type == "combat":
-                positions = [
-                    (e["x_norm"], e["y_norm"])
-                    for e in self._entities
-                    if e.get("type") == "enemy" and not e["defeated"]
-                ]
-                if positions:
-                    player.last_enemy_positions[self.scene_id] = positions
-            return
 
         if self._current_battle_group:
             for ent in self._current_battle_group:

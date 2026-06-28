@@ -1381,6 +1381,55 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         app._pending_ambush_group = None
         player._ambush_defeated_set = set()
 
+    def _show_defeat_narrative_if_needed(self):
+        """Показать нарративное окно поражения, если игрок только что умер."""
+        from systems.defeat_events import DEFEAT_EVENTS
+        app = App.get_running_app()
+        idx = getattr(app, "_defeat_event", -1)
+        if idx < 0 or idx >= len(DEFEAT_EVENTS):
+            return
+        app._defeat_event = -1
+        text = DEFEAT_EVENTS[idx]["text"]
+
+        from kivy.uix.boxlayout import BoxLayout as BL
+        from kivy.uix.button import Button as Btn
+        from kivy.uix.label import Label as Lbl
+        from kivy.uix.scrollview import ScrollView as SV
+        from kivy.uix.popup import Popup as P
+
+        content = BL(orientation='vertical', spacing=15, padding=20)
+        scroll = SV()
+        label = Lbl(
+            text=text,
+            font_size=16,
+            size_hint_y=None,
+            text_size=(500, None),
+            halign='center',
+            valign='middle',
+            color=(0.9, 0.85, 0.8, 1),
+        )
+        label.bind(texture_size=label.setter('size'))
+        scroll.add_widget(label)
+        content.add_widget(scroll)
+
+        btn_ok = Btn(
+            text='☠️ Я помню…',
+            size_hint_y=None,
+            height=50,
+            font_size=18,
+            background_color=(0.25, 0.2, 0.15, 1),
+        )
+        content.add_widget(btn_ok)
+
+        popup = P(
+            title='💀 Поражение',
+            content=content,
+            size_hint=(0.7, 0.75),
+            auto_dismiss=False,
+        )
+        btn_ok.bind(on_press=popup.dismiss)
+        popup.open()
+
     def _start_ambush_scene(self, encounter_data: dict):
         try:
             app = App.get_running_app()
@@ -1755,6 +1804,10 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self._handle_ambush_return()
 
         self.roaming_manager._lockout_ids.clear()
+
+        # Показать нарратив поражения, если был
+        self._show_defeat_narrative_if_needed()
+
         self._prev_player_world_x = self._player_world_x
         self._prev_player_world_y = self._player_world_y
         self._init_bark_system()
