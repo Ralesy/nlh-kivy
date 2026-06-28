@@ -33,9 +33,11 @@ def _event_3(player):
     """Полностью без снаряжения, деньги целы."""
     inv = getattr(player, "inventory", None)
     if inv:
-        inv._items.clear()
+        inv.items.clear()
     player.weapon = None
     player.armor = None
+    if hasattr(player, "notify_listeners"):
+        player.notify_listeners("stats_changed")
 
 
 def _event_4(player):
@@ -44,13 +46,13 @@ def _event_4(player):
     if not inv:
         return
     to_remove = []
-    for item_id, qty in list(inv._items.items()):
+    for item_id, qty in list(inv.items.items()):
         from data.items import ItemDatabase
         template = ItemDatabase.get(item_id)
         if template and hasattr(template, "item_type") and template.item_type == "potion":
             to_remove.append(item_id)
     for rid in to_remove:
-        inv._items.pop(rid, None)
+        inv.items.pop(rid, None)
 
 
 def _event_5(player):
@@ -58,10 +60,10 @@ def _event_5(player):
     inv = getattr(player, "inventory", None)
     if not inv:
         return
-    items = list(inv._items.keys())
-    if items:
-        victim = random.choice(items)
-        inv._items.pop(victim, None)
+    item_ids = list(inv.items.keys())
+    if item_ids:
+        victim = random.choice(item_ids)
+        inv.items.pop(victim, None)
 
 
 def _event_6(player):
@@ -69,14 +71,16 @@ def _event_6(player):
     inv = getattr(player, "inventory", None)
     if inv:
         to_remove = []
-        for item_id, qty in list(inv._items.items()):
+        for item_id, qty in list(inv.items.items()):
             from data.items import ItemDatabase
             template = ItemDatabase.get(item_id)
             if template and hasattr(template, "item_type") and template.item_type == "weapon":
                 to_remove.append(item_id)
         for rid in to_remove:
-            inv._items.pop(rid, None)
+            inv.items.pop(rid, None)
     player.weapon = None
+    if hasattr(player, "notify_listeners"):
+        player.notify_listeners("stats_changed")
 
 
 def _event_7(player):
@@ -84,14 +88,16 @@ def _event_7(player):
     inv = getattr(player, "inventory", None)
     if inv:
         to_remove = []
-        for item_id, qty in list(inv._items.items()):
+        for item_id, qty in list(inv.items.items()):
             from data.items import ItemDatabase
             template = ItemDatabase.get(item_id)
             if template and hasattr(template, "item_type") and template.item_type == "armor":
                 to_remove.append(item_id)
         for rid in to_remove:
-            inv._items.pop(rid, None)
+            inv.items.pop(rid, None)
     player.armor = None
+    if hasattr(player, "notify_listeners"):
+        player.notify_listeners("stats_changed")
 
 
 def _event_8(player):
