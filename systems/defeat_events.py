@@ -45,11 +45,11 @@ def _event_4(player):
     inv = getattr(player, "inventory", None)
     if not inv:
         return
+    from data.items import ItemDatabase, Potion
     to_remove = []
     for item_id, qty in list(inv.items.items()):
-        from data.items import ItemDatabase
         template = ItemDatabase.get(item_id)
-        if template and hasattr(template, "item_type") and template.item_type == "potion":
+        if isinstance(template, Potion):
             to_remove.append(item_id)
     for rid in to_remove:
         inv.items.pop(rid, None)
@@ -70,11 +70,11 @@ def _event_6(player):
     """Пропадает всё оружие."""
     inv = getattr(player, "inventory", None)
     if inv:
+        from data.items import ItemDatabase, Weapon
         to_remove = []
         for item_id, qty in list(inv.items.items()):
-            from data.items import ItemDatabase
             template = ItemDatabase.get(item_id)
-            if template and hasattr(template, "item_type") and template.item_type == "weapon":
+            if isinstance(template, Weapon):
                 to_remove.append(item_id)
         for rid in to_remove:
             inv.items.pop(rid, None)
@@ -87,11 +87,11 @@ def _event_7(player):
     """Пропадает вся броня."""
     inv = getattr(player, "inventory", None)
     if inv:
+        from data.items import ItemDatabase, Armor
         to_remove = []
         for item_id, qty in list(inv.items.items()):
-            from data.items import ItemDatabase
             template = ItemDatabase.get(item_id)
-            if template and hasattr(template, "item_type") and template.item_type == "armor":
+            if isinstance(template, Armor):
                 to_remove.append(item_id)
         for rid in to_remove:
             inv.items.pop(rid, None)
