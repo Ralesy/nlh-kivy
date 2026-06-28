@@ -2968,7 +2968,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         needed = max(1, self._ambush_total_enemies // 2)
         remaining = max(0, needed - defeated_count)
         self._ambush_exit_block_label = Label(
-            text=f'⚠️ Чтобы покинуть засаду, уничтожьте ещё {remaining} врагов (нужно {needed}/{self._ambush_total_enemies})',
+            text=f'⚠️ Чтобы покинуть засаду, уничтожьте ещё {remaining+1} врагов (нужно {needed+1}/{self._ambush_total_enemies})',
             size_hint=(None, None),
             size=(dp(400), dp(35)),
             pos_hint={'right': 0.98, 'y': 0.02},
