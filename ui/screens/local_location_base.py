@@ -34,6 +34,7 @@ from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
+from kivy.uix.scrollview import ScrollView
 from kivy.uix.widget import Widget
 
 from data.local_scenes import (
@@ -2365,6 +2366,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             # Сбрасываем рестартовые флаги
             app._pending_ambush_group = None
             self._player_invincible_timer = 0.0
+            self._current_battle_group = None
 
             app.game.autosave()
 
@@ -2374,15 +2376,14 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._stop_loop()
         self._player_invincible_timer = 0.0
         self._paused = False
+        self._current_battle_group = None
+        self._player_entity = None
 
         from kivy.clock import Clock
         Clock.schedule_once(lambda dt: self._go_to_global_map_after_defeat(), 0.0)
 
     def _go_to_global_map_after_defeat(self):
-        """Переключиться на глобальную карту после смерти.
-        Таверна не открывается автоматически — игрок и так видит город
-        рядом с собой и может войти в него. Нарратив покажем на глобальной карте.
-        """
+        """Переключиться на глобальную карту после смерти."""
         app = App.get_running_app()
         mgr = self.manager
         if mgr:

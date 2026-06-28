@@ -1805,13 +1805,19 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
         self.roaming_manager._lockout_ids.clear()
 
-        # Показать нарратив поражения, если был
-        self._show_defeat_narrative_if_needed()
-
         self._prev_player_world_x = self._player_world_x
         self._prev_player_world_y = self._player_world_y
         self._init_bark_system()
         self._start_token_updates()
+
+        # Авто-вход в таверну после поражения (enter_local_scene вызываем на
+        # следующем кадре, чтобы не ломать текущий lifecycle ScreenManager'а)
+        try:
+            _app = App.get_running_app()
+            if getattr(_app, "_defeat_event", -1) >= 0:
+                Clock.schedule_once(lambda dt: enter_local_scene(_app, "tavern"), 0.1)
+        except Exception:
+            pass
 
         try:
             if hasattr(self, 'map_overlay') and hasattr(self, '_player_marker'):
