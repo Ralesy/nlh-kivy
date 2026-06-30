@@ -84,27 +84,27 @@ def _build_all_zones() -> List[RoamZone]:
 
 
 _ENEMY_ENCOUNTER_MAP: Dict[str, Tuple[EncounterType, str, Tuple[float, float, float]]] = {
-    "enemy_forest_wolf":     (EncounterType.WILD_BEAST, "Лесной волк",     (0.9, 0.3, 0.2)),
-    "enemy_forest_bandit":   (EncounterType.BANDIT,     "Лесной бандит",   (0.8, 0.2, 0.1)),
-    "enemy_forest_raider":   (EncounterType.BANDIT,     "Лесной мародёр",  (0.7, 0.2, 0.15)),
-    "enemy_forest_scout":    (EncounterType.BANDIT,     "Лесной разведчик", (0.6, 0.15, 0.1)),
-    "enemy_swamp_goblin":    (EncounterType.WILD_BEAST, "Болотный гоблин", (0.3, 0.6, 0.2)),
-    "enemy_swamp_toad":      (EncounterType.WILD_BEAST, "Гигантская жаба", (0.4, 0.5, 0.2)),
-    "enemy_swamp_shamanic":  (EncounterType.WILD_BEAST, "Шаман болот",     (0.3, 0.4, 0.5)),
-    "enemy_mines_orc":       (EncounterType.WILD_BEAST, "Орк шахтёр",      (0.5, 0.3, 0.1)),
-    "enemy_mines_draugr":    (EncounterType.WILD_BEAST, "Драугр-шахтёр",   (0.4, 0.5, 0.5)),
-    "enemy_mines_golem":     (EncounterType.WILD_BEAST, "Каменный голем",  (0.5, 0.4, 0.3)),
-    "enemy_mines_skeleton":  (EncounterType.WILD_BEAST, "Скелет-шахтёр",   (0.6, 0.6, 0.6)),
-    "enemy_mines_greyling":  (EncounterType.WILD_BEAST, "Серый гремлин",   (0.4, 0.4, 0.4)),
-    "enemy_mountains_troll": (EncounterType.WILD_BEAST, "Горный тролль",   (0.6, 0.4, 0.2)),
+    "enemy_forest_wolf": (EncounterType.WILD_BEAST, "Лесной волк", (0.9, 0.3, 0.2)),
+    "enemy_forest_bandit": (EncounterType.BANDIT, "Лесной бандит", (0.8, 0.2, 0.1)),
+    "enemy_forest_raider": (EncounterType.BANDIT, "Лесной мародёр", (0.7, 0.2, 0.15)),
+    "enemy_forest_scout": (EncounterType.BANDIT, "Лесной разведчик", (0.6, 0.15, 0.1)),
+    "enemy_swamp_goblin": (EncounterType.WILD_BEAST, "Болотный гоблин", (0.3, 0.6, 0.2)),
+    "enemy_swamp_toad": (EncounterType.WILD_BEAST, "Гигантская жаба", (0.4, 0.5, 0.2)),
+    "enemy_swamp_shamanic": (EncounterType.WILD_BEAST, "Шаман болот", (0.3, 0.4, 0.5)),
+    "enemy_mines_orc": (EncounterType.WILD_BEAST, "Орк шахтёр", (0.5, 0.3, 0.1)),
+    "enemy_mines_draugr": (EncounterType.WILD_BEAST, "Драугр-шахтёр", (0.4, 0.5, 0.5)),
+    "enemy_mines_golem": (EncounterType.WILD_BEAST, "Каменный голем", (0.5, 0.4, 0.3)),
+    "enemy_mines_skeleton": (EncounterType.WILD_BEAST, "Скелет-шахтёр", (0.6, 0.6, 0.6)),
+    "enemy_mines_greyling": (EncounterType.WILD_BEAST, "Серый гремлин", (0.4, 0.4, 0.4)),
+    "enemy_mountains_troll": (EncounterType.WILD_BEAST, "Горный тролль", (0.6, 0.4, 0.2)),
     "enemy_mountains_specter":(EncounterType.WILD_BEAST,"Ледяной призрак", (0.5, 0.6, 0.9)),
-    "enemy_mountains_dragon":(EncounterType.WILD_BEAST, "Горный дракон",   (0.8, 0.3, 0.1)),
-    "enemy_mountains_giant": (EncounterType.WILD_BEAST, "Горный великан",  (0.6, 0.5, 0.3)),
-    "enemy_mountains_drake": (EncounterType.WILD_BEAST, "Ледяной дракон",  (0.4, 0.6, 0.8)),
+    "enemy_mountains_dragon":(EncounterType.WILD_BEAST, "Горный дракон", (0.8, 0.3, 0.1)),
+    "enemy_mountains_giant": (EncounterType.WILD_BEAST, "Горный великан", (0.6, 0.5, 0.3)),
+    "enemy_mountains_drake": (EncounterType.WILD_BEAST, "Ледяной дракон", (0.4, 0.6, 0.8)),
     # Boss enemies
-    "enemy_ancient_cave_berserker":  (EncounterType.BOSS, "Безумный мародёр",    (0.85, 0.2, 0.05)),
-    "enemy_ancient_cave_bog_master": (EncounterType.BOSS, "Хозяин Болота",      (0.2, 0.6, 0.1)),
-    "enemy_ancient_cave_mine_king":  (EncounterType.BOSS, "Король Шахт",        (0.7, 0.5, 0.1)),
+    "enemy_ancient_cave_berserker": (EncounterType.BOSS, "Безумный мародёр", (0.85, 0.2, 0.05)),
+    "enemy_ancient_cave_bog_master": (EncounterType.BOSS, "Хозяин Болота", (0.2, 0.6, 0.1)),
+    "enemy_ancient_cave_mine_king": (EncounterType.BOSS, "Король Шахт", (0.7, 0.5, 0.1)),
     "enemy_ancient_cave_dragon_lord":(EncounterType.BOSS, "Повелитель Драконов", (0.9, 0.3, 0.1)),
 }
 
@@ -140,7 +140,7 @@ class RoamingEntityManager:
         self._build_default_zones()
 
     # ──────────────────────────────────────────────
-    #  Map resize
+    # Map resize
     # ──────────────────────────────────────────────
 
     def set_map_size(self, w: float, h: float) -> None:
@@ -158,7 +158,7 @@ class RoamingEntityManager:
         return nr * max(self._map_w, self._map_h)
 
     # ──────────────────────────────────────────────
-    #  Zone / token building
+    # Zone / token building
     # ──────────────────────────────────────────────
 
     def _build_default_zones(self) -> None:
@@ -276,7 +276,7 @@ class RoamingEntityManager:
                 vision_radius=_VISION_RADIUS,
                 vision_angle=_VISION_ANGLE,
                 hearing_radius=_HEARING_RADIUS,
-                patrol_speed=_PATROL_SPEED * 0.5,  # Боссы медленнее
+                patrol_speed=_PATROL_SPEED * 0.5, # Боссы медленнее
                 chase_speed=_CHASE_SPEED,
                 squad_id=None,
                 is_squad_leader=False,
@@ -285,7 +285,7 @@ class RoamingEntityManager:
             self.tokens.append(token)
 
     # ──────────────────────────────────────────────
-    #  Graphics lifecycle
+    # Graphics lifecycle
     # ──────────────────────────────────────────────
 
     def init_graphics(self, canvas) -> None:
@@ -355,7 +355,7 @@ class RoamingEntityManager:
         self._gfx_canvas = None
 
     # ──────────────────────────────────────────────
-    #  AI update
+    # AI update
     # ──────────────────────────────────────────────
 
     def update(
@@ -570,7 +570,7 @@ class RoamingEntityManager:
         return main_data
 
     # ──────────────────────────────────────────────
-    #  Encounter data
+    # Encounter data
     # ──────────────────────────────────────────────
 
     def _prepare_encounter(self, token: RoamingToken) -> dict:
@@ -578,28 +578,28 @@ class RoamingEntityManager:
         zone = self._zone_by_id(token.zone_id)
 
         if token.encounter_type == EncounterType.BOSS:
-            dialogue = f"[Босс] {token.name} преграждает вам путь! Вы чувствуете невероятную силу, исходящую от этого существа."
+            dialogue = f"{token.name} преграждает вам путь! Вы чувствуете невероятную силу, исходящую от этого существа."
             actions = [
-                {"id": "fight", "label": "[Бой] Сразиться с боссом!", "type": "boss_fight"},
+                {"id": "fight", "label": "Сразиться с боссом!", "type": "boss_fight"},
                 {"id": "flee", "label": "🏃 Отступить", "type": "flee", "chance": 0.3},
             ]
         elif token.encounter_type == EncounterType.WILD_BEAST:
             dialogue = f"{token.name} преграждает вам путь. Зверь явно голоден и готов к атаке."
             actions = [
-                {"id": "fight", "label": "[Бой] Вступить в бой", "type": "fight"},
+                {"id": "fight", "label": "Вступить в бой", "type": "fight"},
                 {"id": "flee", "label": "🏃 Попытаться сбежать", "type": "flee", "chance": 0.6},
             ]
         elif token.encounter_type == EncounterType.BANDIT:
             dialogue = f"Эй, путник! Кошелёк или жизнь! — кричит {token.name}."
             actions = [
-                {"id": "fight", "label": "[Бой] Атаковать", "type": "fight"},
-                {"id": "bribe", "label": "[Монеты] Откупиться (50 монет)", "type": "bribe", "cost": 50},
+                {"id": "fight", "label": "Атаковать", "type": "fight"},
+                {"id": "bribe", "label": "Откупиться (50 монет)", "type": "bribe", "cost": 50},
                 {"id": "flee", "label": "🏃 Сбежать", "type": "flee", "chance": 0.4},
             ]
         else:
             dialogue = f"Вы столкнулись с {token.name}."
             actions = [
-                {"id": "fight", "label": "[Бой] Вступить в бой", "type": "fight"},
+                {"id": "fight", "label": "Вступить в бой", "type": "fight"},
                 {"id": "flee", "label": "🏃 Сбежать", "type": "flee", "chance": 0.5},
             ]
 
@@ -616,7 +616,7 @@ class RoamingEntityManager:
         }
 
     # ──────────────────────────────────────────────
-    #  Token lifecycle
+    # Token lifecycle
     # ──────────────────────────────────────────────
 
     def remove_token(self, token_id: str) -> None:
@@ -744,7 +744,7 @@ class RoamingEntityManager:
         self.tokens.append(token)
 
     # ──────────────────────────────────────────────
-    #  Queries
+    # Queries
     # ──────────────────────────────────────────────
 
     def get_tokens_near(self, x: float, y: float, radius: float) -> List[RoamingToken]:

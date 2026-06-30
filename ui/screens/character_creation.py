@@ -161,6 +161,7 @@ class CharacterCreationScreen(Screen):
                 title="Ошибка",
                 content=Label(
                     text="Ошибка загрузки базы данных предметов!",
+                    color=COLORS['text_light'],
                 ),
                 size_hint=(0.6, 0.3),
                 background='',
@@ -193,9 +194,9 @@ class CharacterCreationScreen(Screen):
         welcome_text = (
             f"Добро пожаловать, {name}!\n\n"
             f"Вы начинаете с:\n"
-            f"[Монеты] {session.player.coins} монет\n"
-            f"[Бой] {weapon_name}\n"
-            f"[Защита] {armor_name}\n\n"
+            f"{session.player.coins} монет\n"
+            f"{weapon_name}\n"
+            f"{armor_name}\n\n"
             f"[Идея] Подсказка: Посетите таверну "
             f"для квестов,\n"
             f"магазин для покупки предметов,\n"
@@ -209,6 +210,7 @@ class CharacterCreationScreen(Screen):
                 text_size=(None, None),
                 halign="center",
                 font_size=dp(18),
+                color=COLORS['text_light'],
             ),
             size_hint=(0.8, 0.6),
             background='',

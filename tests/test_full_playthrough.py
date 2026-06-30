@@ -63,7 +63,7 @@ class PlaythroughTest:
         )
         
         if not enemies:
-            print(f"  [Внимание]  Не удалось генерировать врагов для {loc_id}")
+            print(f" Не удалось генерировать врагов для {loc_id}")
             return False
         
         enemy = enemies[0]
@@ -154,14 +154,14 @@ class PlaythroughTest:
     def test_forest_progression(self):
         """Тест прохождения через Лес."""
         print("\n" + "=" * 60)
-        print("[Лес] ТЕСТ 2: ПРОХОЖДЕНИЕ ЛЕСА")
+        print("ТЕСТ 2: ПРОХОЖДЕНИЕ ЛЕСА")
         print("=" * 60)
         
         # Бьемся в лесу 3+ раза для разблокировки Болот
         for i in range(4):
             if self.simulate_battle_at_location("forest"):
                 self.location_manager.increment_quest_counter("forest")
-                print(f"  [Бой]  Бой {i+1} в лесу")
+                print(f" Бой {i+1} в лесу")
         
         # Проверяем условия разблокировки
         unlocked = self.location_manager.check_and_unlock_locations()
@@ -169,7 +169,7 @@ class PlaythroughTest:
         if "swamp" in unlocked or not self.location_manager.locations["swamp"].is_locked:
             print("✓ Болота разблокированы после 3+ квестов в лесу")
         else:
-            print(f"[Внимание]  Болота не разблокированы (прогресс: {self.location_manager.get_quest_progress()})")
+            print(f" Болота не разблокированы (прогресс: {self.location_manager.get_quest_progress()})")
     
     def test_boss_1_available(self):
         """Тест доступности первого босса."""
@@ -181,32 +181,32 @@ class PlaythroughTest:
             if self.simulate_boss_battle(1):
                 print("✓ Босс 1 разблокирован и побежден")
             else:
-                print("[Внимание]  Не удалось генерировать босса 1")
+                print(" Не удалось генерировать босса 1")
         else:
-            print("[Внимание]  Босс 1 не разблокирован")
+            print(" Босс 1 не разблокирован")
     
     def test_swamp_progression(self):
         """Тест прохождения через Болота."""
         print("\n" + "=" * 60)
-        print("[Болото]  ТЕСТ 4: ПРОХОЖДЕНИЕ БОЛОТ")
+        print("[Болото] ТЕСТ 4: ПРОХОЖДЕНИЕ БОЛОТ")
         print("=" * 60)
         
         if self.location_manager.locations["swamp"].is_locked:
-            print("[Внимание]  Болота еще заблокированы, пропускаем")
+            print(" Болота еще заблокированы, пропускаем")
             return
         
         # Бьемся в болотах 4+ раза для разблокировки Шахт
         for i in range(5):
             if self.simulate_battle_at_location("swamp"):
                 self.location_manager.increment_quest_counter("swamp")
-                print(f"  [Бой]  Бой {i+1} в болотах")
+                print(f" Бой {i+1} в болотах")
         
         unlocked = self.location_manager.check_and_unlock_locations()
         
         if "mines" in unlocked or not self.location_manager.locations["mines"].is_locked:
             print("✓ Шахты разблокированы после 4+ квестов в болотах")
         else:
-            print(f"[Внимание]  Шахты не разблокированы (прогресс: {self.location_manager.get_quest_progress()})")
+            print(f" Шахты не разблокированы (прогресс: {self.location_manager.get_quest_progress()})")
     
     def test_boss_2_available(self):
         """Тест доступности второго босса."""
@@ -218,32 +218,32 @@ class PlaythroughTest:
             if self.simulate_boss_battle(2):
                 print("✓ Босс 2 разблокирован и побежден")
             else:
-                print("[Внимание]  Не удалось генерировать босса 2")
+                print(" Не удалось генерировать босса 2")
         else:
-            print("[Внимание]  Босс 2 не разблокирован (требуется открыть Болота)")
+            print(" Босс 2 не разблокирован (требуется открыть Болота)")
     
     def test_mines_progression(self):
         """Тест прохождения через Шахты."""
         print("\n" + "=" * 60)
-        print("[Шахты]  ТЕСТ 6: ПРОХОЖДЕНИЕ ШАХТ")
+        print("[Шахты] ТЕСТ 6: ПРОХОЖДЕНИЕ ШАХТ")
         print("=" * 60)
         
         if self.location_manager.locations["mines"].is_locked:
-            print("[Внимание]  Шахты еще заблокированы, пропускаем")
+            print(" Шахты еще заблокированы, пропускаем")
             return
         
         # Бьемся в шахтах 3+ раза
         for i in range(4):
             if self.simulate_battle_at_location("mines"):
                 self.location_manager.increment_quest_counter("mines")
-                print(f"  [Бой]  Бой {i+1} в шахтах")
+                print(f" Бой {i+1} в шахтах")
         
         unlocked = self.location_manager.check_and_unlock_locations()
         
         if "mountains" in unlocked or not self.location_manager.locations["mountains"].is_locked:
             print("✓ Горы разблокированы после 3+ квестов в шахтах")
         else:
-            print(f"[Внимание]  Горы не разблокированы (прогресс: {self.location_manager.get_quest_progress()})")
+            print(f" Горы не разблокированы (прогресс: {self.location_manager.get_quest_progress()})")
     
     def test_boss_3_available(self):
         """Тест доступности третьего босса."""
@@ -259,25 +259,25 @@ class PlaythroughTest:
                 if "mountains" in unlocked or not self.location_manager.locations["mountains"].is_locked:
                     print("✓ Горы разблокированы после поражения босса 3")
             else:
-                print("[Внимание]  Не удалось генерировать босса 3")
+                print(" Не удалось генерировать босса 3")
         else:
-            print("[Внимание]  Босс 3 не разблокирован (требуется открыть Шахты)")
+            print(" Босс 3 не разблокирован (требуется открыть Шахты)")
     
     def test_mountains_progression(self):
         """Тест прохождения через Горы."""
         print("\n" + "=" * 60)
-        print("[Горы]  ТЕСТ 8: ПРОХОЖДЕНИЕ ГОР")
+        print("[Горы] ТЕСТ 8: ПРОХОЖДЕНИЕ ГОР")
         print("=" * 60)
         
         if self.location_manager.locations["mountains"].is_locked:
-            print("[Внимание]  Горы еще заблокированы, пропускаем")
+            print(" Горы еще заблокированы, пропускаем")
             return
         
         # Бьемся в горах 2+ раза
         for i in range(3):
             if self.simulate_battle_at_location("mountains"):
                 self.location_manager.increment_quest_counter("mountains")
-                print(f"  [Бой]  Бой {i+1} в горах")
+                print(f" Бой {i+1} в горах")
     
     def test_boss_4_available(self):
         """Тест доступности четвертого босса."""
@@ -289,14 +289,14 @@ class PlaythroughTest:
             if self.simulate_boss_battle(4):
                 print("✓ Босс 4 разблокирован и побежден!")
             else:
-                print("[Внимание]  Не удалось генерировать босса 4")
+                print(" Не удалось генерировать босса 4")
         else:
-            print("[Внимание]  Босс 4 не разблокирован (требуется открыть Горы)")
+            print(" Босс 4 не разблокирован (требуется открыть Горы)")
     
     def test_player_progression(self):
         """Тест прогресса персонажа."""
         print("\n" + "=" * 60)
-        print("[Статистика] ТЕСТ 10: ПРОГРЕСС ПЕРСОНАЖА")
+        print("ТЕСТ 10: ПРОГРЕСС ПЕРСОНАЖА")
         print("=" * 60)
         
         print(f"✓ Уровень: {self.player.level}")
@@ -322,12 +322,12 @@ class PlaythroughTest:
             self.test_player_progression()
             
             print("\n" + "=" * 60)
-            print("[Да] ВСЕ ТЕСТЫ УСПЕШНО ПРОЙДЕНЫ!")
+            print("ВСЕ ТЕСТЫ УСПЕШНО ПРОЙДЕНЫ!")
             print("=" * 60)
             return 0
         
         except Exception as e:
-            print(f"\n[Нет] ОШИБКА: {e}")
+            print(f"\nОШИБКА: {e}")
             import traceback
             traceback.print_exc()
             return 1

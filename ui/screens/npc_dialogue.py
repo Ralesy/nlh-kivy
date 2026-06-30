@@ -59,7 +59,7 @@ class NPCDialogueScreen(Screen):
             font_size=dp(24),
             size_hint_y=None,
             height=dp(50),
-            color=(0.9, 0.7, 0.1, 1),
+            color=COLORS['gold'],
             bold=True
         )
         main_layout.add_widget(self.npc_name)
@@ -73,7 +73,7 @@ class NPCDialogueScreen(Screen):
             halign='left',
             valign='top',
             font_size=dp(16),
-            color=(0.9, 0.9, 0.9, 1)
+            color=COLORS['text_light']
         )
         self.dialogue_text.bind(
             texture_size=self.dialogue_text.setter('size')
@@ -89,7 +89,7 @@ class NPCDialogueScreen(Screen):
         btn_layout.height = dp(150)
 
         self.btn_accept_quest = Button(
-            text='[Да] Принять квест',
+            text='Принять квест',
             size_hint_y=None,
             height=dp(50),
             background_color=COLORS['hp_green']
@@ -111,7 +111,7 @@ class NPCDialogueScreen(Screen):
         btn_layout.add_widget(self.btn_claim_reward)
 
         self.btn_reject_quest = Button(
-            text='[Нет] Отклонить',
+            text='Отклонить',
             size_hint_y=None,
             height=dp(50),
             background_color=COLORS['hp_red']
@@ -163,7 +163,7 @@ class NPCDialogueScreen(Screen):
             if quest.state == QuestState.ACTIVE:
                 if quest.is_complete():
                     dialogue += (
-                        f"\n\n[Победа] КВЕСТ ВЫПОЛНЕН!\n"
+                        f"\n\nКВЕСТ ВЫПОЛНЕН!\n"
                         f"Награда: {quest.reward_gold} монет, "
                         f"{quest.reward_xp} XP\n"
                     )
@@ -207,7 +207,7 @@ class NPCDialogueScreen(Screen):
             # Проверяем есть ли активный квест от этого NPC
             if has_active_quest_from_npc:
                 dialogue += (
-                    f"\n\n[Квесты] У вас уже есть активный квест "
+                    f"\n\nУ вас уже есть активный квест "
                     f"от этого NPC.\n"
                     f"Завершите его, чтобы взять новый!\n"
                 )
@@ -218,7 +218,7 @@ class NPCDialogueScreen(Screen):
             else:
                 # Генерируем новый квест и предлагаем его NPC
                 quest = npc.generate_quest()
-                npc.offer_quest(quest)  # Устанавливаем квест у NPC
+                npc.offer_quest(quest) # Устанавливаем квест у NPC
 
                 dialogue += (
                     f"\n\n[Свиток] ПРЕДЛОЖЕНИЕ:\n"
@@ -260,19 +260,20 @@ class NPCDialogueScreen(Screen):
             dm = app.game.danger_manager
             from systems.danger_manager import QUEST_DANGER_REDUCTION
             danger_hint = (
-                f"\n\n[Защита] Сдача квеста снизит опасность "
+                f"\n\nСдача квеста снизит опасность "
                 f"на {QUEST_DANGER_REDUCTION:.0f}% "
                 f"(сейчас: {dm.danger_level:.0f}%)"
             )
 
         popup = Popup(
-            title='[Да] Квест принят!',
+            title='Квест принят!',
             content=Label(
                 text=f"Вы приняли квест от {npc_class_name}" + danger_hint,
                 text_size=(None, None),
                 halign='center',
                 valign='middle',
                 font_size=dp(16),
+                color=COLORS['text_light'],
             ),
             size_hint=(0.65, 0.35),
             background='',
@@ -290,10 +291,11 @@ class NPCDialogueScreen(Screen):
             self.current_npc.reject_quest()
 
         popup = Popup(
-            title='[Нет] Квест отклонен',
+            title='Квест отклонен',
             content=Label(
                 text='Может быть в другой раз.',
-                font_size=dp(18)
+                font_size=dp(18),
+                color=COLORS['text_light'],
             ),
             size_hint=(0.6, 0.3),
             background='',
@@ -331,7 +333,7 @@ class NPCDialogueScreen(Screen):
             reduction = app.game.danger_manager.on_quest_completed()
             if reduction > 0:
                 danger_msg = (
-                    f"\n\n[Защита] Опасность снижена на "
+                    f"\n\nОпасность снижена на "
                     f"{reduction:.0f}% "
                     f"(теперь "
                     f"{app.game.danger_manager.danger_level:.0f}%)"
@@ -353,7 +355,8 @@ class NPCDialogueScreen(Screen):
                     'Вы получили награду.'
                     + danger_msg
                 ),
-                font_size=dp(18)
+                font_size=dp(18),
+                color=COLORS['text_light'],
             ),
             size_hint=(0.6, 0.3),
             background='',

@@ -46,7 +46,7 @@ class LootWindowScreen(Screen):
         title_layout.height = dp(60)
         
         title = Label(
-            text='[Бой] ПОБЕДА! [Трофей]',
+            text='ПОБЕДА! ',
             font_size=dp(28),
             color=(0.9, 0.7, 0.1, 1),
             bold=True

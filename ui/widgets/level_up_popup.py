@@ -11,6 +11,8 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
 
+from ui.ui_styles import COLORS
+
 
 class LevelUpPopup(Popup):
     """Окно повышения уровня с очками навыков."""
@@ -18,9 +20,12 @@ class LevelUpPopup(Popup):
     def __init__(self, player, **kwargs):
         super().__init__(**kwargs)
         self._player = player
-        self.title = f"[Победа] Уровень повышен! (Ур. {player.level})"
+        self.title = f"Уровень повышен! (Ур. {player.level})"
         self.size_hint = (0.7, 0.5)
         self.auto_dismiss = False
+        self.background = ''
+        self.background_color = (0, 0, 0, 0)
+        self.separator_color = (0, 0, 0, 0)
 
         content = BoxLayout(orientation='vertical', spacing=dp(15), padding=dp(20))
         msg = (
@@ -33,12 +38,15 @@ class LevelUpPopup(Popup):
             halign='center',
             valign='middle',
             font_size=dp(18),
+            color=COLORS['text_light'],
         ))
         btn = Button(
             text='Отлично!',
             size_hint=(None, None),
             size=(dp(200), dp(50)),
             pos_hint={'center_x': 0.5},
+            background_color=COLORS['stone_dark'],
+            color=COLORS['gold_light'],
         )
         btn.bind(on_press=self._on_close)
         content.add_widget(btn)

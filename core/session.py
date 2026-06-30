@@ -224,11 +224,11 @@ class GameSession:
         message = (
             "Вас оглушили и оставили без сознания.\n"
             "Вы очнулись, потеряв часть добычи...\n\n"
-            f"[Монеты] Потеряно: {gold_lost} золота.\n"
+            f"Потеряно: {gold_lost} золота.\n"
         )
         if items_lost:
             message += "\n".join(
-                f"[Инвентарь] Потерян предмет: {name}" for name in items_lost
+                f"Потерян предмет: {name}" for name in items_lost
             )
             message += "\n"
         message += "\n[Сердце] Вы восстановили часть здоровья."
@@ -272,10 +272,10 @@ class GameSession:
         reduction = self.danger_manager.on_quest_completed()
         if reduction > 0:
             return (
-                f"[Защита] Опасность снижена на {reduction:.0f}% "
+                f"Опасность снижена на {reduction:.0f}% "
                 f"(теперь {self.danger_manager.danger_level:.0f}%)"
             )
-        return "[Защита] Опасность уже на минимуме."
+        return "Опасность уже на минимуме."
 
     def to_save_dict(self) -> dict:
         """Сериализовать сессию для сохранения."""

@@ -62,97 +62,97 @@ def test_ui_companion_equip():
     
     # Создаем игрока
     player = Player("Герой", "warrior")
-    print(f"[Да] Создан игрок: {player.name}")
+    print(f"Создан игрок: {player.name}")
     
     # Нанимаем компаньона
     companion = Companion("Торг", "tank", level=5)
     player.companions.append(companion)
-    print(f"[Да] Нанят компаньон: {companion.name} (уровень {companion.level})")
+    print(f"Нанят компаньон: {companion.name} (уровень {companion.level})")
     
     # Даем игроку оружие и броню
     sword = ItemDatabase.get("w_steel_sword")
     armor = ItemDatabase.get("a_iron_plate")
     player.inventory.add(sword, 1)
     player.inventory.add(armor, 1)
-    print(f"[Да] Добавлены в инвентарь: {sword.display_name()}, {armor.display_name()}")
+    print(f"Добавлены в инвентарь: {sword.display_name()}, {armor.display_name()}")
     
-    print(f"\n[Статистика] НАЧАЛЬНОЕ СОСТОЯНИЕ:")
-    print(f"   Компаньон - Урон: {companion.damage}, Защита: {companion.defense}")
-    print(f"   Оружие: {companion.weapon.name if companion.weapon else 'Нет'}")
-    print(f"   Броня: {companion.armor.name if companion.armor else 'Нет'}")
+    print(f"\nНАЧАЛЬНОЕ СОСТОЯНИЕ:")
+    print(f" Компаньон - Урон: {companion.damage}, Защита: {companion.defense}")
+    print(f" Оружие: {companion.weapon.name if companion.weapon else 'Нет'}")
+    print(f" Броня: {companion.armor.name if companion.armor else 'Нет'}")
     
     initial_damage = companion.damage
     initial_defense = companion.defense
     
     # === ТЕСТ 1: Экипировка оружия ===
-    print(f"\n[Бой]  ТЕСТ 1: Экипировка оружия...")
+    print(f"\n ТЕСТ 1: Экипировка оружия...")
     simulate_ui_equip(player, companion, sword, 'weapon')
     
-    print(f"   Урон: {initial_damage} → {companion.damage}")
+    print(f" Урон: {initial_damage} → {companion.damage}")
     if companion.damage > initial_damage:
-        print(f"   [Да] Урон увеличился на {companion.damage - initial_damage}")
+        print(f" Урон увеличился на {companion.damage - initial_damage}")
     else:
-        print(f"   [Нет] ОШИБКА: Урон не увеличился!")
+        print(f" ОШИБКА: Урон не увеличился!")
         return False
     
     if companion.weapon == sword:
-        print(f"   [Да] Оружие успешно экипировано: {companion.weapon.display_name()}")
+        print(f" Оружие успешно экипировано: {companion.weapon.display_name()}")
     else:
-        print(f"   [Нет] ОШИБКА: Оружие не экипировано!")
+        print(f" ОШИБКА: Оружие не экипировано!")
         return False
     
     # === ТЕСТ 2: Экипировка брони ===
-    print(f"\n[Защита]  ТЕСТ 2: Экипировка брони...")
+    print(f"\n ТЕСТ 2: Экипировка брони...")
     simulate_ui_equip(player, companion, armor, 'armor')
     
-    print(f"   Защита: {initial_defense} → {companion.defense}")
+    print(f" Защита: {initial_defense} → {companion.defense}")
     if companion.defense > initial_defense:
-        print(f"   [Да] Защита увеличилась на {companion.defense - initial_defense}")
+        print(f" Защита увеличилась на {companion.defense - initial_defense}")
     else:
-        print(f"   [Нет] ОШИБКА: Защита не увеличилась!")
+        print(f" ОШИБКА: Защита не увеличилась!")
         return False
     
     if companion.armor == armor:
-        print(f"   [Да] Броня успешно экипирована: {companion.armor.display_name()}")
+        print(f" Броня успешно экипирована: {companion.armor.display_name()}")
     else:
-        print(f"   [Нет] ОШИБКА: Броня не экипирована!")
+        print(f" ОШИБКА: Броня не экипирована!")
         return False
     
     weapon_damage = companion.damage
     armor_defense = companion.defense
     
     # === ТЕСТ 3: Снятие оружия ===
-    print(f"\n[Оружие]  ТЕСТ 3: Снятие оружия...")
+    print(f"\n[Оружие] ТЕСТ 3: Снятие оружия...")
     simulate_ui_unequip(player, companion, 'weapon')
     
-    print(f"   Урон: {weapon_damage} → {companion.damage}")
+    print(f" Урон: {weapon_damage} → {companion.damage}")
     if companion.damage == initial_damage:
-        print(f"   [Да] Урон вернулся к исходному значению")
+        print(f" Урон вернулся к исходному значению")
     else:
-        print(f"   [Нет] ОШИБКА: Урон != {initial_damage}, получено {companion.damage}")
+        print(f" ОШИБКА: Урон != {initial_damage}, получено {companion.damage}")
         return False
     
     if companion.weapon is None:
-        print(f"   [Да] Оружие снято")
+        print(f" Оружие снято")
     else:
-        print(f"   [Нет] ОШИБКА: Оружие не снято!")
+        print(f" ОШИБКА: Оружие не снято!")
         return False
     
     # === ТЕСТ 4: Снятие брони ===
-    print(f"\n[Бой]  ТЕСТ 4: Снятие брони...")
+    print(f"\n ТЕСТ 4: Снятие брони...")
     simulate_ui_unequip(player, companion, 'armor')
     
-    print(f"   Защита: {armor_defense} → {companion.defense}")
+    print(f" Защита: {armor_defense} → {companion.defense}")
     if companion.defense == initial_defense:
-        print(f"   [Да] Защита вернулась к исходному значению")
+        print(f" Защита вернулась к исходному значению")
     else:
-        print(f"   [Нет] ОШИБКА: Защита != {initial_defense}, получено {companion.defense}")
+        print(f" ОШИБКА: Защита != {initial_defense}, получено {companion.defense}")
         return False
     
     if companion.armor is None:
-        print(f"   [Да] Броня снята")
+        print(f" Броня снята")
     else:
-        print(f"   [Нет] ОШИБКА: Броня не снята!")
+        print(f" ОШИБКА: Броня не снята!")
         return False
     
     # === ТЕСТ 5: Проверка инвентаря ===
@@ -160,17 +160,17 @@ def test_ui_companion_equip():
     sword_qty = player.inventory.qty(sword.id)
     armor_qty = player.inventory.qty(armor.id)
     
-    print(f"   Оружие в инвентаре: {sword_qty}")
-    print(f"   Броня в инвентаре: {armor_qty}")
+    print(f" Оружие в инвентаре: {sword_qty}")
+    print(f" Броня в инвентаре: {armor_qty}")
     
     if sword_qty == 1 and armor_qty == 1:
-        print(f"   [Да] Все предметы вернулись в инвентарь")
+        print(f" Все предметы вернулись в инвентарь")
     else:
-        print(f"   [Нет] ОШИБКА: Предметы не в инвентаре!")
+        print(f" ОШИБКА: Предметы не в инвентаре!")
         return False
     
     print(f"\n" + "="*50)
-    print("[Победа] ВСЕ ТЕСТЫ UI ЛОГИКИ ПРОЙДЕНЫ УСПЕШНО!")
+    print("ВСЕ ТЕСТЫ UI ЛОГИКИ ПРОЙДЕНЫ УСПЕШНО!")
     print("="*50)
     return True
 

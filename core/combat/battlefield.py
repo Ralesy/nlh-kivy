@@ -200,7 +200,7 @@ class Battlefield:
                 )
                 total_damage += dealt
                 logs.append(
-                    f"[Бой] Удар {hit + 1}! Вы наносите {dealt} урона "
+                    f"Удар {hit + 1}! Вы наносите {dealt} урона "
                     f"по {target.name}."
                 )
                 if not target.is_alive:
@@ -234,7 +234,7 @@ class Battlefield:
                     variance=(-3, 2),
                 )
                 logs.append(
-                    f"[Опыт] Магический взрыв наносит {dealt} урона "
+                    f"Магический взрыв наносит {dealt} урона "
                     f"по {target.name}!"
                 )
                 if not target.is_alive:
@@ -295,7 +295,7 @@ class Battlefield:
                 else:
                     logs.append(f"{enemy.name} наносит {dealt} урона вам!")
                 if not self.player.is_alive:
-                    logs.append("[Смерть] Вы были повержены!")
+                    logs.append("Вы были повержены!")
             else:
                 if is_critical:
                     logs.append(

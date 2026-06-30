@@ -51,7 +51,7 @@ class NpcSpawnConfig:
     name: str
     x_norm: float
     y_norm: float
-    action: str = "dialogue"  # dialogue | shop | tavern_menu
+    action: str = "dialogue" # dialogue | shop | tavern_menu
 
 
 @dataclass
@@ -60,8 +60,8 @@ class LocalSceneConfig:
 
     scene_id: str
     title: str
-    scene_type: str  # city | tavern | shop
-    exit_target: str  # location_select | parent
+    scene_type: str # city | tavern | shop
+    exit_target: str # location_select | parent
     player_scale: float = 0.7
     enemy_scale: float = 0.7
     npc_scale: float = 0.7
@@ -72,9 +72,9 @@ class LocalSceneConfig:
 
 
 SCENE_TITLES = {
-    "city": "[Город] Город",
-    "tavern": "[Таверна] Таверна",
-    "shop": "[Магазин] Магазин",
+    "city": "Город",
+    "tavern": "Таверна",
+    "shop": "Магазин",
 }
 
 

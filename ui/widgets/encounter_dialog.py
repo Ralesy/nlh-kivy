@@ -22,9 +22,12 @@ class EncounterDialog(Popup):
         self.encounter_data = encounter_data
         self._result_handler: Optional[Callable] = None
 
-        self.title = f"[Внимание] {encounter_data.get('name', 'Столкновение')}"
+        self.title = f"{encounter_data.get('name', 'Столкновение')}"
         self.size_hint = (0.75, 0.55)
         self.auto_dismiss = False
+        self.background = ''
+        self.background_color = (0, 0, 0, 0)
+        self.separator_color = (0, 0, 0, 0)
 
         content = BoxLayout(orientation="vertical", spacing=dp(8), padding=dp(12))
 
@@ -37,7 +40,7 @@ class EncounterDialog(Popup):
             text_size=(None, None),
             halign="center",
             valign="middle",
-            color=(0.9, 0.85, 0.8, 1),
+            color=COLORS['text_light'],
         )
         content.add_widget(desc_label)
 
@@ -47,7 +50,7 @@ class EncounterDialog(Popup):
             font_size=dp(12),
             size_hint_y=None,
             height=dp(24),
-            color=(0.6, 0.6, 0.6, 1),
+            color=COLORS['stone'],
         )
         content.add_widget(zone_label)
 
@@ -65,7 +68,8 @@ class EncounterDialog(Popup):
                 size_hint_y=None,
                 height=dp(48),
                 font_size=dp(15),
-                background_color=COLORS.get("stone_light", (0.35, 0.35, 0.35, 1)),
+                background_color=COLORS['stone_dark'],
+                color=COLORS['gold_light'],
             )
             btn._action_data = action
             btn.bind(on_press=self._on_action)
@@ -103,18 +107,18 @@ class EncounterDialog(Popup):
             chance += speed_level * 0.05
 
         if random.random() < chance:
-            self._show_result("flee", "🏃 Вы успешно сбежали!", (0.3, 0.8, 0.3, 1))
+            self._show_result("flee", "🏃 Вы успешно сбежали!", COLORS['hp_green'])
         else:
-            self._show_result("fight", "[Нет] Сбежать не удалось! Приготовьтесь к бою.", (0.9, 0.2, 0.2, 1))
+            self._show_result("fight", "Сбежать не удалось! Приготовьтесь к бою.", COLORS['hp_red'])
 
     def _try_bribe(self, action: dict):
         cost = action.get("cost", 50)
         app = App.get_running_app()
         if app and app.game and app.game.player and app.game.player.coins >= cost:
             app.game.player.coins -= cost
-            self._show_result("bribe_success", f"[Монеты] Вы откупились {cost} монетами. Проход свободен.", (0.3, 0.8, 0.3, 1))
+            self._show_result("bribe_success", f"Вы откупились {cost} монетами. Проход свободен.", COLORS['hp_green'])
         else:
-            self._show_result("insufficient_coins", "[Нет] Недостаточно монет! Попробуйте другой вариант.", (0.8, 0.6, 0.2, 1))
+            self._show_result("insufficient_coins", "Недостаточно монет! Попробуйте другой вариант.", COLORS['gold_dark'])
 
     def _show_result(self, action_id: str, text: str, color: tuple):
         if action_id == "insufficient_coins":
@@ -135,7 +139,8 @@ class EncounterDialog(Popup):
                 size_hint_y=None,
                 height=dp(48),
                 font_size=dp(16),
-                background_color=COLORS.get("stone_light", (0.35, 0.35, 0.35, 1)),
+                background_color=COLORS['stone_dark'],
+                color=COLORS['gold_light'],
             )
             btn_ok.bind(on_press=lambda x: self._restore_actions())
             new_content.add_widget(btn_ok)
@@ -161,7 +166,8 @@ class EncounterDialog(Popup):
             size_hint_y=None,
             height=dp(48),
             font_size=dp(16),
-            background_color=COLORS.get("stone_light", (0.35, 0.35, 0.35, 1)),
+            background_color=COLORS['stone_dark'],
+            color=COLORS['gold_light'],
         )
         btn_ok.bind(on_press=lambda x: self._resolve(action_id))
         new_content.add_widget(btn_ok)
@@ -170,7 +176,7 @@ class EncounterDialog(Popup):
         self.size_hint = (0.6, 0.35)
 
     def _restore_actions(self):
-        self.title = f"[Внимание] {self.encounter_data.get('name', 'Столкновение')}"
+        self.title = f"{self.encounter_data.get('name', 'Столкновение')}"
         content = BoxLayout(orientation="vertical", spacing=dp(8), padding=dp(12))
 
         desc = self.encounter_data.get("dialogue", "")
@@ -182,7 +188,7 @@ class EncounterDialog(Popup):
             text_size=(None, None),
             halign="center",
             valign="middle",
-            color=(0.9, 0.85, 0.8, 1),
+            color=COLORS['text_light'],
         )
         content.add_widget(desc_label)
 
@@ -192,7 +198,7 @@ class EncounterDialog(Popup):
             font_size=dp(12),
             size_hint_y=None,
             height=dp(24),
-            color=(0.6, 0.6, 0.6, 1),
+            color=COLORS['stone'],
         )
         content.add_widget(zone_label)
 
@@ -210,7 +216,8 @@ class EncounterDialog(Popup):
                 size_hint_y=None,
                 height=dp(48),
                 font_size=dp(15),
-                background_color=COLORS.get("stone_light", (0.35, 0.35, 0.35, 1)),
+                background_color=COLORS['stone_dark'],
+                color=COLORS['gold_light'],
             )
             btn._action_data = action
             btn.bind(on_press=self._on_action)

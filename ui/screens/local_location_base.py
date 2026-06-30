@@ -94,8 +94,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._update_event = None
         self._returning_from_battle = False
         self._active_zone = None
-        self._active_popup = None  # ссылка на открытый popup диалога/магазина
-        self._active_interact_entity = None  # entity NPC для отслеживания расстояния
+        self._active_popup = None # ссылка на открытый popup диалога/магазина
+        self._active_interact_entity = None # entity NPC для отслеживания расстояния
         self._move = {"up": False, "down": False, "left": False, "right": False}
         self._player_invincible_timer = 0.0
         self._paused = False
@@ -105,7 +105,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._btn_sneak = None
         self._btn_stance = None
         self._combat_status_label = None
-        self._damage_labels = []  # список активных Label с уроном
+        self._damage_labels = [] # список активных Label с уроном
         self._world_widget = None
         self._cam_x = 0.0
         self._cam_y = 0.0
@@ -115,7 +115,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._saved_enemy_dirs = {}
         self._is_ambush = False
         self._ambush_total_enemies = 0
-        self._player_entity = None  # entity-словарь игрока для real-time combat
+        self._player_entity = None # entity-словарь игрока для real-time combat
         self._ambush_zone_id = None
         self._ambush_exit_block_label = None
         self._ambush_enemies_data = None
@@ -175,7 +175,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self.scene_id = f"ambush_{zone_id}"
         self.location_id = zone_id
         zone_titles = {
-            "forest": "[Лес] Засада в лесу",
+            "forest": "Засада в лесу",
             "swamp": "[Болото] Засада на болотах",
             "mines": "[Шахты] Засада в шахтах",
             "mountains": "[Горы] Засада в горах",
@@ -966,7 +966,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if any_combat:
             self._update_combat_targeting()
             self._update_rt_combat(dt)
-            self._update_combat_facing()  # поворот к цели
+            self._update_combat_facing() # поворот к цели
             self._check_combat_end()
 
         self._sync_camera(dt)
@@ -1186,7 +1186,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     ent["combat_target"] = self._get_player_entity()
                     ent["rest_x"] = ent["x"]
                     ent["rest_y"] = ent["y"]
-                    continue  # combat система управляет дальше
+                    continue # combat система управляет дальше
 
                 # Слишком далеко → выходим из погони
                 if dist_to_player > DE_AGGRO_RADIUS:
@@ -1302,7 +1302,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     if self._player_invincible_timer > 0:
                         continue
                     if ent.get("in_combat"):
-                        continue  # этот конкретный враг уже в бою — не переинициируем
+                        continue # этот конкретный враг уже в бою — не переинициируем
                     # Если уже идёт бой — новый враг присоединяется
                     if self._is_any_combat_active():
                         self._join_rt_combat(ent)
@@ -1685,7 +1685,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         btn_layout.add_widget(btn_no)
         content.add_widget(btn_layout)
         popup = Popup(
-            title='[Босс] Босс!',
+            title='Босс!',
             content=content,
             size_hint=(0.7, 0.45),
             auto_dismiss=False,
@@ -1735,10 +1735,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             app._battle_from_local_location = True
             app.battle_screen.from_local_location = True
             if etype == "boss":
-                title = f"[Босс] {entity.get('name', creatures[0].name)}"
+                title = f"{entity.get('name', creatures[0].name)}"
             else:
                 names = ", ".join(e.get("name", "?") for e in battle_group)
-                title = f"[Бой] {names}"
+                title = f"{names}"
             app.battle_screen.start_battle(battlefield, title)
             self.manager.current = "battle"
         except Exception:
@@ -1815,7 +1815,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         # --- Враги: валидировать/сбросить цель ---
         for ent in alive_enemies:
             if not ent.get("in_combat"):
-                continue  # только те, кто уже в бою
+                continue # только те, кто уже в бою
             target = ent.get("combat_target")
             # Цель defeated или слишком далеко → выходим из боя
             target_ok = (target and not target.get("defeated") and
@@ -1876,7 +1876,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if not self._combat_status_label:
             from kivy.uix.label import Label
             self._combat_status_label = Label(
-                text="[Бой] БОЙ",
+                text="БОЙ",
                 size_hint=(None, None),
                 size=(dp(100), dp(30)),
                 font_size=dp(18),
@@ -1917,7 +1917,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         content.add_widget(scroll)
 
         btn_ok = Button(
-            text='[Смерть] Я помню…',
+            text='Я помню…',
             size_hint_y=None,
             height=dp(50),
             font_size=dp(18),
@@ -1926,7 +1926,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         content.add_widget(btn_ok)
 
         popup = Popup(
-            title='[Смерть] Поражение',
+            title='Поражение',
             content=content,
             size_hint=(0.7, 0.75),
             auto_dismiss=False,
@@ -2048,14 +2048,14 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 ent["_idle_time"] = idle_time
 
                 # Постоянное сближение с целью (враги всегда пытаются подойти вплотную)
-                min_melee_dist = max(dp(5), ent.get("radius", 0) + (target.get("radius", 0) if target else 0))  # ≥ push_entities_apart equilibrium (24px)
+                min_melee_dist = max(dp(5), ent.get("radius", 0) + (target.get("radius", 0) if target else 0)) # ≥ push_entities_apart equilibrium (24px)
                 if target and not target.get("defeated"):
                     dx = target["x"] - ent["x"]
                     dy = target["y"] - ent["y"]
                     dist_to_target = (dx * dx + dy * dy) ** 0.5
                     # Только враги двигаются к цели, игрок ходит сам
                     if ent.get("type") != "player" and dist_to_target > min_melee_dist:
-                        close_speed = dp(90) * dt  # ×0.5 — в бою враги медленнее (напряжение)
+                        close_speed = dp(90) * dt # ×0.5 — в бою враги медленнее (напряжение)
                         # step не должен пытаться зайти за min_melee_dist
                         max_step = dist_to_target - min_melee_dist
                         step = min(close_speed, max_step)
@@ -2083,7 +2083,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                             ent["_idle_time"] = 0.0
                             self._start_attack_windup(ent, creature, target)
                         else:
-                            ent["readiness"] = 0.8  # слишком далеко — ждём сближения
+                            ent["readiness"] = 0.8 # слишком далеко — ждём сближения
 
             # ---- WINDUP: оттягивание назад ----
             elif phase == "windup":
@@ -2109,7 +2109,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             elif phase == "strike":
                 ent["phase_timer"] += dt
                 progress = min(1.0, ent["phase_timer"] / ent.get("phase_duration", 0.15))
-                tween_forward = 1.0 - (1.0 - progress) ** 2  # ease-in
+                tween_forward = 1.0 - (1.0 - progress) ** 2 # ease-in
                 lunge_distance = dp(25) * tween_forward
                 if target:
                     dx = target["x"] - ent["origin_x"]
@@ -2140,7 +2140,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             elif phase == "knockback":
                 ent["phase_timer"] += dt
                 progress = min(1.0, ent["phase_timer"] / ent.get("phase_duration", 0.25))
-                tween = 1.0 - (1.0 - progress) ** 3  # ease-out: быстро в начале, замедление к концу
+                tween = 1.0 - (1.0 - progress) ** 3 # ease-out: быстро в начале, замедление к концу
                 if target:
                     dx = ent["x"] - target["x"]
                     dy = ent["y"] - target["y"]
@@ -2162,8 +2162,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         # Базовая скорость: ~1.5 сек при dex=5 без оружия
         base_recovery = 1.5
-        dex_bonus = max(0, dex - 5) * 0.04        # -0.04 сек за единицу dex сверх 5
-        weight_penalty = weapon_weight * 0.15      # +0.15 сек за единицу веса
+        dex_bonus = max(0, dex - 5) * 0.04 # -0.04 сек за единицу dex сверх 5
+        weight_penalty = weapon_weight * 0.15 # +0.15 сек за единицу веса
 
         recovery_time = max(0.4, base_recovery - dex_bonus + weight_penalty)
         ent["readiness"] = min(1.0, ent["readiness"] + dt / recovery_time)
@@ -2433,7 +2433,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 if etype == "enemy":
                     tip = f"{ent['name']} (Lv.{ent['level']})"
                 elif etype == "boss":
-                    tip = f"[Босс] {ent['name']} (босс)"
+                    tip = f"{ent['name']} (босс)"
                 elif etype == "zone":
                     tip = ent.get("description", "Зона")
                 elif etype == "npc":
@@ -2592,9 +2592,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if self._is_player_sneaking():
                 Color(0.3, 0.8, 0.4, 0.85)
             elif player_ent and player_ent.get("in_combat"):
-                Color(0.3, 0.5, 1, 0.9)  # синий в бою
+                Color(0.3, 0.5, 1, 0.9) # синий в бою
             else:
-                Color(0.3, 0.6, 1, 0.8)  # обычный синий
+                Color(0.3, 0.6, 1, 0.8) # обычный синий
             Ellipse(pos=(px - pr, py - pr), size=(pr * 2, pr * 2))
             Color(0.2, 0.4, 0.8, 1)
             Line(circle=(px, py, pr), width=2)
@@ -2769,7 +2769,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if self._chase_block_label:
             return
         self._chase_block_label = Label(
-            text='[Внимание] Вас преследуют! Сначала разберитесь с врагами.',
+            text='Вас преследуют! Сначала разберитесь с врагами.',
             size_hint=(None, None),
             size=(dp(300), dp(30)),
             pos_hint={'right': 0.98, 'y': 0.02},
@@ -2875,7 +2875,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         needed = max(1, self._ambush_total_enemies // 2)
         remaining = max(0, needed - defeated_count)
         self._ambush_exit_block_label = Label(
-            text=f'[Внимание] Чтобы покинуть засаду, уничтожьте ещё {remaining+1} врагов (нужно {needed+1}/{self._ambush_total_enemies})',
+            text=f'Чтобы покинуть засаду, уничтожьте ещё {remaining+1} врагов (нужно {needed+1}/{self._ambush_total_enemies})',
             size_hint=(None, None),
             size=(dp(400), dp(35)),
             pos_hint={'right': 0.98, 'y': 0.02},
@@ -2916,7 +2916,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if hasattr(app, 'battle_screen'):
                 app._battle_from_local_location = True
                 app.battle_screen.from_local_location = True
-                app.battle_screen.start_battle(battlefield, f"[Босс] {boss_name}")
+                app.battle_screen.start_battle(battlefield, f"{boss_name}")
                 self.manager.current = 'battle'
         except Exception as e:
             import traceback
@@ -3035,7 +3035,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         # Выбираем пул фраз и длительность в зависимости от ситуации
         if is_alert:
             barks = ENEMY_ALERT_BARKS.get(creature_type, ["Ага! Кто тут?!"])
-            duration = 2.0  # Боевой клич висит чуть меньше (2 сек), чтобы не засорять экран в бою
+            duration = 2.0 # Боевой клич висит чуть меньше (2 сек), чтобы не засорять экран в бою
         else:
             barks = ENEMY_BARKS.get(creature_type, ["..."])
             duration = BARK_DURATION
@@ -3047,7 +3047,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             text=text,
             font_size=dp(11),
             color=(1, 0.2, 0.2, 1) if is_alert else (1, 1, 1, 1), # Красный текст для тревоги
-            bold=is_alert,                                       # Жирный для тревоги
+            bold=is_alert, # Жирный для тревоги
             size_hint=(None, None),
             halign='center',
             valign='middle'
@@ -3060,7 +3060,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if is_alert:
                 Color(0.4, 0.0, 0.0, 0.75) # Темно-красный фон для паники
             else:
-                Color(0.1, 0.1, 0.1, 0.6)  # Обычный полупрозрачный черный
+                Color(0.1, 0.1, 0.1, 0.6) # Обычный полупрозрачный черный
             bark_label.bg_rect = RoundedRectangle(size=bark_label.size, pos=bark_label.pos, radius=[dp(6)])
         
         bark_label.bind(pos=lambda inst, val: setattr(inst.bg_rect, 'pos', val))

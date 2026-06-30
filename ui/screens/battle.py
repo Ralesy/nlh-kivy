@@ -28,14 +28,14 @@ class BattleScreen(Screen):
         self.battlefield = None
         self.service = None
         self.event_message = None
-        self.is_processing_turn = False  # Флаг блокировки действий во время обработки хода
+        self.is_processing_turn = False # Флаг блокировки действий во время обработки хода
         self.from_local_location = False
         
         layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
         
         # Устанавливаем темный фон для боевого экрана
         with layout.canvas.before:
-            Color(0.15, 0.15, 0.2, 1)  # Темно-синий фон
+            Color(0.15, 0.15, 0.2, 1) # Темно-синий фон
             self.bg_rect = Rectangle()
             layout.bind(
                 size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
@@ -49,7 +49,7 @@ class BattleScreen(Screen):
             size_hint_y=None,
             height=dp(50),
             text_size=(None, None),
-            color=COLORS['gold']  # Желтый цвет для событий
+            color=COLORS['gold'] # Желтый цвет для событий
         )
         layout.add_widget(self.event_label)
         
@@ -62,7 +62,7 @@ class BattleScreen(Screen):
             text_size=(None, None),
             halign='left',
             valign='top',
-            color=COLORS['text_light']  # Светлый цвет текста
+            color=COLORS['text_light'] # Светлый цвет текста
         )
         layout.add_widget(self.battle_info)
         
@@ -101,7 +101,7 @@ class BattleScreen(Screen):
         actions_layout = GridLayout(cols=2, spacing=dp(10), size_hint_y=None, height=dp(180))
         
         self.btn_inventory = Button(
-            text='[Инвентарь] Инвентарь',
+            text='Инвентарь',
             font_size=dp(18),
             background_normal=os.path.join(BUTTONS_DIR, 'inventory.png'),
             background_down=os.path.join(BUTTONS_DIR, 'inventory.png'),
@@ -111,7 +111,7 @@ class BattleScreen(Screen):
         actions_layout.add_widget(self.btn_inventory)
         
         self.btn_ability = Button(
-            text='[Бой] Способность',
+            text='Способность',
             font_size=dp(18),
             background_color=COLORS['hp_red']
         )
@@ -171,13 +171,13 @@ class BattleScreen(Screen):
                     [f"{c.name}({c.health}/{c.max_health})"
                      for c in alive_companions]
                 )
-                companions_info = f"\n[Спутник] Спутники: {comp_text}"
+                companions_info = f"\nСпутники: {comp_text}"
             else:
-                companions_info = "\n[Спутник] Спутники: Все выбыли"
+                companions_info = "\nСпутники: Все выбыли"
         
         self.battle_info.text = (
-            f"[Бой] Раунд {self.battlefield.round + 1}\n"
-            f"[HP] Ваш HP: {p.health}/{p.max_health} | [Бой] DMG: {p.damage} | [Защита] DEF: {p.defense}"
+            f"Раунд {self.battlefield.round + 1}\n"
+            f"Ваш HP: {p.health}/{p.max_health} | DMG: {p.damage} | DEF: {p.defense}"
             f"{companions_info}"
         )
         
@@ -199,17 +199,17 @@ class BattleScreen(Screen):
             # Цвет кнопки зависит от здоровья врага
             hp_percent = enemy.health / enemy.max_health if enemy.max_health > 0 else 0
             if hp_percent > 0.6:
-                bg_color = (0.7, 0.3, 0.3, 1)  # Красный для здоровых
+                bg_color = (0.7, 0.3, 0.3, 1) # Красный для здоровых
             elif hp_percent > 0.3:
-                bg_color = (0.8, 0.6, 0.2, 1)  # Оранжевый для раненых
+                bg_color = (0.8, 0.6, 0.2, 1) # Оранжевый для раненых
             else:
-                bg_color = (0.5, 0.5, 0.5, 1)  # Серый для почти мертвых
+                bg_color = (0.5, 0.5, 0.5, 1) # Серый для почти мертвых
             
             btn = Button(
                 text=(
-                    f"[Бой] {enemy.name}\n"
-                    f"[HP] HP: {enemy.health}/{enemy.max_health} | [Бой] DMG: {enemy.damage}"
-                    f" | [Защита] DEF: {enemy.defense}"
+                    f"{enemy.name}\n"
+                    f"HP: {enemy.health}/{enemy.max_health} | DMG: {enemy.damage}"
+                    f" | DEF: {enemy.defense}"
                 ),
                 size_hint_y=None,
                 height=dp(60),
@@ -242,11 +242,11 @@ class BattleScreen(Screen):
             hasattr(self.battlefield.player.weapon, 'ability') and
             self.battlefield.player.weapon.ability):
             ability_name = self.battlefield.player.weapon.ability.name
-            self.btn_ability.text = f"[Бой] {ability_name}"
+            self.btn_ability.text = f"{ability_name}"
         elif self.battlefield.ability_used_this_battle:
-            self.btn_ability.text = "[Бой] Способность (использована)"
+            self.btn_ability.text = "Способность (использована)"
         else:
-            self.btn_ability.text = "[Бой] Способность"
+            self.btn_ability.text = "Способность"
     
     def add_log(self, message):
         """Добавление сообщения в лог."""
@@ -312,7 +312,7 @@ class BattleScreen(Screen):
             # Проверяем, закончился ли бой после урона от неудачного побега
             if self.battlefield.is_over():
                 if not self.battlefield.player.is_alive:
-                    self.add_log("\n[Смерть] Вы были повержены!")
+                    self.add_log("\nВы были повержены!")
                     self.is_processing_turn = False
                     Clock.schedule_once(lambda dt: self.return_to_game(False), 2.0)
                 else:
@@ -348,11 +348,11 @@ class BattleScreen(Screen):
         if (not weapon or not hasattr(weapon, 'ability') or
                 not weapon.ability or
                 weapon.ability.ability_type != "active"):
-            self.add_log("[Нет] Нет активной способности для использования!")
+            self.add_log("Нет активной способности для использования!")
             return
         
         if self.battlefield.ability_used_this_battle:
-            self.add_log("[Нет] Способность уже использована в этой битве!")
+            self.add_log("Способность уже использована в этой битве!")
             return
         
         # Устанавливаем флаг обработки
@@ -363,11 +363,11 @@ class BattleScreen(Screen):
         success, logs = self.service.use_ability()
         if success:
             for log in logs:
-                self.add_log(f"[Опыт] {log}")
+                self.add_log(f"{log}")
             self.add_log("")
             self.update_battle_display()
         else:
-            self.add_log("[Нет] " + logs[0])
+            self.add_log("" + logs[0])
             self.is_processing_turn = False
             self.update_battle_display()
             return
@@ -391,7 +391,7 @@ class BattleScreen(Screen):
         self.update_battle_display()
         
         if not self.battlefield.player.is_alive:
-            self.add_log("\n[Смерть] Вы были повержены!")
+            self.add_log("\nВы были повержены!")
             self.is_processing_turn = False
             Clock.schedule_once(lambda dt: self.return_to_game(False), 2.0)
         elif self.battlefield.is_over():
@@ -410,14 +410,14 @@ class BattleScreen(Screen):
         
         app = App.get_running_app()
         if self.battlefield.player.is_alive:
-            self.add_log("\n[Победа] Вы победили!")
+            self.add_log("\nВы победили!")
             
             # Восстанавливаем здоровье компаньонов (только павших)
             for companion in self.battlefield.player.companions:
                 if not companion.is_alive:
-                    companion.health = 1  # Восстанавливаем до 1 HP
+                    companion.health = 1 # Восстанавливаем до 1 HP
                     self.add_log(
-                        f"[HP] {companion.name} "
+                        f"{companion.name} "
                         f"восстановлен после боя (1 HP)!"
                     )
             
@@ -481,7 +481,7 @@ class BattleScreen(Screen):
                         if unlocked:
                             names = [lm2.get_location(l).name for l in unlocked]
                             popup = Popup(
-                                title='[Открыто] Новые локации!',
+                                title='Новые локации!',
                                 content=Label(text='\n'.join(names)),
                                 size_hint=(0.6, 0.3),
                                 background='',
@@ -530,7 +530,7 @@ class BattleScreen(Screen):
                 2.0
             )
         else:
-            self.add_log("\n[Смерть] Вы были повержены...")
+            self.add_log("\nВы были повержены...")
             if app.game:
                 Clock.schedule_once(
                     lambda dt: self.show_death_screen(),

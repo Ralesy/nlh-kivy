@@ -47,7 +47,7 @@ class QuestsPopup(BoxLayout):
 
         # ── Заголовок ──
         title = Label(
-            text='[Квесты] АКТИВНЫЕ КВЕСТЫ',
+            text='АКТИВНЫЕ КВЕСТЫ',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(38),
@@ -157,7 +157,7 @@ class QuestsPopup(BoxLayout):
 
             # Награда
             reward_lbl = Label(
-                text=f"[Монеты] {quest.reward_gold} монет | [Опыт] {quest.reward_xp} XP",
+                text=f"{quest.reward_gold} монет | {quest.reward_xp} XP",
                 font_size=dp(11),
                 size_hint_y=None,
                 height=dp(18),

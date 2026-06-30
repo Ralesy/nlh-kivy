@@ -26,11 +26,11 @@ class TavernScreen(Screen, KeyboardHandler):
         layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
         
         title = Label(
-            text='[Таверна] ТАВЕРНА',
+            text='ТАВЕРНА',
             font_size=dp(40),
             size_hint_y=None,
             height=dp(70),
-            color=(0.9, 0.8, 0.3, 1)
+            color=COLORS['gold']
         )
         layout.add_widget(title)
         
@@ -52,7 +52,7 @@ class TavernScreen(Screen, KeyboardHandler):
         tab_layout.add_widget(btn_npcs)
         
         btn_companions = Button(
-            text='[Спутник] Спутники',
+            text='Спутники',
             size_hint_x=0.33,
             background_color=COLORS['stone_light'],
             font_size=dp(16)
@@ -125,17 +125,17 @@ class TavernScreen(Screen, KeyboardHandler):
             font_size=dp(24),
             size_hint_y=None,
             height=dp(50),
-            color=(0.9, 0.7, 0.3, 1)
+            color=COLORS['gold']
         )
         self.content_layout.add_widget(games_title)
         
         # Показываем монеты (сохраняем как атрибут, чтобы можно было обновлять)
         self.coins_label = Label(
-            text=f'Ваши монеты: {app.game.player.coins} [Монеты]',
+            text=f'Ваши монеты: {app.game.player.coins} ',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(40),
-            color=(0.9, 0.9, 0.3, 1)
+            color=COLORS['gold_light']
         )
         self.content_layout.add_widget(self.coins_label)
         
@@ -148,7 +148,7 @@ class TavernScreen(Screen, KeyboardHandler):
             text_size=(None, None),
             halign='center',
             valign='middle',
-            color=(0.9, 0.9, 0.9, 1)
+            color=COLORS['text_light']
         )
         self.content_layout.add_widget(self.game_result_label)
         
@@ -172,7 +172,7 @@ class TavernScreen(Screen, KeyboardHandler):
         content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
         
         bet_input = TextInput(text='10', multiline=False, input_filter='int')
-        content.add_widget(Label(text='Ставка:', font_size=dp(16)))
+        content.add_widget(Label(text='Ставка:', font_size=dp(16), color=COLORS['text_light']))
         content.add_widget(bet_input)
         
         choice_layout = None
@@ -205,7 +205,7 @@ class TavernScreen(Screen, KeyboardHandler):
                     if self.game_result_label:
                         self.game_result_label.text = msg
                     try:
-                        self.coins_label.text = f'Ваши монеты: {app.game.player.coins} [Монеты]'
+                        self.coins_label.text = f'Ваши монеты: {app.game.player.coins} '
                     except Exception:
                         pass
                 
@@ -262,21 +262,21 @@ class TavernScreen(Screen, KeyboardHandler):
                 text_size=(None, None),
                 halign='center',
                 valign='middle',
-                color=(0.9, 0.7, 0.3, 1),
+                color=COLORS['gold'],
                 bold=True
             )
             npc_box.add_widget(npc_title)
 
             # Описание
             desc_label = Label(
-                text="[Квесты] Нажмите для диалога",
+                text="Нажмите для диалога",
                 font_size=dp(14),
                 size_hint_y=None,
                 height=dp(30),
                 text_size=(None, None),
                 halign='center',
                 valign='middle',
-                color=(0.8, 0.8, 0.8, 1)
+                color=COLORS['text_light']
             )
             npc_box.add_widget(desc_label)
 
@@ -321,7 +321,7 @@ class TavernScreen(Screen, KeyboardHandler):
                 text_size=(None, None),
                 halign='center',
                 valign='center',
-                color=(0.8, 0.8, 0.8, 1)
+                color=COLORS['text_light']
             )
             self.content_layout.add_widget(empty_label)
             return
@@ -393,7 +393,7 @@ class TavernScreen(Screen, KeyboardHandler):
             reduction = app.game.danger_manager.on_quest_completed()
             if reduction > 0:
                 danger_msg = (
-                    f"\n\n[Защита] Опасность снижена на "
+                    f"\n\nОпасность снижена на "
                     f"{reduction:.0f}% "
                     f"(теперь "
                     f"{app.game.danger_manager.danger_level:.0f}%)"
@@ -413,7 +413,8 @@ class TavernScreen(Screen, KeyboardHandler):
                 text=result + danger_msg,
                 text_size=(None, None),
                 halign='center',
-                font_size=dp(18)
+                font_size=dp(18),
+                color=COLORS['text_light'],
             ),
             size_hint=(0.7, 0.4),
             background='',
@@ -436,14 +437,15 @@ class TavernScreen(Screen, KeyboardHandler):
         if app.game.player.companions:
             active_companion = app.game.player.companions[0]
             popup = Popup(
-                title='[Внимание] Уже есть активный спутник',
+                title='Уже есть активный спутник',
                 content=Label(
                     text=f'У вас уже есть спутник: {active_companion.name}.\n'
                          f'Отпустите его в меню "Спутники", '
                          f'чтобы нанять нового.',
                     text_size=(None, None),
                     halign='center',
-                    font_size=dp(18)
+                    font_size=dp(18),
+                    color=COLORS['text_light'],
                 ),
                 size_hint=(0.75, 0.4),
                 background='',
@@ -456,7 +458,10 @@ class TavernScreen(Screen, KeyboardHandler):
         if app.game.player.coins < price:
             popup = Popup(
                 title='Ошибка',
-                content=Label(text=f'Недостаточно монет (нужно {price}).'),
+                content=Label(
+                    text=f'Недостаточно монет (нужно {price}).',
+                    color=COLORS['text_light'],
+                ),
                 size_hint=(0.6, 0.3),
                 background='',
                 background_color=(0, 0, 0, 0),
@@ -470,7 +475,7 @@ class TavernScreen(Screen, KeyboardHandler):
         app.game.player.companions.append(comp)
         
         popup = Popup(
-            title='[Да] Успех',
+            title='Успех',
             content=Label(
                 text=f'{name} присоединился к вашей партии!\n\n'
                      f'Роль: {comp.role}\n'
@@ -478,7 +483,8 @@ class TavernScreen(Screen, KeyboardHandler):
                      f'Урон: {comp.damage}',
                 text_size=(None, None),
                 halign='center',
-                font_size=dp(18)
+                font_size=dp(18),
+                color=COLORS['text_light'],
             ),
             size_hint=(0.7, 0.4),
             background='',

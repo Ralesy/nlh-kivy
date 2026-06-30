@@ -80,7 +80,7 @@ class AncientCaveBossSelectScreen(Screen, KeyboardHandler):
         
         # Заголовок
         title_label = Label(
-            text='[Таверна] ПЕЩЕРА ДРЕВНИХ - ВЫБОР БОССА',
+            text='ПЕЩЕРА ДРЕВНИХ - ВЫБОР БОССА',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(50),
@@ -155,7 +155,7 @@ class AncientCaveBossSelectScreen(Screen, KeyboardHandler):
                 )
             else:
                 btn_text = (
-                    f"[Закрыто] {boss_info['name']}\n"
+                    f"{boss_info['name']}\n"
                     f"{boss_info['unlock_text']}"
                 )
                 btn = Button(
@@ -227,7 +227,7 @@ class AncientCaveBossSelectScreen(Screen, KeyboardHandler):
         }
         app.battle_screen.start_battle(
             battlefield,
-            f"[Таверна] {boss_names[boss_id]}"
+            f"{boss_names[boss_id]}"
         )
         self.manager.current = 'battle'
     
@@ -246,7 +246,7 @@ class AncientCaveBossSelectScreen(Screen, KeyboardHandler):
     def on_locked_boss(self, boss_info):
         """Показать требования для разблокировки босса."""
         popup = Popup(
-            title=f'[Закрыто] {boss_info["name"]}',
+            title=f'{boss_info["name"]}',
             content=Label(
                 text=boss_info['unlock_text'],
                 text_size=(None, None),

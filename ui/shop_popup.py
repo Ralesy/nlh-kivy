@@ -83,7 +83,7 @@ class ShopPopup(BoxLayout):
 
         # ── Заголовок ──
         title = Label(
-            text='[Магазин] МАГАЗИН',
+            text='МАГАЗИН',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(34),
@@ -152,7 +152,7 @@ class ShopPopup(BoxLayout):
         self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(8))
 
     def _update_coins(self):
-        self.coins_label.text = f"Монеты: {self.player.coins} [Монеты]"
+        self.coins_label.text = f"Монеты: {self.player.coins} "
 
     def _show_tab(self, tab):
         self._current_tab = tab
@@ -210,7 +210,7 @@ class ShopPopup(BoxLayout):
 
             # Название + цена
             name_lbl = Label(
-                text=f"{item.display_name()} — {price}[Монеты] ({q})",
+                text=f"{item.display_name()} — {price}({q})",
                 font_size=dp(11),
                 size_hint_x=0.65,
                 halign='left',
@@ -219,8 +219,8 @@ class ShopPopup(BoxLayout):
             )
             card.add_widget(name_lbl)
 
-            # [Инфо]
-            btn_info = _StyledShopBtn(text='[Инфо]', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
+            # Инфо
+            btn_info = _StyledShopBtn(text='', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
             btn_info.bind(on_press=lambda x, it=item: self._item_info(it))
             card.add_widget(btn_info)
 
@@ -239,7 +239,7 @@ class ShopPopup(BoxLayout):
             card = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(42), spacing=dp(4))
 
             name_lbl = Label(
-                text=f"{item.display_name()} x{qty} → {price}[Монеты]",
+                text=f"{item.display_name()} x{qty} → {price}",
                 font_size=dp(11),
                 size_hint_x=0.65,
                 halign='left',
@@ -248,7 +248,7 @@ class ShopPopup(BoxLayout):
             )
             card.add_widget(name_lbl)
 
-            btn_info = _StyledShopBtn(text='[Инфо]', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
+            btn_info = _StyledShopBtn(text='', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
             btn_info.bind(on_press=lambda x, it=item: self._item_info(it))
             card.add_widget(btn_info)
 
@@ -261,15 +261,15 @@ class ShopPopup(BoxLayout):
     def _item_info(self, item):
         info = f"{item.display_name()}\n\n"
         if isinstance(item, Weapon):
-            info += f"[Бой] Урон: {item.damage_bonus}\n"
+            info += f"Урон: {item.damage_bonus}\n"
             info += f"Материал: {WEAPON_MATERIALS.get(item.material, '?')}\n"
             info += f"Состояние: {item.condition_display}\n"
         elif isinstance(item, Armor):
-            info += f"[Защита] Защита: {item.defense}\n"
+            info += f"Защита: {item.defense}\n"
             info += f"Материал: {ARMOR_MATERIALS.get(item.material, '?')}\n"
             info += f"Состояние: {item.condition_display}\n"
         elif isinstance(item, Potion):
-            info += f"[HP] Восстанавливает: {item.heal_amount} HP\n"
+            info += f"Восстанавливает: {item.heal_amount} HP\n"
         info += f"Цена: {item.price} монет\n"
         if item.description:
             info += f"\n📝 {item.description}"

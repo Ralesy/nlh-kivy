@@ -16,7 +16,7 @@ class MapWidget(BoxLayout):
     
     LOCATION_INFO = {
         'forest': {
-            'name': '[Лес] Лес Криволесье',
+            'name': 'Лес Криволесье',
             'desc': 'Легкие враги\nСобытия',
             'difficulty': 'Легко',
             'color': (0.45, 0.33, 0.20, 1),
@@ -61,7 +61,7 @@ class MapWidget(BoxLayout):
             self.bind(pos=self.update_bg, size=self.update_bg)
         
         map_title = Label(
-            text='[Карта] КАРТА МИРА',
+            text='КАРТА МИРА',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(35),

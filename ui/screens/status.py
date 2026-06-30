@@ -126,7 +126,7 @@ class StatusScreen(Screen, KeyboardHandler):
             )
 
         title = StyledLabel(
-            text='[Бой]  ПЕРСОНАЖ',
+            text=' ПЕРСОНАЖ',
             font_size=dp(34),
             size_hint_y=None,
             height=dp(50),
@@ -156,7 +156,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c = self._content
 
         header = StyledLabel(
-            text='[Цель]  ОБЩАЯ ИНФОРМАЦИЯ',
+            text=' ОБЩАЯ ИНФОРМАЦИЯ',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -174,7 +174,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c.add_widget(_build_panel(info_widgets))
 
         header = StyledLabel(
-            text='[Статистика]  ОЧКИ НАВЫКОВ',
+            text=' ОЧКИ НАВЫКОВ',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -203,7 +203,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c.add_widget(_build_panel(skill_widgets))
 
         header = StyledLabel(
-            text='[Сила]  ХАРАКТЕРИСТИКИ',
+            text=' ХАРАКТЕРИСТИКИ',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -221,7 +221,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c.add_widget(_build_panel(stat_widgets))
 
         header = StyledLabel(
-            text='[Монеты]  РЕСУРСЫ',
+            text=' РЕСУРСЫ',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -239,7 +239,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c.add_widget(_build_panel(res_widgets))
 
         header = StyledLabel(
-            text='[Бой]  ЭКИПИРОВКА',
+            text=' ЭКИПИРОВКА',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -260,7 +260,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c.add_widget(_build_panel([self._equip_lbl]))
 
         header = StyledLabel(
-            text='[Спутник]  СПУТНИКИ',
+            text=' СПУТНИКИ',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -281,7 +281,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c.add_widget(_build_panel([self._comp_lbl]))
 
         header = StyledLabel(
-            text='[Статистика]  СТАТИСТИКА СЕССИИ',
+            text=' СТАТИСТИКА СЕССИИ',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -299,7 +299,7 @@ class StatusScreen(Screen, KeyboardHandler):
         c.add_widget(_build_panel(sess_widgets))
 
         header = StyledLabel(
-            text='[Свиток]  ПОСЛЕДНИЕ СОБЫТИЯ',
+            text='[Свиток] ПОСЛЕДНИЕ СОБЫТИЯ',
             font_size=dp(16),
             size_hint_y=None,
             height=dp(26),
@@ -357,8 +357,8 @@ class StatusScreen(Screen, KeyboardHandler):
         info_texts = [
             f"Имя: {p.name}",
             f"Класс: {bg_display}",
-            f"Уровень: {p.level}  [Уровень]",
-            f"День: {app.game.day}  📅",
+            f"Уровень: {p.level} ",
+            f"День: {app.game.day} 📅",
         ]
         for (_, lbl), text in zip(self._info_rows, info_texts):
             lbl.text = text
@@ -378,11 +378,11 @@ class StatusScreen(Screen, KeyboardHandler):
         crit_pct = int(p.critical_chance * 100)
 
         stat_texts = [
-            f"HP:  {p.health} / {p.max_health}  ({hp_pct:.0f}%)",
-            f"Урон:  {p.damage}  [Бой]",
-            f"Защита:  {p.defense}  [Защита]",
-            f"Крит. шанс:  {crit_pct}%",
-            f"Скорость:  {p.move_speed}  💨",
+            f"HP: {p.health} / {p.max_health} ({hp_pct:.0f}%)",
+            f"Урон: {p.damage} ",
+            f"Защита: {p.defense} ",
+            f"Крит. шанс: {crit_pct}%",
+            f"Скорость: {p.move_speed} 💨",
         ]
         stat_colors = [
             (0.75, 0.30, 0.25, 1),
@@ -397,8 +397,8 @@ class StatusScreen(Screen, KeyboardHandler):
 
         xp_progress = (p.experience / (p.level * 100)) * 100 if p.level > 0 else 0
         res_texts = [
-            f"Монеты:  {p.coins}  [Монеты]",
-            f"Опыт:  {p.experience} / {p.level * 100}  ({xp_progress:.0f}%)  [Опыт]",
+            f"Монеты: {p.coins} ",
+            f"Опыт: {p.experience} / {p.level * 100} ({xp_progress:.0f}%) ",
         ]
         res_colors = [COLORS['gold_light'], (0.45, 0.60, 0.35, 1)]
         for (_, lbl), text, color in zip(self._res_rows, res_texts, res_colors):
@@ -407,24 +407,24 @@ class StatusScreen(Screen, KeyboardHandler):
 
         weapon_name = p.weapon.name if p.weapon else "—"
         armor_name = p.armor.name if p.armor else "—"
-        self._equip_lbl.text = f"Оружие:  {weapon_name}\nБроня:    {armor_name}"
+        self._equip_lbl.text = f"Оружие: {weapon_name}\nБроня: {armor_name}"
 
         if not p.companions:
             self._comp_lbl.text = "(Нет спутников)"
         else:
             lines = []
             for c in p.companions:
-                status = "[Да]" if c.is_alive else "[Смерть]"
-                lines.append(f"{c.name} ({c.role})  HP: {c.health}/{c.max_health}  DMG: {c.damage}  {status}")
+                status = "" if c.is_alive else ""
+                lines.append(f"{c.name} ({c.role}) HP: {c.health}/{c.max_health} DMG: {c.damage} {status}")
             self._comp_lbl.text = "\n".join(lines)
 
         stats = p.get_session_stats()
         sess_texts = [
-            f"Врагов повержено:  {stats['enemies_defeated']}  [Смерть]",
-            f"Битв проведено:  {stats['battles_fought']}  [Бой]",
-            f"Выданный урон:  {stats['total_damage_dealt']}  [Урон]",
-            f"Полученный урон:  {stats['total_damage_taken']}  [Защита]",
-            f"Предметов:  {stats['inventory_items']}  [Инвентарь]",
+            f"Врагов повержено: {stats['enemies_defeated']} ",
+            f"Битв проведено: {stats['battles_fought']} ",
+            f"Выданный урон: {stats['total_damage_dealt']} [Урон]",
+            f"Полученный урон: {stats['total_damage_taken']} ",
+            f"Предметов: {stats['inventory_items']} ",
         ]
         for (_, lbl), text in zip(self._sess_rows, sess_texts):
             lbl.text = text
@@ -432,4 +432,4 @@ class StatusScreen(Screen, KeyboardHandler):
         if not app.game.history:
             self._hist_lbl.text = "(Нет событий)"
         else:
-            self._hist_lbl.text = "\n".join(f"  • {h}" for h in app.game.history[-7:])
+            self._hist_lbl.text = "\n".join(f" • {h}" for h in app.game.history[-7:])

@@ -38,7 +38,7 @@ class LootWindow(BoxLayout):
 
         # Заголовок
         title = Label(
-            text='[Бой] ВЫБОР ЛУТА',
+            text='ВЫБОР ЛУТА',
             font_size=dp(24),
             size_hint_y=None,
             height=dp(40)
@@ -47,7 +47,7 @@ class LootWindow(BoxLayout):
 
         # Статистика награды (золото и опыт)
         stats = Label(
-            text=f"[Монеты] +{self.gold}   [Опыт] +{self.xp} XP",
+            text=f"+{self.gold} +{self.xp} XP",
             font_size=dp(16),
             size_hint_y=None,
             height=dp(28)
@@ -130,7 +130,7 @@ class LootWindow(BoxLayout):
             )
 
         inv_title = Label(
-            text=f'[Инвентарь] {self.right_title}',
+            text=f'{self.right_title}',
             font_size=dp(18),
             size_hint_y=None,
             height=dp(35),

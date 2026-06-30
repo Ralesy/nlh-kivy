@@ -128,7 +128,7 @@ class Shop:
         try:
             # Мы ожидаем объект менеджера локаций с атрибутом locations
             # Передавать его нужно из Game: self.shop.refresh(self.location_manager)
-            location_manager  # type: ignore
+            location_manager # type: ignore
         except NameError:
             _legacy_refresh()
             return
@@ -257,7 +257,7 @@ class Casino:
         flip_name = "орёл" if flip == "h" else "решка"
 
         if flip == choice:
-            return True, bet, f"Выпало {flip_name}. Вы выиграли {bet} монет! [Победа]"
+            return True, bet, f"Выпало {flip_name}. Вы выиграли {bet} монет! "
         else:
             return False, -bet, f"Выпало {flip_name}. Вы проиграли {bet} монет. 😞"
 
@@ -273,13 +273,13 @@ class Casino:
         if bet <= 0:
             return "Ставка должна быть положительной.", 0
 
-        symbols = ["🍒", "🔔", "[Уровень]", "7", "🍋"]
+        symbols = ["🍒", "🔔", "", "7", "🍋"]
         reels = [random.choice(symbols) for _ in range(3)]
         res = " | ".join(reels)
 
         if reels[0] == reels[1] == reels[2]:
             payout = bet * 5
-            return f"{res} — Три в ряд! Вы выиграли {payout} монет! [Победа]", payout
+            return f"{res} — Три в ряд! Вы выиграли {payout} монет! ", payout
         # two of them equal
         elif reels[0] == reels[1] or reels[0] == reels[2] or reels[1] == reels[2]:
             payout = bet * 2
@@ -298,7 +298,7 @@ class Casino:
 
         # sectors: (label, multiplier)
         sectors = [
-            ("Малое везение", 0),  # потеря
+            ("Малое везение", 0), # потеря
             ("Малое везение", 0),
             ("Нечто", 1),
             ("Удача", 2),

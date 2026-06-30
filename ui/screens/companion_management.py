@@ -35,7 +35,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
             )
 
         title = Label(
-            text='[Спутник] УПРАВЛЕНИЕ СПУТНИКАМИ',
+            text='УПРАВЛЕНИЕ СПУТНИКАМИ',
             font_size=dp(32),
             size_hint_y=None,
             height=dp(60),
@@ -61,7 +61,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         actions_layout.height = dp(200)
 
         self.btn_heal = Button(
-            text='[HP] Лечить зельем',
+            text='Лечить зельем',
             font_size=dp(18),
             background_color=COLORS['hp_green']
         )
@@ -69,7 +69,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         actions_layout.add_widget(self.btn_heal)
 
         self.btn_equip_weapon = Button(
-            text='[Бой] Экипировать оружие',
+            text='Экипировать оружие',
             font_size=dp(18),
             background_color=COLORS['stone_light']
         )
@@ -77,7 +77,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         actions_layout.add_widget(self.btn_equip_weapon)
 
         self.btn_equip_armor = Button(
-            text='[Защита] Экипировать броню',
+            text='Экипировать броню',
             font_size=dp(18),
             background_color=COLORS['stone_light']
         )
@@ -85,7 +85,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         actions_layout.add_widget(self.btn_equip_armor)
 
         self.btn_unequip_weapon = Button(
-            text='[Бой] Снять оружие',
+            text='Снять оружие',
             font_size=dp(18),
             background_color=COLORS['stone_light']
         )
@@ -93,7 +93,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         actions_layout.add_widget(self.btn_unequip_weapon)
 
         self.btn_unequip_armor = Button(
-            text='[Защита] Снять броню',
+            text='Снять броню',
             font_size=dp(18),
             background_color=COLORS['stone_light']
         )
@@ -101,7 +101,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         actions_layout.add_widget(self.btn_unequip_armor)
 
         self.btn_dismiss = Button(
-            text='[Нет] Отпустить',
+            text='Отпустить',
             font_size=dp(18),
             background_color=COLORS['hp_red']
         )
@@ -139,18 +139,18 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
             self._disable_buttons()
             return
 
-        companion = player.companions[0]  # Только один спутник
+        companion = player.companions[0] # Только один спутник
 
         weapon_name = companion.weapon.name if companion.weapon else 'Нет'
         armor_name = companion.armor.name if companion.armor else 'Нет'
 
         self.companion_info.text = (
-            f"[Спутник] {companion.name} ({companion.role})\n"
-            f"[HP] HP: {companion.health}/{companion.max_health}\n"
-            f"[Бой] Урон: {companion.damage}\n"
-            f"[Защита] Защита: {companion.defense}\n"
-            f"[Бой] Оружие: {weapon_name}\n"
-            f"[Защита] Броня: {armor_name}"
+            f"{companion.name} ({companion.role})\n"
+            f"HP: {companion.health}/{companion.max_health}\n"
+            f"Урон: {companion.damage}\n"
+            f"Защита: {companion.defense}\n"
+            f"Оружие: {weapon_name}\n"
+            f"Броня: {armor_name}"
         )
 
         # Включить кнопки
@@ -246,7 +246,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
 
         # Показать результат
         popup = Popup(
-            title='[Да] Лечение',
+            title='Лечение',
             content=Label(
                 text=f"{companion.name} восстановил {healed} HP!\n"
                      f"({companion.health}/{companion.max_health} HP)"
@@ -323,7 +323,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         content.add_widget(btn_cancel)
 
         popup = Popup(
-            title=f'[Бой] Выбор {item_type}',
+            title=f'Выбор {item_type}',
             content=content,
             size_hint=(0.7, 0.6),
             background='',
@@ -368,7 +368,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
 
         # Показать результат
         popup = Popup(
-            title='[Да] Экипировка',
+            title='Экипировка',
             content=Label(text=f"{companion.name} экипирован {item.display_name()}!"),
             size_hint=(0.6, 0.3),
             background='',
@@ -415,7 +415,7 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
             player.inventory.add(item, 1)
 
             popup = Popup(
-                title='[Да] Снято',
+                title='Снято',
                 content=Label(text=f"{item.display_name()} возвращено в инвентарь!"),
                 size_hint=(0.6, 0.3),
                 background='',

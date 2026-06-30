@@ -112,7 +112,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             )
 
         title_label = Label(
-            text='[Карта] Карта региона',
+            text='Карта региона',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(48),
@@ -1039,13 +1039,13 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
     def _get_location_text(self, location):
         """Получить текст кнопки локации."""
-        lock_icon = '🔐' if location.is_locked else '[Открыто]'
+        lock_icon = '🔐' if location.is_locked else ''
         text = f"{lock_icon} {location.name}"
 
         if location.is_locked and location.unlock_condition:
-            text += f"\n[Внимание] {location.unlock_condition}"
+            text += f"\n{location.unlock_condition}"
         else:
-            text += f"\n[Да] Доступна"
+            text += f"\nДоступна"
 
         return text
 
@@ -1114,7 +1114,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
                         if len(squad_members) > 1:
                             # Show squad composition with levels
-                            member_lines = [f"  {m.name}" for m in squad_members]
+                            member_lines = [f" {m.name}" for m in squad_members]
                             lines = "\n".join(member_lines)
                             hw.label.text = f"Отряд ({len(squad_members)}):\n{lines}"
                             hw.label.text_size = (hw.width, None)
@@ -1473,7 +1473,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 if player:
                     player.last_global_pos = (0.19, 0.85)
                     if getattr(app, "_defeat_event", -1) < 0:
-                        app._defeat_event = -1  # defeat already handled by battle.py
+                        app._defeat_event = -1 # defeat already handled by battle.py
         except Exception as e:
             Logger.error(f"GlobalMap: Boss battle return error: {e}")
 
@@ -1513,7 +1513,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         content.add_widget(scroll)
 
         btn_ok = Btn(
-            text='[Смерть] Я помню…',
+            text='Я помню…',
             size_hint_y=None,
             height=50,
             font_size=18,
@@ -1522,7 +1522,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         content.add_widget(btn_ok)
 
         popup = P(
-            title='[Смерть] Поражение',
+            title='Поражение',
             content=content,
             size_hint=(0.7, 0.75),
             auto_dismiss=False,
@@ -1588,7 +1588,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self._destroy_all_token_canvas()
 
     # ──────────────────────────────────────────────
-    #  Bark system (реплики над головами токенов)
+    # Bark system (реплики над головами токенов)
     # ──────────────────────────────────────────────
 
     def _init_bark_system(self):
@@ -2027,13 +2027,13 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 try:
                     battlefield, _ = app.game.create_battle([enemy])
                     if hasattr(app, 'battle_screen'):
-                        app.battle_screen.start_battle(battlefield, f"[Бой] Засада! {enemy_name}")
+                        app.battle_screen.start_battle(battlefield, f"Засада! {enemy_name}")
                         app.root.current = 'battle'
                 except Exception as e:
                     print(f"[AMBUSH] Battle start error: {e}")
 
             popup = Popup(
-                title='[Внимание] ЗАСАДА!',
+                title='ЗАСАДА!',
                 content=Label(
                     text=(
                         f'Опасность достигла максимума!\n\n'
@@ -2068,7 +2068,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             condition_text = f"Требования для разблокировки:\n{location.unlock_condition}"
 
         popup = Popup(
-            title=f'[Закрыто] {location.name}',
+            title=f'{location.name}',
             content=Label(
                 text=condition_text,
                 text_size=(None, None),

@@ -49,7 +49,7 @@ class InventoryPopup(BoxLayout):
 
         # ── Заголовок ──
         title = Label(
-            text='[Инвентарь] ИНВЕНТАРЬ',
+            text='ИНВЕНТАРЬ',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(38),
@@ -110,7 +110,7 @@ class InventoryPopup(BoxLayout):
         armor_name = p.armor.display_name() if p.armor else 'Нет'
         hp_str = f'{p.health}/{p.max_health}'
         self.equipment_label.text = (
-            f'[Сердце] {hp_str}   [Бой] {weapon_name}   [Защита] {armor_name}'
+            f'[Сердце] {hp_str} {weapon_name} {armor_name}'
         )
 
         self.items_layout.clear_widgets()
@@ -140,7 +140,7 @@ class InventoryPopup(BoxLayout):
             card.bind(pos=lambda i, v: setattr(card_bg, 'pos', i.pos),
                       size=lambda i, v: setattr(card_bg, 'size', i.size))
 
-            # Верхняя строка: название + кнопка [Инфо]
+            # Верхняя строка: название + кнопка инфо
             top = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(30))
             label = Label(
                 text=f'{item.display_name()} x{qty}',
@@ -154,7 +154,7 @@ class InventoryPopup(BoxLayout):
             top.add_widget(label)
 
             btn_info = Button(
-                text='[Инфо]',
+                text='',
                 size_hint_x=0.2,
                 size_hint_y=None,
                 height=dp(26),
@@ -203,7 +203,7 @@ class InventoryPopup(BoxLayout):
             self.items_layout.add_widget(card)
 
     # ──────────────────────────────────────────────
-    #  Действия с предметами
+    # Действия с предметами
     # ──────────────────────────────────────────────
 
     def _equip(self, item):
@@ -283,7 +283,7 @@ class InventoryPopup(BoxLayout):
         target_popup.dismiss()
 
         result_popup = Popup(
-            title='[Да] Зелье использовано',
+            title='Зелье использовано',
             content=Label(
                 text=f'{target.name} восстановил {healed} HP!\n'
                      f'({target.health}/{target.max_health} HP)',
@@ -298,7 +298,7 @@ class InventoryPopup(BoxLayout):
         self._refresh()
 
     # ──────────────────────────────────────────────
-    #  Информация о предмете
+    # Информация о предмете
     # ──────────────────────────────────────────────
 
     def _show_info(self, item):
@@ -306,17 +306,17 @@ class InventoryPopup(BoxLayout):
         lines.append(item.display_name())
 
         if isinstance(item, Weapon):
-            lines.append(f'[Бой] Урон: {item.damage_bonus}')
+            lines.append(f'Урон: {item.damage_bonus}')
             mat = WEAPON_MATERIALS.get(item.material, 'неизвестный')
             lines.append(f'Материал: {mat}')
             lines.append(f'Состояние: {item.condition_display}')
         elif isinstance(item, Armor):
-            lines.append(f'[Защита] Защита: {item.defense}')
+            lines.append(f'Защита: {item.defense}')
             mat = ARMOR_MATERIALS.get(item.material, 'неизвестная')
             lines.append(f'Материал: {mat}')
             lines.append(f'Состояние: {item.condition_display}')
         elif isinstance(item, Potion):
-            lines.append(f'[HP] Восстанавливает: {item.heal_amount} HP')
+            lines.append(f'Восстанавливает: {item.heal_amount} HP')
 
         lines.append(f'Цена: {item.price} монет')
         if item.description:
@@ -371,7 +371,7 @@ class InventoryPopup(BoxLayout):
         info_popup.open()
 
     # ──────────────────────────────────────────────
-    #  Закрытие
+    # Закрытие
     # ──────────────────────────────────────────────
 
     def _close(self, *_args):

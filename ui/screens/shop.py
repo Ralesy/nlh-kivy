@@ -41,7 +41,7 @@ class ShopScreen(Screen, KeyboardHandler):
             )
 
         title = StyledLabel(
-            text="[Магазин] МАГАЗИН",
+            text="МАГАЗИН",
             font_size=dp(36),
             size_hint_y=None,
             height=dp(60),
@@ -113,7 +113,7 @@ class ShopScreen(Screen, KeyboardHandler):
         if not app.game:
             return
 
-        self.coins_label.text = f"Ваши монеты: {app.game.player.coins} [Монеты]"
+        self.coins_label.text = f"Ваши монеты: {app.game.player.coins} "
 
         # Получить модификатор цен от DangerManager
         price_mod = 1.0
@@ -148,11 +148,11 @@ class ShopScreen(Screen, KeyboardHandler):
         if danger_info_text:
             danger_color = COLORS["text_light"]
             if price_mod >= 2.0:
-                danger_color = (0.9, 0.3, 0.2, 1)  # красный
+                danger_color = (0.9, 0.3, 0.2, 1) # красный
             elif price_mod >= 1.5:
-                danger_color = (0.9, 0.5, 0.2, 1)  # оранжевый
+                danger_color = (0.9, 0.5, 0.2, 1) # оранжевый
             elif price_mod >= 1.2:
-                danger_color = (0.9, 0.8, 0.2, 1)  # жёлтый
+                danger_color = (0.9, 0.8, 0.2, 1) # жёлтый
 
             danger_label = StyledLabel(
                 text=danger_info_text,
@@ -173,7 +173,7 @@ class ShopScreen(Screen, KeyboardHandler):
 
             item_layout = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(60), spacing=dp(5))
             item_label = StyledLabel(
-                text=f"{item.display_name()} — {display_price} [Монеты] (осталось: {q})",
+                text=f"{item.display_name()} — {display_price} (осталось: {q})",
                 font_size=dp(14),
                 size_hint_x=0.65,
                 color=COLORS["text_light"],
@@ -181,7 +181,7 @@ class ShopScreen(Screen, KeyboardHandler):
             item_layout.add_widget(item_label)
 
             btn_info = StyledButton(
-                text="[Инфо]",
+                text="",
                 color=COLORS["stone_light"],
                 size_hint_x=0.1,
                 font_size=dp(14),
@@ -208,14 +208,14 @@ class ShopScreen(Screen, KeyboardHandler):
         if not app.game:
             return
 
-        self.coins_label.text = f"Ваши монеты: {app.game.player.coins} [Монеты]"
+        self.coins_label.text = f"Ваши монеты: {app.game.player.coins} "
 
         items = app.game.player.inventory.list_items()
         for item, qty in items:
             item_layout = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(60), spacing=dp(5))
             price = (item.price * qty) // 5
             item_label = StyledLabel(
-                text=f"{item.display_name()} x{qty} → {price} [Монеты]",
+                text=f"{item.display_name()} x{qty} → {price} ",
                 font_size=dp(14),
                 size_hint_x=0.65,
                 color=COLORS["text_light"],
@@ -223,7 +223,7 @@ class ShopScreen(Screen, KeyboardHandler):
             item_layout.add_widget(item_label)
 
             btn_info = StyledButton(
-                text="[Инфо]",
+                text="",
                 color=COLORS["stone_light"],
                 size_hint_x=0.1,
                 font_size=dp(14),
@@ -247,17 +247,17 @@ class ShopScreen(Screen, KeyboardHandler):
         info_text = f"{item.display_name()}\n\n"
 
         if isinstance(item, Weapon):
-            info_text += f"[Бой] Урон: {item.damage_bonus}\n"
+            info_text += f"Урон: {item.damage_bonus}\n"
             mat_str = WEAPON_MATERIALS.get(item.material, "неизвестный")
             info_text += f"Материал: {mat_str}\n"
             info_text += f"Состояние: {item.condition_display}\n"
         elif isinstance(item, Armor):
-            info_text += f"[Защита] Защита: {item.defense}\n"
+            info_text += f"Защита: {item.defense}\n"
             mat_str = ARMOR_MATERIALS.get(item.material, "неизвестная")
             info_text += f"Материал: {mat_str}\n"
             info_text += f"Состояние: {item.condition_display}\n"
         elif isinstance(item, Potion):
-            info_text += f"[HP] Восстанавливает: {item.heal_amount} HP\n"
+            info_text += f"Восстанавливает: {item.heal_amount} HP\n"
 
         info_text += f"Цена: {item.price} монет\n"
         if item.description:
