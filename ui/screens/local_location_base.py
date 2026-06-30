@@ -1322,9 +1322,27 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         app = App.get_running_app()
 
         if action == "shop":
-            if getattr(app, "shop_screen", None):
-                app.shop_screen.update_shop()
-            self.manager.current = "shop"
+            from ui.shop_popup import ShopPopup
+
+            player = app.game.player if app.game else None
+            if not player:
+                return
+
+            def on_close():
+                popup.dismiss()
+
+            shop_content = ShopPopup(player, on_done=on_close)
+            popup = Popup(
+                title='',
+                content=shop_content,
+                size_hint=(0.35, 0.85),
+                pos_hint={'x': 0.02, 'y': 0.07},
+                auto_dismiss=True,
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
+            )
+            popup.open()
             return
 
         if action == "tavern_menu":
