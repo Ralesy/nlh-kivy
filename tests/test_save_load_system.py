@@ -38,33 +38,33 @@ def test_basic_save_load():
     success = save_game(player, filename)
     
     if not success:
-        print("❌ FAIL: save_game returned False")
+        print("[Нет] FAIL: save_game returned False")
         return False
     
     # Load the player
     loaded_player = load_game(filename)
     if not loaded_player:
-        print("❌ FAIL: load_game returned None")
+        print("[Нет] FAIL: load_game returned None")
         delete_save(filename)
         return False
     
     # Verify basic attributes
     if loaded_player.name != "TestHero":
-        print(f"❌ FAIL: Name mismatch: {loaded_player.name}")
+        print(f"[Нет] FAIL: Name mismatch: {loaded_player.name}")
         delete_save(filename)
         return False
     
     if loaded_player.coins != 500:
-        print(f"❌ FAIL: Coins mismatch: {loaded_player.coins}")
+        print(f"[Нет] FAIL: Coins mismatch: {loaded_player.coins}")
         delete_save(filename)
         return False
     
     if loaded_player.experience != 250:
-        print(f"❌ FAIL: Experience mismatch: {loaded_player.experience}")
+        print(f"[Нет] FAIL: Experience mismatch: {loaded_player.experience}")
         delete_save(filename)
         return False
     
-    print("✅ PASS: Basic save/load works")
+    print("[Да] PASS: Basic save/load works")
     delete_save(filename)
     return True
 
@@ -87,36 +87,36 @@ def test_player_reconstruction():
     # Load (which returns Player directly now)
     player2 = load_game(filename)
     if not player2:
-        print("❌ FAIL: Could not load save file")
+        print("[Нет] FAIL: Could not load save file")
         delete_save(filename)
         return False
     
     if player2.name != "Adventurer":
-        print(f"❌ FAIL: Name not preserved: {player2.name}")
+        print(f"[Нет] FAIL: Name not preserved: {player2.name}")
         delete_save(filename)
         return False
     
     if player2.background != "squire":
-        print(f"❌ FAIL: Background not preserved: {player2.background}")
+        print(f"[Нет] FAIL: Background not preserved: {player2.background}")
         delete_save(filename)
         return False
     
     if player2.coins != 1000:
-        print(f"❌ FAIL: Coins not preserved: {player2.coins}")
+        print(f"[Нет] FAIL: Coins not preserved: {player2.coins}")
         delete_save(filename)
         return False
     
     if player2.experience != 500:
-        print(f"❌ FAIL: Experience not preserved: {player2.experience}")
+        print(f"[Нет] FAIL: Experience not preserved: {player2.experience}")
         delete_save(filename)
         return False
     
     if player2.health != 45:
-        print(f"❌ FAIL: Health not preserved: {player2.health}")
+        print(f"[Нет] FAIL: Health not preserved: {player2.health}")
         delete_save(filename)
         return False
     
-    print("✅ PASS: Player reconstruction works")
+    print("[Да] PASS: Player reconstruction works")
     delete_save(filename)
     return True
 
@@ -135,7 +135,7 @@ def test_inventory_persistence():
     steel_armor = ItemDatabase.get("a_steel_plate")
     
     if not iron_sword or not steel_armor:
-        print("❌ FAIL: Could not get test items from database")
+        print("[Нет] FAIL: Could not get test items from database")
         return False
     
     # Add items to inventory
@@ -148,7 +148,7 @@ def test_inventory_persistence():
     # Load player
     loaded_player = load_game(filename)
     if not loaded_player:
-        print("❌ FAIL: Could not load save file")
+        print("[Нет] FAIL: Could not load save file")
         delete_save(filename)
         return False
     
@@ -163,16 +163,16 @@ def test_inventory_persistence():
             found_armor = True
     
     if not found_sword:
-        print("❌ FAIL: Sword not found in loaded inventory")
+        print("[Нет] FAIL: Sword not found in loaded inventory")
         delete_save(filename)
         return False
     
     if not found_armor:
-        print("❌ FAIL: Armor not found in loaded inventory")
+        print("[Нет] FAIL: Armor not found in loaded inventory")
         delete_save(filename)
         return False
     
-    print("✅ PASS: Inventory persistence works")
+    print("[Да] PASS: Inventory persistence works")
     delete_save(filename)
     return True
 
@@ -190,7 +190,7 @@ def test_equipped_items():
     armor = ItemDatabase.get("a_iron_plate")
     
     if not sword or not armor:
-        print("❌ FAIL: Could not get test items")
+        print("[Нет] FAIL: Could not get test items")
         return False
     
     player.inventory.add(sword, 1)
@@ -204,23 +204,23 @@ def test_equipped_items():
     # Load and verify
     loaded_player = load_game(filename)
     if not loaded_player:
-        print("❌ FAIL: Could not load save")
+        print("[Нет] FAIL: Could not load save")
         delete_save(filename)
         return False
     
     if not loaded_player.weapon or \
             loaded_player.weapon.id != "w_steel_sword":
-        print("❌ FAIL: Weapon not equipped after load")
+        print("[Нет] FAIL: Weapon not equipped after load")
         delete_save(filename)
         return False
     
     if not loaded_player.armor or \
             loaded_player.armor.id != "a_iron_plate":
-        print("❌ FAIL: Armor not equipped after load")
+        print("[Нет] FAIL: Armor not equipped after load")
         delete_save(filename)
         return False
     
-    print("✅ PASS: Equipped items persistence works")
+    print("[Да] PASS: Equipped items persistence works")
     delete_save(filename)
     return True
 
@@ -244,12 +244,12 @@ def test_save_list():
     # Check all saves are listed
     for fname in filenames:
         if fname not in saves:
-            print(f"❌ FAIL: {fname} not in save list")
+            print(f"[Нет] FAIL: {fname} not in save list")
             for fname in filenames:
                 delete_save(fname)
             return False
     
-    print(f"✅ PASS: Save list works ({len(filenames)} saves found)")
+    print(f"[Да] PASS: Save list works ({len(filenames)} saves found)")
     
     # Clean up
     for fname in filenames:
@@ -272,23 +272,23 @@ def test_delete_save():
     # Verify it exists
     saves = get_save_list()
     if filename not in saves:
-        print("❌ FAIL: Save not created")
+        print("[Нет] FAIL: Save not created")
         return False
     
     # Delete it
     success = delete_save(filename)
     if not success:
-        print("❌ FAIL: delete_save returned False")
+        print("[Нет] FAIL: delete_save returned False")
         return False
     
     # Verify it's gone
     saves = get_save_list()
     if filename in saves:
-        print("❌ FAIL: Save still exists after deletion")
+        print("[Нет] FAIL: Save still exists after deletion")
         delete_save(filename)
         return False
     
-    print("✅ PASS: Delete save works")
+    print("[Да] PASS: Delete save works")
     return True
 
 
@@ -316,7 +316,7 @@ def test_multiple_characters():
         success = save_game(player, filename)
         
         if not success:
-            print(f"❌ FAIL: Could not save {name}")
+            print(f"[Нет] FAIL: Could not save {name}")
             for fn in filenames:
                 delete_save(fn)
             return False
@@ -327,30 +327,30 @@ def test_multiple_characters():
         loaded_player = load_game(filename)
         
         if not loaded_player:
-            print(f"❌ FAIL: Could not load {filename}")
+            print(f"[Нет] FAIL: Could not load {filename}")
             for fn in filenames:
                 delete_save(fn)
             return False
         
         if loaded_player.name != name:
-            print(f"❌ FAIL: Name mismatch in {filename}")
+            print(f"[Нет] FAIL: Name mismatch in {filename}")
             for fn in filenames:
                 delete_save(fn)
             return False
         
             if loaded_player.background != cls:
-                print(f"❌ FAIL: Background mismatch in {filename}")
+                print(f"[Нет] FAIL: Background mismatch in {filename}")
             for fn in filenames:
                 delete_save(fn)
             return False
         
         if loaded_player.coins != coins:
-            print(f"❌ FAIL: Coins mismatch in {filename}")
+            print(f"[Нет] FAIL: Coins mismatch in {filename}")
             for fn in filenames:
                 delete_save(fn)
             return False
     
-    print("✅ PASS: Multiple characters saved/loaded correctly")
+    print("[Да] PASS: Multiple characters saved/loaded correctly")
     
     # Clean up
     for fn in filenames:
@@ -379,18 +379,18 @@ def test_json_format():
         with open(save_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        print(f"❌ FAIL: Invalid JSON: {e}")
+        print(f"[Нет] FAIL: Invalid JSON: {e}")
         delete_save(filename)
         return False
     
     # Check structure
     if "player" not in data:
-        print("❌ FAIL: 'player' key missing from save file")
+        print("[Нет] FAIL: 'player' key missing from save file")
         delete_save(filename)
         return False
     
     if "version" not in data:
-        print("❌ FAIL: 'version' key missing from save file")
+        print("[Нет] FAIL: 'version' key missing from save file")
         delete_save(filename)
         return False
     
@@ -399,11 +399,11 @@ def test_json_format():
     
     for key in required_keys:
         if key not in player_data:
-            print(f"❌ FAIL: '{key}' missing from player data")
+            print(f"[Нет] FAIL: '{key}' missing from player data")
             delete_save(filename)
             return False
     
-    print("✅ PASS: Save file has correct JSON structure")
+    print("[Да] PASS: Save file has correct JSON structure")
     delete_save(filename)
     return True
 
@@ -431,7 +431,7 @@ def run_all_tests():
             result = test_func()
             results.append((test_func.__name__, result))
         except Exception as e:
-            print(f"❌ EXCEPTION in {test_func.__name__}: {e}")
+            print(f"[Нет] EXCEPTION in {test_func.__name__}: {e}")
             import traceback
             traceback.print_exc()
             results.append((test_func.__name__, False))
@@ -445,7 +445,7 @@ def run_all_tests():
     total = len(results)
     
     for test_name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
+        status = "[Да] PASS" if result else "[Нет] FAIL"
         print(f"{status}: {test_name}")
     
     print(f"\nTotal: {passed}/{total} tests passed")

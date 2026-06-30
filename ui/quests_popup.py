@@ -15,7 +15,9 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, Line, RoundedRectangle
+
+from ui.ui_styles import COLORS
 
 
 class QuestsPopup(BoxLayout):
@@ -29,16 +31,23 @@ class QuestsPopup(BoxLayout):
         self.player = player
         self.on_done = on_done
 
-        # Полупрозрачный фон
+        # Фон — тёмный полупрозрачный со скруглёнными углами
         with self.canvas.before:
-            Color(0.08, 0.1, 0.15, 0.92)
-            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
-        self.bind(pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos),
-                  size=lambda i, v: setattr(self.bg_rect, 'size', i.size))
+            Color(0.08, 0.1, 0.15, 0.94)
+            self.bg_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(8)])
+            Color(*COLORS['border_gold'])
+            self.border_line = Line(
+                rounded_rectangle=(self.x, self.y, self.width, self.height, dp(8)),
+                width=dp(1.2),
+            )
+        self.bind(
+            pos=lambda i, v: self._update_bg(),
+            size=lambda i, v: self._update_bg(),
+        )
 
         # ── Заголовок ──
         title = Label(
-            text='📋 АКТИВНЫЕ КВЕСТЫ',
+            text='[Квесты] АКТИВНЫЕ КВЕСТЫ',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(38),
@@ -70,6 +79,11 @@ class QuestsPopup(BoxLayout):
         self.add_widget(btn_close)
 
         self._build_quests()
+
+    def _update_bg(self):
+        self.bg_rect.pos = self.pos
+        self.bg_rect.size = self.size
+        self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(8))
 
     def _build_quests(self):
         """Заполнить список квестов."""
@@ -106,7 +120,7 @@ class QuestsPopup(BoxLayout):
 
             # Заголовок
             title_lbl = Label(
-                text=f"📜 {quest.title.upper()}",
+                text=f"[Свиток] {quest.title.upper()}",
                 font_size=dp(15),
                 size_hint_y=None,
                 height=dp(26),
@@ -143,7 +157,7 @@ class QuestsPopup(BoxLayout):
 
             # Награда
             reward_lbl = Label(
-                text=f"💰 {quest.reward_gold} монет | ✨ {quest.reward_xp} XP",
+                text=f"[Монеты] {quest.reward_gold} монет | [Опыт] {quest.reward_xp} XP",
                 font_size=dp(11),
                 size_hint_y=None,
                 height=dp(18),

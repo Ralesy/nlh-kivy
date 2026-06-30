@@ -352,8 +352,8 @@ class Player(Creature):
             )
             self.health = self.max_health
             self.skill_points_available += 1
-            msgs.append(f"🎉 Уровень! {self.name} Lv {self.level}")
-            msgs.append("📊 +1 очко для распределения")
+            msgs.append(f"[Победа] Уровень! {self.name} Lv {self.level}")
+            msgs.append("[Статистика] +1 очко для распределения")
 
         if old_exp != self.experience:
             self.notify_listeners("experience", old=old_exp, new=self.experience)

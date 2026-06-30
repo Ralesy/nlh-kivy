@@ -43,9 +43,9 @@ class Location:
     def display_status(self) -> str:
         """Отображение статуса локации."""
         if self.is_locked:
-            return f"🔒 {self.name}"
+            return f"[Закрыто] {self.name}"
         elif self.visited:
-            return f"✅ {self.name}"
+            return f"[Да] {self.name}"
         else:
             return f"📍 {self.name}"
 
@@ -75,7 +75,7 @@ class LocationManager:
         # Город — всегда доступен
         self.locations["city"] = Location(
             "city",
-            "🏛️ Город",
+            "[Город] Город",
             "Главный город региона",
             difficulty=0,
             is_locked=False,

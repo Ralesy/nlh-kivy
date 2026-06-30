@@ -41,7 +41,7 @@ class ActiveQuestsScreen(Screen, KeyboardHandler):
         
         # Заголовок
         title_label = Label(
-            text='📋 АКТИВНЫЕ КВЕСТЫ',
+            text='[Квесты] АКТИВНЫЕ КВЕСТЫ',
             font_size=dp(28),
             size_hint_y=None,
             height=dp(60),
@@ -126,7 +126,7 @@ class ActiveQuestsScreen(Screen, KeyboardHandler):
             
             # Заголовок квеста
             quest_title = Label(
-                text=f"📜 {quest.title.upper()}",
+                text=f"[Свиток] {quest.title.upper()}",
                 font_size=dp(16),
                 size_hint_y=None,
                 height=dp(30),
@@ -166,8 +166,8 @@ class ActiveQuestsScreen(Screen, KeyboardHandler):
             
             # Награда
             reward_text = (
-                f"💰 {quest.reward_gold} монет | "
-                f"✨ {quest.reward_xp} XP"
+                f"[Монеты] {quest.reward_gold} монет | "
+                f"[Опыт] {quest.reward_xp} XP"
             )
             reward_label = Label(
                 text=reward_text,

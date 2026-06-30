@@ -62,7 +62,7 @@ class CompanionsPopup(BoxLayout):
 
         # ── Заголовок ──
         title = Label(
-            text='🤝 СПУТНИКИ',
+            text='[Спутник] СПУТНИКИ',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(34),
@@ -80,7 +80,7 @@ class CompanionsPopup(BoxLayout):
         info_box.bind(minimum_height=info_box.setter('height'))
         # Заголовок секции
         section_title = Label(
-            text='📋 ИНФОРМАЦИЯ',
+            text='[Квесты] ИНФОРМАЦИЯ',
             font_size=dp(13),
             size_hint_y=None,
             height=dp(20),
@@ -104,7 +104,7 @@ class CompanionsPopup(BoxLayout):
         actions_box.bind(minimum_height=actions_box.setter('height'))
 
         action_title = Label(
-            text='🎮 ДЕЙСТВИЯ',
+            text='[Действие] ДЕЙСТВИЯ',
             font_size=dp(13),
             size_hint_y=None,
             height=dp(20),
@@ -124,7 +124,7 @@ class CompanionsPopup(BoxLayout):
         }
 
         self.btn_heal = Button(
-            text='💚 Лечить зельем',
+            text='[HP] Лечить зельем',
             background_color=(0.35, 0.55, 0.30, 0.9),
             color=(1, 1, 1, 1),
             **btn_style,
@@ -133,7 +133,7 @@ class CompanionsPopup(BoxLayout):
         actions_box.add_widget(self.btn_heal)
 
         self.btn_equip_weapon = Button(
-            text='⚔️ Экипировать оружие',
+            text='[Бой] Экипировать оружие',
             background_color=(0.25, 0.30, 0.40, 0.9),
             color=(1, 1, 1, 1),
             **btn_style,
@@ -142,7 +142,7 @@ class CompanionsPopup(BoxLayout):
         actions_box.add_widget(self.btn_equip_weapon)
 
         self.btn_equip_armor = Button(
-            text='🛡️ Экипировать броню',
+            text='[Защита] Экипировать броню',
             background_color=(0.25, 0.30, 0.40, 0.9),
             color=(1, 1, 1, 1),
             **btn_style,
@@ -151,7 +151,7 @@ class CompanionsPopup(BoxLayout):
         actions_box.add_widget(self.btn_equip_armor)
 
         self.btn_unequip_weapon = Button(
-            text='⚔️ Снять оружие',
+            text='[Бой] Снять оружие',
             background_color=(0.30, 0.25, 0.25, 0.9),
             color=(1, 1, 1, 1),
             **btn_style,
@@ -160,7 +160,7 @@ class CompanionsPopup(BoxLayout):
         actions_box.add_widget(self.btn_unequip_weapon)
 
         self.btn_unequip_armor = Button(
-            text='🛡️ Снять броню',
+            text='[Защита] Снять броню',
             background_color=(0.30, 0.25, 0.25, 0.9),
             color=(1, 1, 1, 1),
             **btn_style,
@@ -169,7 +169,7 @@ class CompanionsPopup(BoxLayout):
         actions_box.add_widget(self.btn_unequip_armor)
 
         self.btn_dismiss = Button(
-            text='❌ Отпустить',
+            text='[Нет] Отпустить',
             background_color=(0.55, 0.25, 0.20, 0.9),
             color=(1, 1, 1, 1),
             **btn_style,
@@ -223,12 +223,12 @@ class CompanionsPopup(BoxLayout):
         armor_name = companion.armor.name if companion.armor else 'Нет'
 
         texts = [
-            f"🤝 {companion.name} ({companion.role})",
-            f"💚 HP: {companion.health}/{companion.max_health}",
-            f"⚔️ Урон: {companion.damage}",
-            f"🛡️ Защита: {companion.defense}",
-            f"⚔️ Оружие: {weapon_name}",
-            f"🛡️ Броня: {armor_name}",
+            f"[Спутник] {companion.name} ({companion.role})",
+            f"[HP] HP: {companion.health}/{companion.max_health}",
+            f"[Бой] Урон: {companion.damage}",
+            f"[Защита] Защита: {companion.defense}",
+            f"[Бой] Оружие: {weapon_name}",
+            f"[Защита] Броня: {armor_name}",
         ]
         for lbl, text in zip(self._info_labels, texts):
             lbl.text = text
@@ -304,7 +304,7 @@ class CompanionsPopup(BoxLayout):
                 break
 
         result = Popup(
-            title='✅ Лечение',
+            title='[Да] Лечение',
             content=Label(
                 text=f"{companion.name} восстановил {healed} HP!\n({companion.health}/{companion.max_health} HP)",
             ),
@@ -367,7 +367,7 @@ class CompanionsPopup(BoxLayout):
         content.add_widget(btn_cancel)
 
         equip_popup = Popup(
-            title=f'⚔️ Выбор {type_name}',
+            title=f'[Бой] Выбор {type_name}',
             content=content,
             size_hint=(0.7, 0.5),
             background='',
@@ -400,7 +400,7 @@ class CompanionsPopup(BoxLayout):
                 break
 
         result = Popup(
-            title='✅ Экипировка',
+            title='[Да] Экипировка',
             content=Label(text=f"{companion.name} экипирован {item.display_name()}!"),
             size_hint=(0.6, 0.3),
             background='',
@@ -434,7 +434,7 @@ class CompanionsPopup(BoxLayout):
         if item:
             self.player.inventory.add(item, 1)
             result = Popup(
-                title='✅ Снято',
+                title='[Да] Снято',
                 content=Label(text=f"{item.display_name()} возвращено в инвентарь!"),
                 size_hint=(0.6, 0.3),
                 background='',

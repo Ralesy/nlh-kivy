@@ -15,7 +15,9 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, Line, RoundedRectangle
+
+from ui.ui_styles import COLORS
 
 from data.items import Weapon, Armor, Potion, WEAPON_MATERIALS, ARMOR_MATERIALS
 
@@ -31,16 +33,23 @@ class InventoryPopup(BoxLayout):
         self.player = player
         self.on_done = on_done
 
-        # Полупрозрачный фон
+        # Фон — тёмный полупрозрачный со скруглёнными углами
         with self.canvas.before:
-            Color(0.08, 0.1, 0.15, 0.92)
-            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
-        self.bind(pos=lambda i, v: setattr(self.bg_rect, 'pos', i.pos),
-                  size=lambda i, v: setattr(self.bg_rect, 'size', i.size))
+            Color(0.08, 0.1, 0.15, 0.94)
+            self.bg_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(8)])
+            Color(*COLORS['border_gold'])
+            self.border_line = Line(
+                rounded_rectangle=(self.x, self.y, self.width, self.height, dp(8)),
+                width=dp(1.2),
+            )
+        self.bind(
+            pos=lambda i, v: self._update_bg(),
+            size=lambda i, v: self._update_bg(),
+        )
 
         # ── Заголовок ──
         title = Label(
-            text='🎒 ИНВЕНТАРЬ',
+            text='[Инвентарь] ИНВЕНТАРЬ',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(38),
@@ -78,12 +87,18 @@ class InventoryPopup(BoxLayout):
             size_hint_y=None,
             height=dp(44),
             font_size=dp(16),
-            background_color=(0.25, 0.3, 0.4, 0.9),
+            background_color=(0.2, 0.22, 0.28, 0.95),
+            color=(0.9, 0.9, 0.9, 1),
         )
         btn_close.bind(on_press=self._close)
         self.add_widget(btn_close)
 
         self._refresh()
+
+    def _update_bg(self):
+        self.bg_rect.pos = self.pos
+        self.bg_rect.size = self.size
+        self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(8))
 
     def _refresh(self):
         """Обновить содержимое инвентаря."""
@@ -95,7 +110,7 @@ class InventoryPopup(BoxLayout):
         armor_name = p.armor.display_name() if p.armor else 'Нет'
         hp_str = f'{p.health}/{p.max_health}'
         self.equipment_label.text = (
-            f'❤️ {hp_str}   ⚔️ {weapon_name}   🛡️ {armor_name}'
+            f'[Сердце] {hp_str}   [Бой] {weapon_name}   [Защита] {armor_name}'
         )
 
         self.items_layout.clear_widgets()
@@ -125,7 +140,7 @@ class InventoryPopup(BoxLayout):
             card.bind(pos=lambda i, v: setattr(card_bg, 'pos', i.pos),
                       size=lambda i, v: setattr(card_bg, 'size', i.size))
 
-            # Верхняя строка: название + кнопка ℹ️
+            # Верхняя строка: название + кнопка [Инфо]
             top = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(30))
             label = Label(
                 text=f'{item.display_name()} x{qty}',
@@ -139,7 +154,7 @@ class InventoryPopup(BoxLayout):
             top.add_widget(label)
 
             btn_info = Button(
-                text='ℹ️',
+                text='[Инфо]',
                 size_hint_x=0.2,
                 size_hint_y=None,
                 height=dp(26),
@@ -268,7 +283,7 @@ class InventoryPopup(BoxLayout):
         target_popup.dismiss()
 
         result_popup = Popup(
-            title='✅ Зелье использовано',
+            title='[Да] Зелье использовано',
             content=Label(
                 text=f'{target.name} восстановил {healed} HP!\n'
                      f'({target.health}/{target.max_health} HP)',
@@ -291,17 +306,17 @@ class InventoryPopup(BoxLayout):
         lines.append(item.display_name())
 
         if isinstance(item, Weapon):
-            lines.append(f'⚔️ Урон: {item.damage_bonus}')
+            lines.append(f'[Бой] Урон: {item.damage_bonus}')
             mat = WEAPON_MATERIALS.get(item.material, 'неизвестный')
             lines.append(f'Материал: {mat}')
             lines.append(f'Состояние: {item.condition_display}')
         elif isinstance(item, Armor):
-            lines.append(f'🛡️ Защита: {item.defense}')
+            lines.append(f'[Защита] Защита: {item.defense}')
             mat = ARMOR_MATERIALS.get(item.material, 'неизвестная')
             lines.append(f'Материал: {mat}')
             lines.append(f'Состояние: {item.condition_display}')
         elif isinstance(item, Potion):
-            lines.append(f'💚 Восстанавливает: {item.heal_amount} HP')
+            lines.append(f'[HP] Восстанавливает: {item.heal_amount} HP')
 
         lines.append(f'Цена: {item.price} монет')
         if item.description:

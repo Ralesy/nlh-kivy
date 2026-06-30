@@ -83,7 +83,7 @@ class ShopPopup(BoxLayout):
 
         # ── Заголовок ──
         title = Label(
-            text='🛒 МАГАЗИН',
+            text='[Магазин] МАГАЗИН',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(34),
@@ -152,7 +152,7 @@ class ShopPopup(BoxLayout):
         self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(8))
 
     def _update_coins(self):
-        self.coins_label.text = f"Монеты: {self.player.coins} 💰"
+        self.coins_label.text = f"Монеты: {self.player.coins} [Монеты]"
 
     def _show_tab(self, tab):
         self._current_tab = tab
@@ -181,8 +181,8 @@ class ShopPopup(BoxLayout):
             self._price_mod = dm.get_price_modifier()
             pct = int((self._price_mod - 1.0) * 100) if self._price_mod > 1.0 else 0
             tier_name = dm.tier_name
-            icons = {"Безопасно": "🟢", "Повышенная опасность": "🟡", "Критическая опасность": "🟠", "Апокалипсис": "🔴"}
-            icon = icons.get(tier_name, "🟢")
+            icons = {"Безопасно": "[Зеленый]", "Повышенная опасность": "[Желтый]", "Критическая опасность": "[Оранжевый]", "Апокалипсис": "[Красный]"}
+            icon = icons.get(tier_name, "[Зеленый]")
             if pct > 0:
                 danger_text = f"{icon} {tier_name} | Цены +{pct}%"
 
@@ -210,7 +210,7 @@ class ShopPopup(BoxLayout):
 
             # Название + цена
             name_lbl = Label(
-                text=f"{item.display_name()} — {price}💰 ({q})",
+                text=f"{item.display_name()} — {price}[Монеты] ({q})",
                 font_size=dp(11),
                 size_hint_x=0.65,
                 halign='left',
@@ -219,8 +219,8 @@ class ShopPopup(BoxLayout):
             )
             card.add_widget(name_lbl)
 
-            # ℹ️
-            btn_info = _StyledShopBtn(text='ℹ️', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
+            # [Инфо]
+            btn_info = _StyledShopBtn(text='[Инфо]', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
             btn_info.bind(on_press=lambda x, it=item: self._item_info(it))
             card.add_widget(btn_info)
 
@@ -239,7 +239,7 @@ class ShopPopup(BoxLayout):
             card = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(42), spacing=dp(4))
 
             name_lbl = Label(
-                text=f"{item.display_name()} x{qty} → {price}💰",
+                text=f"{item.display_name()} x{qty} → {price}[Монеты]",
                 font_size=dp(11),
                 size_hint_x=0.65,
                 halign='left',
@@ -248,7 +248,7 @@ class ShopPopup(BoxLayout):
             )
             card.add_widget(name_lbl)
 
-            btn_info = _StyledShopBtn(text='ℹ️', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
+            btn_info = _StyledShopBtn(text='[Инфо]', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
             btn_info.bind(on_press=lambda x, it=item: self._item_info(it))
             card.add_widget(btn_info)
 
@@ -261,15 +261,15 @@ class ShopPopup(BoxLayout):
     def _item_info(self, item):
         info = f"{item.display_name()}\n\n"
         if isinstance(item, Weapon):
-            info += f"⚔️ Урон: {item.damage_bonus}\n"
+            info += f"[Бой] Урон: {item.damage_bonus}\n"
             info += f"Материал: {WEAPON_MATERIALS.get(item.material, '?')}\n"
             info += f"Состояние: {item.condition_display}\n"
         elif isinstance(item, Armor):
-            info += f"🛡️ Защита: {item.defense}\n"
+            info += f"[Защита] Защита: {item.defense}\n"
             info += f"Материал: {ARMOR_MATERIALS.get(item.material, '?')}\n"
             info += f"Состояние: {item.condition_display}\n"
         elif isinstance(item, Potion):
-            info += f"💚 Восстанавливает: {item.heal_amount} HP\n"
+            info += f"[HP] Восстанавливает: {item.heal_amount} HP\n"
         info += f"Цена: {item.price} монет\n"
         if item.description:
             info += f"\n📝 {item.description}"

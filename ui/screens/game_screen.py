@@ -92,7 +92,7 @@ class GameScreen(Screen, KeyboardHandler):
         menu_layout = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_x=0.4)
         
         btn_city = StyledButton(
-            text='🏛️ ГОРОД',
+            text='[Город] ГОРОД',
             color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
@@ -102,7 +102,7 @@ class GameScreen(Screen, KeyboardHandler):
         menu_layout.add_widget(btn_city)
         
         btn_inventory = StyledButton(
-            text='🎒 ИНВЕНТАРЬ',
+            text='[Инвентарь] ИНВЕНТАРЬ',
             color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
@@ -112,7 +112,7 @@ class GameScreen(Screen, KeyboardHandler):
         menu_layout.add_widget(btn_inventory)
 
         btn_locations = StyledButton(
-            text='🗺️ ЛОКАЦИИ',
+            text='[Карта] ЛОКАЦИИ',
             color=COLORS['gold'],
             size_hint_y=None,
             height=dp(55),
@@ -122,7 +122,7 @@ class GameScreen(Screen, KeyboardHandler):
         menu_layout.add_widget(btn_locations)
         
         btn_status = StyledButton(
-            text='📊 СТАТУС',
+            text='[Статистика] СТАТУС',
             color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
@@ -132,7 +132,7 @@ class GameScreen(Screen, KeyboardHandler):
         menu_layout.add_widget(btn_status)
 
         btn_companions = StyledButton(
-            text='🤝 СПУТНИКИ',
+            text='[Спутник] СПУТНИКИ',
             color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
@@ -142,7 +142,7 @@ class GameScreen(Screen, KeyboardHandler):
         menu_layout.add_widget(btn_companions)
 
         btn_quests = StyledButton(
-            text='📋 КВЕСТЫ',
+            text='[Квесты] КВЕСТЫ',
             color=COLORS['stone_light'],
             size_hint_y=None,
             height=dp(55),
@@ -185,7 +185,7 @@ class GameScreen(Screen, KeyboardHandler):
         p = self.game.player
         self.stats_label.text = (
             f"День {self.game.day} | Уровень {p.level} | "
-            f"💰 {p.coins} | XP: {p.experience}/{p.level*100}\n"
+            f"[Монеты] {p.coins} | XP: {p.experience}/{p.level*100}\n"
             f"HP: {p.health}/{p.max_health} | DMG: {p.damage} | DEF: {p.defense}"
         )
     
@@ -291,7 +291,7 @@ class GameScreen(Screen, KeyboardHandler):
         if getattr(location, 'is_locked', False):
             condition_text = getattr(location, 'unlock_condition', None) or 'Эта локация пока недоступна.'
             popup = Popup(
-                title=f'🔒 {location.name}',
+                title=f'[Закрыто] {location.name}',
                 content=Label(text=f"Требования для разблокировки:\n{condition_text}", font_size=dp(18)),
                 size_hint=(0.7, 0.4),
                 background='',
@@ -464,7 +464,7 @@ class GameScreen(Screen, KeyboardHandler):
             if self.game.save_to_file(name):
                 popup.dismiss()
                 popup2 = Popup(
-                    title='✅ Успех',
+                    title='[Да] Успех',
                     content=Label(
                         text=f'Игра сохранена как "{name}"',
                         font_size=dp(18),
@@ -478,7 +478,7 @@ class GameScreen(Screen, KeyboardHandler):
             else:
                 popup.dismiss()
                 popup2 = Popup(
-                    title='❌ Ошибка',
+                    title='[Нет] Ошибка',
                     content=Label(
                         text='Ошибка сохранения.',
                         font_size=dp(18),

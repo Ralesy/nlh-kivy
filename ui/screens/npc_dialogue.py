@@ -89,7 +89,7 @@ class NPCDialogueScreen(Screen):
         btn_layout.height = dp(150)
 
         self.btn_accept_quest = Button(
-            text='✅ Принять квест',
+            text='[Да] Принять квест',
             size_hint_y=None,
             height=dp(50),
             background_color=COLORS['hp_green']
@@ -111,7 +111,7 @@ class NPCDialogueScreen(Screen):
         btn_layout.add_widget(self.btn_claim_reward)
 
         self.btn_reject_quest = Button(
-            text='❌ Отклонить',
+            text='[Нет] Отклонить',
             size_hint_y=None,
             height=dp(50),
             background_color=COLORS['hp_red']
@@ -163,7 +163,7 @@ class NPCDialogueScreen(Screen):
             if quest.state == QuestState.ACTIVE:
                 if quest.is_complete():
                     dialogue += (
-                        f"\n\n🎉 КВЕСТ ВЫПОЛНЕН!\n"
+                        f"\n\n[Победа] КВЕСТ ВЫПОЛНЕН!\n"
                         f"Награда: {quest.reward_gold} монет, "
                         f"{quest.reward_xp} XP\n"
                     )
@@ -173,7 +173,7 @@ class NPCDialogueScreen(Screen):
                     self.btn_reject_quest.disabled = True
                 else:
                     dialogue += (
-                        f"\n\n📜 АКТИВНЫЙ КВЕСТ:\n"
+                        f"\n\n[Свиток] АКТИВНЫЙ КВЕСТ:\n"
                         f"Тип: {quest.quest_type.value}\n"
                         f"{quest.progress_display()}\n"
                         f"Награда: {quest.reward_gold} монет, "
@@ -185,7 +185,7 @@ class NPCDialogueScreen(Screen):
                     self.btn_reject_quest.disabled = True
             elif quest.state == QuestState.NOT_TAKEN:
                 dialogue += (
-                    f"\n\n📜 ПРЕДЛОЖЕНИЕ:\n"
+                    f"\n\n[Свиток] ПРЕДЛОЖЕНИЕ:\n"
                     f"Тип: {quest.quest_type.value}\n"
                 )
 
@@ -207,7 +207,7 @@ class NPCDialogueScreen(Screen):
             # Проверяем есть ли активный квест от этого NPC
             if has_active_quest_from_npc:
                 dialogue += (
-                    f"\n\n📋 У вас уже есть активный квест "
+                    f"\n\n[Квесты] У вас уже есть активный квест "
                     f"от этого NPC.\n"
                     f"Завершите его, чтобы взять новый!\n"
                 )
@@ -221,7 +221,7 @@ class NPCDialogueScreen(Screen):
                 npc.offer_quest(quest)  # Устанавливаем квест у NPC
 
                 dialogue += (
-                    f"\n\n📜 ПРЕДЛОЖЕНИЕ:\n"
+                    f"\n\n[Свиток] ПРЕДЛОЖЕНИЕ:\n"
                     f"Тип: {quest.quest_type.value}\n"
                 )
 
@@ -260,13 +260,13 @@ class NPCDialogueScreen(Screen):
             dm = app.game.danger_manager
             from systems.danger_manager import QUEST_DANGER_REDUCTION
             danger_hint = (
-                f"\n\n🛡️ Сдача квеста снизит опасность "
+                f"\n\n[Защита] Сдача квеста снизит опасность "
                 f"на {QUEST_DANGER_REDUCTION:.0f}% "
                 f"(сейчас: {dm.danger_level:.0f}%)"
             )
 
         popup = Popup(
-            title='✅ Квест принят!',
+            title='[Да] Квест принят!',
             content=Label(
                 text=f"Вы приняли квест от {npc_class_name}" + danger_hint,
                 text_size=(None, None),
@@ -290,7 +290,7 @@ class NPCDialogueScreen(Screen):
             self.current_npc.reject_quest()
 
         popup = Popup(
-            title='❌ Квест отклонен',
+            title='[Нет] Квест отклонен',
             content=Label(
                 text='Может быть в другой раз.',
                 font_size=dp(18)
@@ -331,7 +331,7 @@ class NPCDialogueScreen(Screen):
             reduction = app.game.danger_manager.on_quest_completed()
             if reduction > 0:
                 danger_msg = (
-                    f"\n\n🛡️ Опасность снижена на "
+                    f"\n\n[Защита] Опасность снижена на "
                     f"{reduction:.0f}% "
                     f"(теперь "
                     f"{app.game.danger_manager.danger_level:.0f}%)"

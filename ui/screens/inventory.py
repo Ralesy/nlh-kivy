@@ -43,7 +43,7 @@ class InventoryScreen(Screen, KeyboardHandler):
             )
 
         title = Label(
-            text="🎒 ИНВЕНТАРЬ",
+            text="[Инвентарь] ИНВЕНТАРЬ",
             font_size=dp(40),
             size_hint_y=None,
             height=dp(70),
@@ -99,8 +99,8 @@ class InventoryScreen(Screen, KeyboardHandler):
         weapon_name = p.weapon.name if p.weapon else "Нет"
         armor_name = p.armor.name if p.armor else "Нет"
         self.equipment_label.text = (
-            f"⚔️ Оружие: {weapon_name}\n"
-            f"🛡️ Броня: {armor_name}"
+            f"[Бой] Оружие: {weapon_name}\n"
+            f"[Защита] Броня: {armor_name}"
         )
 
         self.items_layout.clear_widgets()
@@ -117,7 +117,7 @@ class InventoryScreen(Screen, KeyboardHandler):
             top_layout.add_widget(item_label)
 
             btn_info = Button(
-                text="ℹ️",
+                text="[Инфо]",
                 size_hint_x=0.1,
                 background_color=COLORS["stone_light"],
             )
@@ -166,17 +166,17 @@ class InventoryScreen(Screen, KeyboardHandler):
         lines.append(item.display_name())
 
         if isinstance(item, Weapon):
-            lines.append(f"⚔️ Урон: {item.damage_bonus}")
+            lines.append(f"[Бой] Урон: {item.damage_bonus}")
             mat = WEAPON_MATERIALS.get(item.material, "неизвестный")
             lines.append(f"Материал: {mat}")
             lines.append(f"Состояние: {item.condition_display}")
         elif isinstance(item, Armor):
-            lines.append(f"🛡️ Защита: {item.defense}")
+            lines.append(f"[Защита] Защита: {item.defense}")
             mat = ARMOR_MATERIALS.get(item.material, "неизвестная")
             lines.append(f"Материал: {mat}")
             lines.append(f"Состояние: {item.condition_display}")
         elif isinstance(item, Potion):
-            lines.append(f"💚 Восстанавливает: {item.heal_amount} HP")
+            lines.append(f"[HP] Восстанавливает: {item.heal_amount} HP")
 
         lines.append(f"Цена: {item.price} монет")
         if item.description:
@@ -233,7 +233,7 @@ class InventoryScreen(Screen, KeyboardHandler):
             if app.game.player.equip_weapon(item):
                 popup = Popup(
                     title="Успех",
-                    content=Label(text=f"✅ Экипировано {item.display_name()}"),
+                    content=Label(text=f"[Да] Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),
@@ -254,7 +254,7 @@ class InventoryScreen(Screen, KeyboardHandler):
             if app.game.player.equip_armor(item):
                 popup = Popup(
                     title="Успех",
-                    content=Label(text=f"✅ Экипировано {item.display_name()}"),
+                    content=Label(text=f"[Да] Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),
@@ -342,7 +342,7 @@ class InventoryScreen(Screen, KeyboardHandler):
             popup.dismiss()
 
         result_popup = Popup(
-            title="✅ Зелье использовано",
+            title="[Да] Зелье использовано",
             content=Label(
                 text=f"{target.name} восстановил {healed} HP!\n"
                      f"({target.health}/{target.max_health} HP)",
@@ -366,7 +366,7 @@ class InventoryScreen(Screen, KeyboardHandler):
             if app.game.player.unequip_weapon():
                 popup = Popup(
                     title="Успех",
-                    content=Label(text="✅ Оружие снято."),
+                    content=Label(text="[Да] Оружие снято."),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),
@@ -377,7 +377,7 @@ class InventoryScreen(Screen, KeyboardHandler):
             if app.game.player.unequip_armor():
                 popup = Popup(
                     title="Успех",
-                    content=Label(text="✅ Броня снята."),
+                    content=Label(text="[Да] Броня снята."),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),
@@ -397,7 +397,7 @@ class BattleInventoryScreen(Screen):
 
         layout = BoxLayout(orientation="vertical", padding=dp(10), spacing=dp(10))
 
-        title = Label(text="🎒 ИНВЕНТАРЬ В БОЮ", font_size=dp(32), size_hint_y=None, height=dp(60))
+        title = Label(text="[Инвентарь] ИНВЕНТАРЬ В БОЮ", font_size=dp(32), size_hint_y=None, height=dp(60))
         layout.add_widget(title)
 
         self.player_info = Label(
@@ -553,7 +553,7 @@ class BattleInventoryScreen(Screen):
             if p.equip_weapon(item):
                 popup = Popup(
                     title="Успех",
-                    content=Label(text=f"✅ Экипировано {item.display_name()}"),
+                    content=Label(text=f"[Да] Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),
@@ -575,7 +575,7 @@ class BattleInventoryScreen(Screen):
             if p.equip_armor(item):
                 popup = Popup(
                     title="Успех",
-                    content=Label(text=f"✅ Экипировано {item.display_name()}"),
+                    content=Label(text=f"[Да] Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),
@@ -605,7 +605,7 @@ class BattleInventoryScreen(Screen):
             if p.unequip_weapon():
                 popup = Popup(
                     title="Успех",
-                    content=Label(text="✅ Оружие снято."),
+                    content=Label(text="[Да] Оружие снято."),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),
@@ -617,7 +617,7 @@ class BattleInventoryScreen(Screen):
             if p.unequip_armor():
                 popup = Popup(
                     title="Успех",
-                    content=Label(text="✅ Броня снята."),
+                    content=Label(text="[Да] Броня снята."),
                     size_hint=(0.6, 0.3),
                     background='',
                     background_color=(0, 0, 0, 0),

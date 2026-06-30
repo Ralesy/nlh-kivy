@@ -16,28 +16,28 @@ class MapWidget(BoxLayout):
     
     LOCATION_INFO = {
         'forest': {
-            'name': '🌲 Лес Криволесье',
+            'name': '[Лес] Лес Криволесье',
             'desc': 'Легкие враги\nСобытия',
             'difficulty': 'Легко',
             'color': (0.45, 0.33, 0.20, 1),
             'pos': (-100, 100)
         },
         'swamp': {
-            'name': '🏞️ Болота Гниющие Топи',
+            'name': '[Болото] Болота Гниющие Топи',
             'desc': 'Средние враги\nТопи',
             'difficulty': 'Средне',
             'color': (0.40, 0.30, 0.20, 1),
             'pos': (-100, 0)
         },
         'mines': {
-            'name': '⛏️ Шахты Подскальные Гроты',
+            'name': '[Шахты] Шахты Подскальные Гроты',
             'desc': 'Сложные враги\nСокровища',
             'difficulty': 'Сложно',
             'color': (0.38, 0.28, 0.18, 1),
             'pos': (100, 0)
         },
         'mountains': {
-            'name': '⛰️ Горы Хребет Драконов',
+            'name': '[Горы] Горы Хребет Драконов',
             'desc': 'Очень сложные враги\nДраконы',
             'difficulty': 'Очень сложно',
             'color': (0.47, 0.34, 0.22, 1),
@@ -61,7 +61,7 @@ class MapWidget(BoxLayout):
             self.bind(pos=self.update_bg, size=self.update_bg)
         
         map_title = Label(
-            text='🗺️ КАРТА МИРА',
+            text='[Карта] КАРТА МИРА',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(35),

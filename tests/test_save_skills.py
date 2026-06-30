@@ -49,21 +49,21 @@ print(f"Урон: {loaded_player.damage}")
 # Проверка
 print("\n=== ПРОВЕРКА ===")
 if loaded_player.luck == player.luck:
-    print("✅ Удача сохранена и загружена правильно!")
+    print("[Да] Удача сохранена и загружена правильно!")
 else:
-    print(f"❌ Ошибка удачи: ожидали {player.luck}, получили {loaded_player.luck}")
+    print(f"[Нет] Ошибка удачи: ожидали {player.luck}, получили {loaded_player.luck}")
 
 if loaded_player.selling_multiplier == player.selling_multiplier:
-    print("✅ Сила продажи сохранена и загружена правильно!")
+    print("[Да] Сила продажи сохранена и загружена правильно!")
 else:
-    print(f"❌ Ошибка продажи: ожидали {player.selling_multiplier}, получили {loaded_player.selling_multiplier}")
+    print(f"[Нет] Ошибка продажи: ожидали {player.selling_multiplier}, получили {loaded_player.selling_multiplier}")
 
 if loaded_player.damage == player.damage:
-    print("✅ Урон сохранён и загружен правильно!")
+    print("[Да] Урон сохранён и загружен правильно!")
 else:
-    print(f"❌ Ошибка урона: ожидали {player.damage}, получили {loaded_player.damage}")
+    print(f"[Нет] Ошибка урона: ожидали {player.damage}, получили {loaded_player.damage}")
 
 if loaded_player.skill_points_allocated == player.skill_points_allocated:
-    print("✅ Распределение навыков сохранено и загружено правильно!")
+    print("[Да] Распределение навыков сохранено и загружено правильно!")
 else:
-    print(f"❌ Ошибка навыков: ожидали {player.skill_points_allocated}, получили {loaded_player.skill_points_allocated}")
+    print(f"[Нет] Ошибка навыков: ожидали {player.skill_points_allocated}, получили {loaded_player.skill_points_allocated}")

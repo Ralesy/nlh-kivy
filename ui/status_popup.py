@@ -86,7 +86,7 @@ class StatusPopup(BoxLayout):
 
         # ── Заголовок ──
         title = Label(
-            text='⚔️ ПЕРСОНАЖ',
+            text='[Бой] ПЕРСОНАЖ',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(34),
@@ -102,7 +102,7 @@ class StatusPopup(BoxLayout):
             padding=(dp(4), dp(2)), spacing=dp(1),
         )
         info_widgets.bind(minimum_height=info_widgets.setter('height'))
-        info_widgets.add_widget(_TitleLabel(text='🎯 ОБЩАЯ ИНФОРМАЦИЯ'))
+        info_widgets.add_widget(_TitleLabel(text='[Цель] ОБЩАЯ ИНФОРМАЦИЯ'))
         for _ in range(4):
             lbl = _InfoLabel()
             self._info_labels.append(lbl)
@@ -116,7 +116,7 @@ class StatusPopup(BoxLayout):
             padding=(dp(4), dp(2)), spacing=dp(1),
         )
         stat_widgets.bind(minimum_height=stat_widgets.setter('height'))
-        stat_widgets.add_widget(_TitleLabel(text='💪 ХАРАКТЕРИСТИКИ'))
+        stat_widgets.add_widget(_TitleLabel(text='[Сила] ХАРАКТЕРИСТИКИ'))
         for _ in range(5):
             lbl = _InfoLabel()
             self._stat_labels.append(lbl)
@@ -129,7 +129,7 @@ class StatusPopup(BoxLayout):
             padding=(dp(4), dp(2)), spacing=dp(1),
         )
         skill_widgets.bind(minimum_height=skill_widgets.setter('height'))
-        skill_widgets.add_widget(_TitleLabel(text='📊 ОЧКИ НАВЫКОВ'))
+        skill_widgets.add_widget(_TitleLabel(text='[Статистика] ОЧКИ НАВЫКОВ'))
         self._pts_label = _InfoLabel()
         skill_widgets.add_widget(self._pts_label)
 
@@ -210,7 +210,7 @@ class StatusPopup(BoxLayout):
         info_texts = [
             f"Имя: {p.name}",
             f"Класс: {bg_display}",
-            f"Уровень: {p.level}  ⭐",
+            f"Уровень: {p.level}  [Уровень]",
             f"День: {app.game.day}  📅" if app.game else "День: 1",
         ]
         info_colors = [
@@ -228,8 +228,8 @@ class StatusPopup(BoxLayout):
 
         stat_texts = [
             (f"HP:  {p.health} / {p.max_health}  ({hp_pct:.0f}%)", (0.75, 0.30, 0.25, 1)),
-            (f"Урон:  {p.damage}  ⚔️", (0.85, 0.55, 0.20, 1) if p.damage >= 15 else COLORS['gold_light']),
-            (f"Защита:  {p.defense}  🛡️", (0.35, 0.50, 0.70, 1)),
+            (f"Урон:  {p.damage}  [Бой]", (0.85, 0.55, 0.20, 1) if p.damage >= 15 else COLORS['gold_light']),
+            (f"Защита:  {p.defense}  [Защита]", (0.35, 0.50, 0.70, 1)),
             (f"Крит. шанс:  {crit_pct}%", COLORS['gold_light']),
             (f"Скорость:  {p.move_speed}  💨", (0.45, 0.60, 0.35, 1)),
         ]

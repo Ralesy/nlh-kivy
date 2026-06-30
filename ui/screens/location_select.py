@@ -22,7 +22,7 @@ from kivy.logger import Logger
 
 from ui.ui_styles import COLORS, BUTTONS_DIR
 from data.locations import LocationManager
-from data.local_scenes import enter_local_scene, resolve_global_map_background
+from data.local_scenes import enter_local_scene, resolve_global_map_background, scene_background_path
 from ui.widgets.cover_background import cover_background_image
 from ui.widgets.danger_bar import DangerBar
 from ui.bindings.keyboard_handler import KeyboardHandler
@@ -112,7 +112,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             )
 
         title_label = Label(
-            text='🗺️ Карта региона',
+            text='[Карта] Карта региона',
             font_size=dp(22),
             size_hint_y=None,
             height=dp(48),
@@ -1039,13 +1039,13 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
     def _get_location_text(self, location):
         """Получить текст кнопки локации."""
-        lock_icon = '🔐' if location.is_locked else '🔓'
+        lock_icon = '🔐' if location.is_locked else '[Открыто]'
         text = f"{lock_icon} {location.name}"
 
         if location.is_locked and location.unlock_condition:
-            text += f"\n⚠️ {location.unlock_condition}"
+            text += f"\n[Внимание] {location.unlock_condition}"
         else:
-            text += f"\n✅ Доступна"
+            text += f"\n[Да] Доступна"
 
         return text
 
@@ -1361,7 +1361,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 self.roaming_manager.reset_token(member.get("token_id", main_token_id), cooldown=10.0)
 
     def _start_boss_battle(self, encounter_data: dict):
-        """Запустить turn-based битву с боссом прямо с глобальной карты."""
+        """Запустить битву с боссом на глобальной карте с фоновой заставкой."""
         try:
             app = App.get_running_app()
             if not app.game or not app.game.player:
@@ -1371,7 +1371,6 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             enemy_type = encounter_data.get("enemy_type", "")
             boss_name = encounter_data.get("name", "Босс")
 
-            # Определяем номер босса из token_id (boss_001 → 1)
             boss_num = None
             if token_id.startswith("boss_"):
                 try:
@@ -1389,15 +1388,30 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 Logger.error(f"GlobalMap: Failed to generate boss: {enemy_type}")
                 return
 
-            # Запоминаем данные босса для обработки после битвы
+            # Создаём ambush-сцену для босса с фоном
+            boss_zone_map = {
+                1: "forest",
+                2: "swamp",
+                3: "mines",
+                4: "mountains",
+            }
+            zone_id = boss_zone_map.get(boss_num, "forest")
+            enemies_data = [{"enemy_type": enemy_type, "name": boss_name}]
+
+            # Устанавливаем данные для обработки после битвы
             app._boss_battle_boss_num = boss_num
             app._boss_battle_token_id = token_id
             app._boss_battle_active = True
+            app._pending_boss_battle_creature = boss_creature
 
-            battlefield, _ = app.game.create_battle([boss_creature])
-            if hasattr(app, 'battle_screen'):
-                app.battle_screen.start_battle(battlefield, f"👑 {boss_name}")
-                app.root.current = 'battle'
+            # Переходим в локальную сцену с фоном (как засада)
+            screen = getattr(app, 'local_location_screen', None)
+            if not screen:
+                return
+            screen.setup_ambush_scene(enemies_data=enemies_data, zone_id=zone_id)
+            mgr = screen.manager
+            if mgr:
+                mgr.current = "local_location"
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -1499,7 +1513,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         content.add_widget(scroll)
 
         btn_ok = Btn(
-            text='☠️ Я помню…',
+            text='[Смерть] Я помню…',
             size_hint_y=None,
             height=50,
             font_size=18,
@@ -1508,7 +1522,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         content.add_widget(btn_ok)
 
         popup = P(
-            title='💀 Поражение',
+            title='[Смерть] Поражение',
             content=content,
             size_hint=(0.7, 0.75),
             auto_dismiss=False,
@@ -2013,18 +2027,18 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 try:
                     battlefield, _ = app.game.create_battle([enemy])
                     if hasattr(app, 'battle_screen'):
-                        app.battle_screen.start_battle(battlefield, f"⚔️ Засада! {enemy_name}")
+                        app.battle_screen.start_battle(battlefield, f"[Бой] Засада! {enemy_name}")
                         app.root.current = 'battle'
                 except Exception as e:
                     print(f"[AMBUSH] Battle start error: {e}")
 
             popup = Popup(
-                title='⚠️ ЗАСАДА!',
+                title='[Внимание] ЗАСАДА!',
                 content=Label(
                     text=(
                         f'Опасность достигла максимума!\n\n'
                         f'На вас нападает: {enemy_name}!\n\n'
-                        f'🔴 Глобальная опасность: '
+                        f'[Красный] Глобальная опасность: '
                         f'{app.game.danger_manager.danger_level:.0f}%'
                     ),
                     text_size=(None, None),
@@ -2054,7 +2068,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             condition_text = f"Требования для разблокировки:\n{location.unlock_condition}"
 
         popup = Popup(
-            title=f'🔒 {location.name}',
+            title=f'[Закрыто] {location.name}',
             content=Label(
                 text=condition_text,
                 text_size=(None, None),

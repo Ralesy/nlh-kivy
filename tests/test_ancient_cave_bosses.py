@@ -61,4 +61,4 @@ def test_boss_generation():
 if __name__ == "__main__":
     test_boss_unlock_conditions()
     test_boss_generation()
-    print("\n✅ All Ancient Cave boss tests passed!")
+    print("\n[Да] All Ancient Cave boss tests passed!")

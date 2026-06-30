@@ -22,7 +22,7 @@ class EncounterDialog(Popup):
         self.encounter_data = encounter_data
         self._result_handler: Optional[Callable] = None
 
-        self.title = f"⚠️ {encounter_data.get('name', 'Столкновение')}"
+        self.title = f"[Внимание] {encounter_data.get('name', 'Столкновение')}"
         self.size_hint = (0.75, 0.55)
         self.auto_dismiss = False
 
@@ -105,16 +105,16 @@ class EncounterDialog(Popup):
         if random.random() < chance:
             self._show_result("flee", "🏃 Вы успешно сбежали!", (0.3, 0.8, 0.3, 1))
         else:
-            self._show_result("fight", "❌ Сбежать не удалось! Приготовьтесь к бою.", (0.9, 0.2, 0.2, 1))
+            self._show_result("fight", "[Нет] Сбежать не удалось! Приготовьтесь к бою.", (0.9, 0.2, 0.2, 1))
 
     def _try_bribe(self, action: dict):
         cost = action.get("cost", 50)
         app = App.get_running_app()
         if app and app.game and app.game.player and app.game.player.coins >= cost:
             app.game.player.coins -= cost
-            self._show_result("bribe_success", f"💰 Вы откупились {cost} монетами. Проход свободен.", (0.3, 0.8, 0.3, 1))
+            self._show_result("bribe_success", f"[Монеты] Вы откупились {cost} монетами. Проход свободен.", (0.3, 0.8, 0.3, 1))
         else:
-            self._show_result("insufficient_coins", "❌ Недостаточно монет! Попробуйте другой вариант.", (0.8, 0.6, 0.2, 1))
+            self._show_result("insufficient_coins", "[Нет] Недостаточно монет! Попробуйте другой вариант.", (0.8, 0.6, 0.2, 1))
 
     def _show_result(self, action_id: str, text: str, color: tuple):
         if action_id == "insufficient_coins":
@@ -170,7 +170,7 @@ class EncounterDialog(Popup):
         self.size_hint = (0.6, 0.35)
 
     def _restore_actions(self):
-        self.title = f"⚠️ {self.encounter_data.get('name', 'Столкновение')}"
+        self.title = f"[Внимание] {self.encounter_data.get('name', 'Столкновение')}"
         content = BoxLayout(orientation="vertical", spacing=dp(8), padding=dp(12))
 
         desc = self.encounter_data.get("dialogue", "")

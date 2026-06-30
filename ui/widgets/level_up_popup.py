@@ -18,7 +18,7 @@ class LevelUpPopup(Popup):
     def __init__(self, player, **kwargs):
         super().__init__(**kwargs)
         self._player = player
-        self.title = f"🎉 Уровень повышен! (Ур. {player.level})"
+        self.title = f"[Победа] Уровень повышен! (Ур. {player.level})"
         self.size_hint = (0.7, 0.5)
         self.auto_dismiss = False
 

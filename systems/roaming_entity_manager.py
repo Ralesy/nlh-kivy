@@ -578,28 +578,28 @@ class RoamingEntityManager:
         zone = self._zone_by_id(token.zone_id)
 
         if token.encounter_type == EncounterType.BOSS:
-            dialogue = f"👑 {token.name} преграждает вам путь! Вы чувствуете невероятную силу, исходящую от этого существа."
+            dialogue = f"[Босс] {token.name} преграждает вам путь! Вы чувствуете невероятную силу, исходящую от этого существа."
             actions = [
-                {"id": "fight", "label": "⚔️ Сразиться с боссом!", "type": "boss_fight"},
+                {"id": "fight", "label": "[Бой] Сразиться с боссом!", "type": "boss_fight"},
                 {"id": "flee", "label": "🏃 Отступить", "type": "flee", "chance": 0.3},
             ]
         elif token.encounter_type == EncounterType.WILD_BEAST:
             dialogue = f"{token.name} преграждает вам путь. Зверь явно голоден и готов к атаке."
             actions = [
-                {"id": "fight", "label": "⚔️ Вступить в бой", "type": "fight"},
+                {"id": "fight", "label": "[Бой] Вступить в бой", "type": "fight"},
                 {"id": "flee", "label": "🏃 Попытаться сбежать", "type": "flee", "chance": 0.6},
             ]
         elif token.encounter_type == EncounterType.BANDIT:
             dialogue = f"Эй, путник! Кошелёк или жизнь! — кричит {token.name}."
             actions = [
-                {"id": "fight", "label": "⚔️ Атаковать", "type": "fight"},
-                {"id": "bribe", "label": "💰 Откупиться (50 монет)", "type": "bribe", "cost": 50},
+                {"id": "fight", "label": "[Бой] Атаковать", "type": "fight"},
+                {"id": "bribe", "label": "[Монеты] Откупиться (50 монет)", "type": "bribe", "cost": 50},
                 {"id": "flee", "label": "🏃 Сбежать", "type": "flee", "chance": 0.4},
             ]
         else:
             dialogue = f"Вы столкнулись с {token.name}."
             actions = [
-                {"id": "fight", "label": "⚔️ Вступить в бой", "type": "fight"},
+                {"id": "fight", "label": "[Бой] Вступить в бой", "type": "fight"},
                 {"id": "flee", "label": "🏃 Сбежать", "type": "flee", "chance": 0.5},
             ]
 

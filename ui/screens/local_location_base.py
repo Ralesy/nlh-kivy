@@ -94,6 +94,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._update_event = None
         self._returning_from_battle = False
         self._active_zone = None
+        self._active_popup = None  # ссылка на открытый popup диалога/магазина
+        self._active_interact_entity = None  # entity NPC для отслеживания расстояния
         self._move = {"up": False, "down": False, "left": False, "right": False}
         self._player_invincible_timer = 0.0
         self._paused = False
@@ -173,10 +175,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self.scene_id = f"ambush_{zone_id}"
         self.location_id = zone_id
         zone_titles = {
-            "forest": "🌲 Засада в лесу",
-            "swamp": "🏞️ Засада на болотах",
-            "mines": "⛏️ Засада в шахтах",
-            "mountains": "⛰️ Засада в горах",
+            "forest": "[Лес] Засада в лесу",
+            "swamp": "[Болото] Засада на болотах",
+            "mines": "[Шахты] Засада в шахтах",
+            "mountains": "[Горы] Засада в горах",
         }
         self.location_name = zone_titles.get(zone_id, f"Засада в {zone_id}")
         # Создаём минимальный конфиг для засады (боевые сцены удалены)
@@ -227,6 +229,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self.btn_zone_action.text = "Войти"
         self._chase_block_label = None
         self._ambush_exit_block_label = None
+
+        # Если входим после загрузки битвы с боссом — сразу стартуем бой
+        pending_boss = getattr(app, "_pending_boss_battle_creature", None)
+        boss_battle_active = getattr(app, "_boss_battle_active", False)
 
         # Если мы в городе после поражения — показать нарратив
         if (self.scene_config and self.scene_config.scene_type == "city"
@@ -296,6 +302,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         if self._is_ambush and not self._returning_from_battle:
             Clock.schedule_once(lambda dt: self._trigger_ambush_starting_barks(), 0.3)
+
+        # Если это битва с боссом — сразу запускаем turn-based бой
+        if boss_battle_active and pending_boss:
+            app._pending_boss_battle_creature = None
+            Clock.schedule_once(lambda dt: self._start_boss_turn_battle(pending_boss), 0.5)
+
+        # Если вернулись из битвы с боссом — выходим на глобальную карту
+        if not boss_battle_active and getattr(app, "_boss_battle_returning", False):
+            app._boss_battle_returning = False
+            Clock.schedule_once(lambda dt: self._on_exit_location(), 0.1)
 
     def handle_keyboard_action(self, action: str, pressed: bool = True) -> bool:
         if action == "move_up":
@@ -1244,6 +1260,21 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._active_zone = None
         self._active_interact = None
 
+        # Если открыт popup диалога/магазина — проверяем, не ушёл ли игрок от NPC
+        if self._active_popup and self._active_interact_entity:
+            npc_ent = self._active_interact_entity
+            dx = px - npc_ent["x"]
+            dy = py - npc_ent["y"]
+            dist = (dx**2 + dy**2) ** 0.5
+            max_interact_dist = player_r + npc_ent["radius"] + dp(80)
+            if dist > max_interact_dist:
+                try:
+                    self._active_popup.dismiss()
+                except Exception:
+                    pass
+                self._active_popup = None
+                self._active_interact_entity = None
+
         for ent in self._entities:
             if ent["defeated"]:
                 if ent.get("type") not in ("enemy", "boss"):
@@ -1329,7 +1360,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 return
 
             def on_close():
+                self._active_popup = None
+                self._active_interact_entity = None
                 popup.dismiss()
+                self._active_interact = None
 
             shop_content = ShopPopup(player, on_done=on_close)
             popup = Popup(
@@ -1342,6 +1376,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 background_color=(0, 0, 0, 0),
                 separator_color=(0, 0, 0, 0),
             )
+            self._active_popup = popup
+            self._active_interact_entity = ent
             popup.open()
             return
 
@@ -1353,9 +1389,33 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         npc_id = ent.get("id")
         npc = app.npc_manager.get_npc(npc_id) if getattr(app, "npc_manager", None) else None
-        if npc and getattr(app, "npc_dialogue_screen", None):
-            app.npc_dialogue_screen.show_npc_dialogue(npc)
-            self.manager.current = "npc_dialogue"
+        if npc:
+            from ui.npc_dialogue_popup import NpcDialoguePopup
+
+            player = app.game.player if app.game else None
+            if not player:
+                return
+
+            def on_close():
+                self._active_popup = None
+                self._active_interact_entity = None
+                popup.dismiss()
+                self._active_interact = None
+
+            dialogue_content = NpcDialoguePopup(npc, npc_entity=ent, on_done=on_close)
+            popup = Popup(
+                title='',
+                content=dialogue_content,
+                size_hint=(0.35, 0.85),
+                pos_hint={'x': 0.02, 'y': 0.07},
+                auto_dismiss=True,
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
+            )
+            self._active_popup = popup
+            self._active_interact_entity = ent
+            popup.open()
 
     def _on_zone_action(self, *_args):
         """Переход в подлокацию, взаимодействие с NPC или обобрать труп."""
@@ -1625,7 +1685,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         btn_layout.add_widget(btn_no)
         content.add_widget(btn_layout)
         popup = Popup(
-            title='👑 Босс!',
+            title='[Босс] Босс!',
             content=content,
             size_hint=(0.7, 0.45),
             auto_dismiss=False,
@@ -1675,10 +1735,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             app._battle_from_local_location = True
             app.battle_screen.from_local_location = True
             if etype == "boss":
-                title = f"👑 {entity.get('name', creatures[0].name)}"
+                title = f"[Босс] {entity.get('name', creatures[0].name)}"
             else:
                 names = ", ".join(e.get("name", "?") for e in battle_group)
-                title = f"⚔️ {names}"
+                title = f"[Бой] {names}"
             app.battle_screen.start_battle(battlefield, title)
             self.manager.current = "battle"
         except Exception:
@@ -1816,7 +1876,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if not self._combat_status_label:
             from kivy.uix.label import Label
             self._combat_status_label = Label(
-                text="⚔ БОЙ",
+                text="[Бой] БОЙ",
                 size_hint=(None, None),
                 size=(dp(100), dp(30)),
                 font_size=dp(18),
@@ -1857,7 +1917,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         content.add_widget(scroll)
 
         btn_ok = Button(
-            text='☠️ Я помню…',
+            text='[Смерть] Я помню…',
             size_hint_y=None,
             height=dp(50),
             font_size=dp(18),
@@ -1866,7 +1926,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         content.add_widget(btn_ok)
 
         popup = Popup(
-            title='💀 Поражение',
+            title='[Смерть] Поражение',
             content=content,
             size_hint=(0.7, 0.75),
             auto_dismiss=False,
@@ -2334,6 +2394,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             getattr(app, "battle_result", None) and app.battle_result.victory
         )
 
+        # Если возвращаемся из битвы с боссом — устанавливаем флаг для выхода на глобальную карту
+        if getattr(app, "_boss_battle_active", False):
+            app._boss_battle_returning = True
+
         if victory and self._current_battle_group:
             for ent in self._current_battle_group:
                 if ent.get("type") in ("enemy", "boss"):
@@ -2369,7 +2433,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 if etype == "enemy":
                     tip = f"{ent['name']} (Lv.{ent['level']})"
                 elif etype == "boss":
-                    tip = f"👑 {ent['name']} (босс)"
+                    tip = f"[Босс] {ent['name']} (босс)"
                 elif etype == "zone":
                     tip = ent.get("description", "Зона")
                 elif etype == "npc":
@@ -2663,6 +2727,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._save_player_state()
         app = App.get_running_app()
 
+        # Закрыть открытый popup диалога/магазина
+        if self._active_popup:
+            try:
+                self._active_popup.dismiss()
+            except Exception:
+                pass
+            self._active_popup = None
+            self._active_interact_entity = None
+
         self.btn_zone_action.opacity = 0
         self._hover_widget.opacity = 0
         if self._player_label:
@@ -2696,7 +2769,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if self._chase_block_label:
             return
         self._chase_block_label = Label(
-            text='⚠️ Вас преследуют! Сначала разберитесь с врагами.',
+            text='[Внимание] Вас преследуют! Сначала разберитесь с врагами.',
             size_hint=(None, None),
             size=(dp(300), dp(30)),
             pos_hint={'right': 0.98, 'y': 0.02},
@@ -2802,7 +2875,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         needed = max(1, self._ambush_total_enemies // 2)
         remaining = max(0, needed - defeated_count)
         self._ambush_exit_block_label = Label(
-            text=f'⚠️ Чтобы покинуть засаду, уничтожьте ещё {remaining+1} врагов (нужно {needed+1}/{self._ambush_total_enemies})',
+            text=f'[Внимание] Чтобы покинуть засаду, уничтожьте ещё {remaining+1} врагов (нужно {needed+1}/{self._ambush_total_enemies})',
             size_hint=(None, None),
             size=(dp(400), dp(35)),
             pos_hint={'right': 0.98, 'y': 0.02},
@@ -2829,6 +2902,26 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if AMBUSH_SEARCH_BARKS:
                 text = random.choice(AMBUSH_SEARCH_BARKS)
                 self._spawn_bark_with_text(entity, text, duration=BARK_DURATION)
+
+    def _start_boss_turn_battle(self, boss_creature) -> None:
+        """Запустить turn-based битву с боссом (после загрузки фоновой сцены)."""
+        app = App.get_running_app()
+        if not app.game or not app.game.player:
+            return
+        player = app.game.player
+        boss_name = getattr(boss_creature, "name", "Босс")
+
+        try:
+            battlefield, _ = app.game.create_battle([boss_creature])
+            if hasattr(app, 'battle_screen'):
+                app._battle_from_local_location = True
+                app.battle_screen.from_local_location = True
+                app.battle_screen.start_battle(battlefield, f"[Босс] {boss_name}")
+                self.manager.current = 'battle'
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            Logger.error(f"LocalLocation: Boss battle start error: {e}")
 
     def _spawn_bark_with_text(self, entity, text: str, duration: float = 3.5, is_alert: bool = False):
         if entity.get("bark_label"):

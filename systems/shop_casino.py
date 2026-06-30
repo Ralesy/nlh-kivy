@@ -257,7 +257,7 @@ class Casino:
         flip_name = "орёл" if flip == "h" else "решка"
 
         if flip == choice:
-            return True, bet, f"Выпало {flip_name}. Вы выиграли {bet} монет! 🎉"
+            return True, bet, f"Выпало {flip_name}. Вы выиграли {bet} монет! [Победа]"
         else:
             return False, -bet, f"Выпало {flip_name}. Вы проиграли {bet} монет. 😞"
 
@@ -273,13 +273,13 @@ class Casino:
         if bet <= 0:
             return "Ставка должна быть положительной.", 0
 
-        symbols = ["🍒", "🔔", "⭐", "7", "🍋"]
+        symbols = ["🍒", "🔔", "[Уровень]", "7", "🍋"]
         reels = [random.choice(symbols) for _ in range(3)]
         res = " | ".join(reels)
 
         if reels[0] == reels[1] == reels[2]:
             payout = bet * 5
-            return f"{res} — Три в ряд! Вы выиграли {payout} монет! 🎉", payout
+            return f"{res} — Три в ряд! Вы выиграли {payout} монет! [Победа]", payout
         # two of them equal
         elif reels[0] == reels[1] or reels[0] == reels[2] or reels[1] == reels[2]:
             payout = bet * 2

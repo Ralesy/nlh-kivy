@@ -72,9 +72,9 @@ class LocalSceneConfig:
 
 
 SCENE_TITLES = {
-    "city": "🏛️ Город",
-    "tavern": "🏰 Таверна",
-    "shop": "🛒 Магазин",
+    "city": "[Город] Город",
+    "tavern": "[Таверна] Таверна",
+    "shop": "[Магазин] Магазин",
 }
 
 

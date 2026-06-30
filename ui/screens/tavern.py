@@ -26,7 +26,7 @@ class TavernScreen(Screen, KeyboardHandler):
         layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
         
         title = Label(
-            text='🏰 ТАВЕРНА',
+            text='[Таверна] ТАВЕРНА',
             font_size=dp(40),
             size_hint_y=None,
             height=dp(70),
@@ -52,7 +52,7 @@ class TavernScreen(Screen, KeyboardHandler):
         tab_layout.add_widget(btn_npcs)
         
         btn_companions = Button(
-            text='🤝 Спутники',
+            text='[Спутник] Спутники',
             size_hint_x=0.33,
             background_color=COLORS['stone_light'],
             font_size=dp(16)
@@ -131,7 +131,7 @@ class TavernScreen(Screen, KeyboardHandler):
         
         # Показываем монеты (сохраняем как атрибут, чтобы можно было обновлять)
         self.coins_label = Label(
-            text=f'Ваши монеты: {app.game.player.coins} 💰',
+            text=f'Ваши монеты: {app.game.player.coins} [Монеты]',
             font_size=dp(20),
             size_hint_y=None,
             height=dp(40),
@@ -205,7 +205,7 @@ class TavernScreen(Screen, KeyboardHandler):
                     if self.game_result_label:
                         self.game_result_label.text = msg
                     try:
-                        self.coins_label.text = f'Ваши монеты: {app.game.player.coins} 💰'
+                        self.coins_label.text = f'Ваши монеты: {app.game.player.coins} [Монеты]'
                     except Exception:
                         pass
                 
@@ -269,7 +269,7 @@ class TavernScreen(Screen, KeyboardHandler):
 
             # Описание
             desc_label = Label(
-                text="📋 Нажмите для диалога",
+                text="[Квесты] Нажмите для диалога",
                 font_size=dp(14),
                 size_hint_y=None,
                 height=dp(30),
@@ -282,7 +282,7 @@ class TavernScreen(Screen, KeyboardHandler):
 
             # Кнопка диалога
             btn_talk = Button(
-                text='💬 Разговор',
+                text=' Разговор',
                 size_hint_y=None,
                 height=dp(45),
                 background_color=COLORS['stone_light'],
@@ -393,7 +393,7 @@ class TavernScreen(Screen, KeyboardHandler):
             reduction = app.game.danger_manager.on_quest_completed()
             if reduction > 0:
                 danger_msg = (
-                    f"\n\n🛡️ Опасность снижена на "
+                    f"\n\n[Защита] Опасность снижена на "
                     f"{reduction:.0f}% "
                     f"(теперь "
                     f"{app.game.danger_manager.danger_level:.0f}%)"
@@ -436,7 +436,7 @@ class TavernScreen(Screen, KeyboardHandler):
         if app.game.player.companions:
             active_companion = app.game.player.companions[0]
             popup = Popup(
-                title='⚠️ Уже есть активный спутник',
+                title='[Внимание] Уже есть активный спутник',
                 content=Label(
                     text=f'У вас уже есть спутник: {active_companion.name}.\n'
                          f'Отпустите его в меню "Спутники", '
@@ -470,7 +470,7 @@ class TavernScreen(Screen, KeyboardHandler):
         app.game.player.companions.append(comp)
         
         popup = Popup(
-            title='✅ Успех',
+            title='[Да] Успех',
             content=Label(
                 text=f'{name} присоединился к вашей партии!\n\n'
                      f'Роль: {comp.role}\n'

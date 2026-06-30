@@ -151,12 +151,12 @@ class Battlefield:
 
         if surprise_critical:
             log = (
-                f"Из засады! ⚡ КРИТИЧЕСКИЙ УДАР! ⚡ Вы наносите "
+                f"Из засады! [Энергия] КРИТИЧЕСКИЙ УДАР! [Энергия] Вы наносите "
                 f"{dealt} урона по {target.name}!{ignore_text}"
             )
         elif is_critical:
             log = (
-                f"⚡ КРИТИЧЕСКИЙ УДАР! ⚡ Вы наносите "
+                f"[Энергия] КРИТИЧЕСКИЙ УДАР! [Энергия] Вы наносите "
                 f"{dealt} урона по {target.name}!{ignore_text}"
             )
         else:
@@ -164,7 +164,7 @@ class Battlefield:
 
         killed = not target.is_alive
         if killed:
-            log += f" 💥 {target.name} повержен!"
+            log += f" [Взрыв] {target.name} повержен!"
             self.player.update_quest_progress(target.name)
 
         return log, killed
@@ -200,15 +200,15 @@ class Battlefield:
                 )
                 total_damage += dealt
                 logs.append(
-                    f"⚔️ Удар {hit + 1}! Вы наносите {dealt} урона "
+                    f"[Бой] Удар {hit + 1}! Вы наносите {dealt} урона "
                     f"по {target.name}."
                 )
                 if not target.is_alive:
-                    logs.append(f"💥 {target.name} повержен мечом!")
+                    logs.append(f"[Взрыв] {target.name} повержен мечом!")
                     self.player.update_quest_progress(target.name)
                     break
             if target.is_alive:
-                logs.append(f"⚡ Всего урона: {total_damage}!")
+                logs.append(f"[Энергия] Всего урона: {total_damage}!")
 
         elif weapon_type == "bow":
             targets = random.sample(enemies, min(2, len(enemies)))
@@ -222,7 +222,7 @@ class Battlefield:
                     f"по {target.name}."
                 )
                 if not target.is_alive:
-                    logs.append(f"💥 {target.name} поражен стрелой!")
+                    logs.append(f"[Взрыв] {target.name} поражен стрелой!")
                     self.player.update_quest_progress(target.name)
 
         elif weapon_type == "staff":
@@ -234,11 +234,11 @@ class Battlefield:
                     variance=(-3, 2),
                 )
                 logs.append(
-                    f"✨ Магический взрыв наносит {dealt} урона "
+                    f"[Опыт] Магический взрыв наносит {dealt} урона "
                     f"по {target.name}!"
                 )
                 if not target.is_alive:
-                    logs.append(f"💥 {target.name} повержен!")
+                    logs.append(f"[Взрыв] {target.name} повержен!")
                     self.player.update_quest_progress(target.name)
 
         self.ability_used_this_battle = True
@@ -262,7 +262,7 @@ class Battlefield:
             )
 
             if not target.is_alive:
-                logs.append(f"💥 {target.name} повержен!")
+                logs.append(f"[Взрыв] {target.name} повержен!")
                 self.player.update_quest_progress(target.name)
                 # Награда за убийство спутником — монеты игроку
                 self.player.coins += target.coins
@@ -289,17 +289,17 @@ class Battlefield:
             if target == self.player:
                 if is_critical:
                     logs.append(
-                        f"⚡ {enemy.name} наносит "
+                        f"[Энергия] {enemy.name} наносит "
                         f"КРИТИЧЕСКИЙ УДАР! {dealt} урона вам!"
                     )
                 else:
                     logs.append(f"{enemy.name} наносит {dealt} урона вам!")
                 if not self.player.is_alive:
-                    logs.append("💀 Вы были повержены!")
+                    logs.append("[Смерть] Вы были повержены!")
             else:
                 if is_critical:
                     logs.append(
-                        f"⚡ {enemy.name} наносит "
+                        f"[Энергия] {enemy.name} наносит "
                         f"КРИТИЧЕСКИЙ УДАР по {target.name}! "
                         f"{dealt} урона!"
                     )

@@ -14,10 +14,10 @@ from typing import List, Tuple, Any
 RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary"]
 RARITY_ICONS = {
     "Common": "⚪",
-    "Uncommon": "🟢",
+    "Uncommon": "[Зеленый]",
     "Rare": "🔵",
     "Epic": "🟣",
-    "Legendary": "🟡"
+    "Legendary": "[Желтый]"
 }
 
 # ---- Функции ----

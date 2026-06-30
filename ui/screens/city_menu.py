@@ -33,7 +33,7 @@ class CityMenuScreen(Screen, KeyboardHandler):
             )
         
         title = Label(
-            text='🏛️ ГОРОД',
+            text='[Город] ГОРОД',
             font_size=dp(32),
             size_hint_y=None,
             height=dp(80),
@@ -43,7 +43,7 @@ class CityMenuScreen(Screen, KeyboardHandler):
         layout.add_widget(title)
         
         btn_tavern = Button(
-            text='🏰 Таверна',
+            text='[Таверна] Таверна',
             size_hint_y=None,
             height=dp(60),
             font_size=dp(22),
@@ -53,7 +53,7 @@ class CityMenuScreen(Screen, KeyboardHandler):
         layout.add_widget(btn_tavern)
         
         btn_shop = Button(
-            text='🛒 Магазин',
+            text='[Магазин] Магазин',
             size_hint_y=None,
             height=dp(60),
             font_size=dp(22),

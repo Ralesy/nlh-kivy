@@ -23,7 +23,7 @@ def test_ancient_cave_location():
     ancient_cave = location_manager.get_location("ancient_cave")
     
     assert ancient_cave is not None, "Ancient Cave location not found"
-    assert ancient_cave.name == "🏰 Пещера Древних", "Ancient Cave name mismatch"
+    assert ancient_cave.name == "[Таверна] Пещера Древних", "Ancient Cave name mismatch"
     assert ancient_cave.is_locked, "Ancient Cave should be locked (bosses moved)"
     print("✓ Ancient Cave location exists and is accessible")
 
@@ -90,4 +90,4 @@ if __name__ == "__main__":
     test_ancient_cave_bosses()
     test_boss_drops()
     test_enemy_generator()
-    print("\n✅ All Ancient Cave tests passed!")
+    print("\n[Да] All Ancient Cave tests passed!")
