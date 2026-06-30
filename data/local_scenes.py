@@ -62,8 +62,9 @@ class LocalSceneConfig:
     title: str
     scene_type: str  # city | tavern | shop
     exit_target: str  # location_select | parent
-    player_scale: float = 0.8
-    npc_scale: float = 0.85
+    player_scale: float = 0.7
+    enemy_scale: float = 0.7
+    npc_scale: float = 0.7
     camera_zoom: float = 1.3
     zones: List[ZoneConfig] = field(default_factory=list)
     npcs: List[NpcSpawnConfig] = field(default_factory=list)

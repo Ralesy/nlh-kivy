@@ -55,7 +55,6 @@ from core.config import (
     HEARING_RADIUS,
     PLAYER_BASE_RADIUS,
     ENEMY_BASE_RADIUS,
-    BOSS_BASE_RADIUS,
     NPC_BASE_RADIUS,
     LOCAL_CAMERA_ZOOM,
     LOCAL_CAMERA_LERP_SPEED,
@@ -546,9 +545,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _enemy_radius(self) -> float:
         return dp(ENEMY_BASE_RADIUS * self._scene_value("enemy_scale", 1.0))
-
-    def _boss_radius(self) -> float:
-        return dp(BOSS_BASE_RADIUS * self._scene_value("boss_scale", 1.0))
 
     def _npc_radius(self) -> float:
         return dp(NPC_BASE_RADIUS * self._scene_value("npc_scale", 1.0))
