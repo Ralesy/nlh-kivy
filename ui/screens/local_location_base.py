@@ -2917,6 +2917,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 app._battle_from_local_location = True
                 app.battle_screen.from_local_location = True
                 app.battle_screen.start_battle(battlefield, f"{boss_name}")
+                # Устанавливаем фоновое изображение зоны для битвы с боссом
+                if self._ambush_zone_id:
+                    app.battle_screen.set_zone_background(self._ambush_zone_id)
                 self.manager.current = 'battle'
         except Exception as e:
             import traceback

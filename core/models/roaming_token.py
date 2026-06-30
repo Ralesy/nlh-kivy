@@ -281,6 +281,9 @@ class RoamingToken:
                 target_x, target_y = player_x, player_y
             elif self._aggro_reason == "ally":
                 target_x, target_y = player_x, player_y
+            elif self.encounter_type == EncounterType.BOSS:
+                # Боссы никогда не прекращают преследование
+                target_x, target_y = player_x, player_y
             elif self._player_in_home_zone(player_x, player_y):
                 target_x, target_y = player_x, player_y
             else:

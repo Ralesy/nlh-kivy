@@ -23,8 +23,9 @@ from data.items import ItemDatabase, Weapon, Armor, Potion, WEAPON_MATERIALS, AR
 class _StyledShopBtn(Button):
     """Маленькая стилизованная кнопка для магазина."""
 
-    def __init__(self, text="", color=None, **kwargs):
+    def __init__(self, text="", bg_color=None, **kwargs):
         super().__init__(**kwargs)
+        self.background_color = (0, 0, 0, 0)
         self.text = text
         self.font_size = dp(11)
         self.size_hint_y = None
@@ -33,7 +34,7 @@ class _StyledShopBtn(Button):
         self.background_down = ''
         self.bold = True
         self.color = (1, 1, 1, 1)
-        self._bg_color = color or (0.25, 0.30, 0.40, 0.9)
+        self._bg_color = bg_color or (0.25, 0.30, 0.40, 0.9)
         self._update_canvas()
         self.bind(
             pos=lambda i, v: self._update_canvas(),
@@ -108,13 +109,13 @@ class ShopPopup(BoxLayout):
         # ── Вкладки ──
         tabs = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(32), spacing=dp(4))
         self.btn_buy = _StyledShopBtn(
-            text='📦 КУПИТЬ', color=(0.25, 0.30, 0.40, 0.9), size_hint_x=0.5,
+            text='📦 КУПИТЬ', bg_color=(0.25, 0.30, 0.40, 0.9), size_hint_x=0.5,
         )
         self.btn_buy.bind(on_press=lambda x: self._show_tab('buy'))
         tabs.add_widget(self.btn_buy)
 
         self.btn_sell = _StyledShopBtn(
-            text='💵 ПРОДАТЬ', color=(0.30, 0.25, 0.20, 0.9), size_hint_x=0.5,
+            text='💵 ПРОДАТЬ', bg_color=(0.30, 0.25, 0.20, 0.9), size_hint_x=0.5,
         )
         self.btn_sell.bind(on_press=lambda x: self._show_tab('sell'))
         tabs.add_widget(self.btn_sell)
@@ -220,12 +221,12 @@ class ShopPopup(BoxLayout):
             card.add_widget(name_lbl)
 
             # Инфо
-            btn_info = _StyledShopBtn(text='', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
+            btn_info = _StyledShopBtn(text='', bg_color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
             btn_info.bind(on_press=lambda x, it=item: self._item_info(it))
             card.add_widget(btn_info)
 
             # КУПИТЬ
-            btn_buy = _StyledShopBtn(text='КУПИТЬ', color=(0.25, 0.45, 0.25, 0.9), size_hint_x=0.23)
+            btn_buy = _StyledShopBtn(text='КУПИТЬ', bg_color=(0.25, 0.45, 0.25, 0.9), size_hint_x=0.23)
             btn_buy.bind(on_press=lambda x, iid=iid: self._buy_item(iid))
             card.add_widget(btn_buy)
 
@@ -248,11 +249,11 @@ class ShopPopup(BoxLayout):
             )
             card.add_widget(name_lbl)
 
-            btn_info = _StyledShopBtn(text='', color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
+            btn_info = _StyledShopBtn(text='', bg_color=(0.30, 0.30, 0.35, 0.9), size_hint_x=0.12)
             btn_info.bind(on_press=lambda x, it=item: self._item_info(it))
             card.add_widget(btn_info)
 
-            btn_sell = _StyledShopBtn(text='ПРОДАТЬ', color=(0.45, 0.35, 0.20, 0.9), size_hint_x=0.23)
+            btn_sell = _StyledShopBtn(text='ПРОДАТЬ', bg_color=(0.45, 0.35, 0.20, 0.9), size_hint_x=0.23)
             btn_sell.bind(on_press=lambda x, iid=item.id: self._sell_item(iid))
             card.add_widget(btn_sell)
 

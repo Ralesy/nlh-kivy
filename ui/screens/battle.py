@@ -30,6 +30,11 @@ class BattleScreen(Screen):
         self.event_message = None
         self.is_processing_turn = False # Флаг блокировки действий во время обработки хода
         self.from_local_location = False
+        self._bg_image = None
+        
+        # Корневой FloatLayout — позволяет добавлять фоновое изображение
+        from kivy.uix.floatlayout import FloatLayout
+        self._root = FloatLayout()
         
         layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
         
@@ -136,8 +141,27 @@ class BattleScreen(Screen):
         
         layout.add_widget(actions_layout)
         
-        self.add_widget(layout)
+        self._root.add_widget(layout)
+        self.add_widget(self._root)
     
+    def set_zone_background(self, zone_id: str) -> None:
+        """Установить фоновое изображение зоны (самый нижний слой)."""
+        from data.local_scenes import scene_background_path
+        from ui.widgets.cover_background import cover_background_image
+
+        # Удаляем предыдущее фоновое изображение, если есть
+        if self._bg_image is not None:
+            try:
+                self._root.remove_widget(self._bg_image)
+            except ValueError:
+                pass
+            self._bg_image = None
+
+        bg_path = scene_background_path(zone_id)
+        if bg_path and os.path.isfile(bg_path):
+            self._bg_image = cover_background_image(bg_path)
+            self._root.add_widget(self._bg_image, index=0)
+
     def start_battle(self, battlefield, event_message=None):
         """Начало боя."""
         self.battlefield = battlefield

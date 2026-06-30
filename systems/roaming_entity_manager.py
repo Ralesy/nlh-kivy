@@ -84,21 +84,21 @@ def _build_all_zones() -> List[RoamZone]:
 
 
 _ENEMY_ENCOUNTER_MAP: Dict[str, Tuple[EncounterType, str, Tuple[float, float, float]]] = {
-    "enemy_forest_wolf": (EncounterType.WILD_BEAST, "Лесной волк", (0.9, 0.3, 0.2)),
-    "enemy_forest_bandit": (EncounterType.BANDIT, "Лесной бандит", (0.8, 0.2, 0.1)),
-    "enemy_forest_raider": (EncounterType.BANDIT, "Лесной мародёр", (0.7, 0.2, 0.15)),
+    "enemy_forest_wolf": (EncounterType.WILD_BEAST, "Волк", (0.9, 0.3, 0.2)),
+    "enemy_forest_bandit": (EncounterType.BANDIT, "Бандит", (0.8, 0.2, 0.1)),
+    "enemy_forest_raider": (EncounterType.BANDIT, "Мародёр", (0.7, 0.2, 0.15)),
     "enemy_forest_scout": (EncounterType.BANDIT, "Лесной разведчик", (0.6, 0.15, 0.1)),
-    "enemy_swamp_goblin": (EncounterType.WILD_BEAST, "Болотный гоблин", (0.3, 0.6, 0.2)),
+    "enemy_swamp_goblin": (EncounterType.WILD_BEAST, "Гоблин", (0.3, 0.6, 0.2)),
     "enemy_swamp_toad": (EncounterType.WILD_BEAST, "Гигантская жаба", (0.4, 0.5, 0.2)),
     "enemy_swamp_shamanic": (EncounterType.WILD_BEAST, "Шаман болот", (0.3, 0.4, 0.5)),
-    "enemy_mines_orc": (EncounterType.WILD_BEAST, "Орк шахтёр", (0.5, 0.3, 0.1)),
+    "enemy_mines_orc": (EncounterType.WILD_BEAST, "Орк", (0.5, 0.3, 0.1)),
     "enemy_mines_draugr": (EncounterType.WILD_BEAST, "Драугр-шахтёр", (0.4, 0.5, 0.5)),
     "enemy_mines_golem": (EncounterType.WILD_BEAST, "Каменный голем", (0.5, 0.4, 0.3)),
-    "enemy_mines_skeleton": (EncounterType.WILD_BEAST, "Скелет-шахтёр", (0.6, 0.6, 0.6)),
+    "enemy_mines_skeleton": (EncounterType.WILD_BEAST, "Скелет", (0.6, 0.6, 0.6)),
     "enemy_mines_greyling": (EncounterType.WILD_BEAST, "Серый гремлин", (0.4, 0.4, 0.4)),
     "enemy_mountains_troll": (EncounterType.WILD_BEAST, "Горный тролль", (0.6, 0.4, 0.2)),
     "enemy_mountains_specter":(EncounterType.WILD_BEAST,"Ледяной призрак", (0.5, 0.6, 0.9)),
-    "enemy_mountains_dragon":(EncounterType.WILD_BEAST, "Горный дракон", (0.8, 0.3, 0.1)),
+    "enemy_mountains_dragon":(EncounterType.WILD_BEAST, "Дракон", (0.8, 0.3, 0.1)),
     "enemy_mountains_giant": (EncounterType.WILD_BEAST, "Горный великан", (0.6, 0.5, 0.3)),
     "enemy_mountains_drake": (EncounterType.WILD_BEAST, "Ледяной дракон", (0.4, 0.6, 0.8)),
     # Boss enemies

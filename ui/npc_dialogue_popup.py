@@ -25,8 +25,9 @@ from systems.npcs import QuestState, QuestType
 class _DialogueButton(Button):
     """Стилизованная кнопка для диалога."""
 
-    def __init__(self, text="", color=None, **kwargs):
+    def __init__(self, text="", bg_color=None, **kwargs):
         super().__init__(**kwargs)
+        self.background_color = (0, 0, 0, 0)
         self.text = text
         self.font_size = dp(13)
         self.size_hint_y = None
@@ -35,7 +36,7 @@ class _DialogueButton(Button):
         self.background_down = ''
         self.bold = True
         self.color = (1, 1, 1, 1)
-        self._bg_color = color or (0.25, 0.30, 0.40, 0.9)
+        self._bg_color = bg_color or (0.25, 0.30, 0.40, 0.9)
         self._update_canvas()
         self.bind(pos=lambda i, v: self._update_canvas(), size=lambda i, v: self._update_canvas())
 
@@ -114,28 +115,28 @@ class NpcDialoguePopup(BoxLayout):
 
         self.btn_accept = _DialogueButton(
             text='[Принять квест]',
-            color=(0.25, 0.45, 0.25, 0.9),
+            bg_color=(0.25, 0.45, 0.25, 0.9),
         )
         self.btn_accept.bind(on_press=self._on_accept_quest)
         self.btn_layout.add_widget(self.btn_accept)
 
         self.btn_claim = _DialogueButton(
             text='[Получить награду]',
-            color=(0.45, 0.40, 0.20, 0.9),
+            bg_color=(0.45, 0.40, 0.20, 0.9),
         )
         self.btn_claim.bind(on_press=self._on_claim_reward)
         self.btn_layout.add_widget(self.btn_claim)
 
         self.btn_reject = _DialogueButton(
             text='[Отклонить]',
-            color=(0.45, 0.20, 0.15, 0.9),
+            bg_color=(0.45, 0.20, 0.15, 0.9),
         )
         self.btn_reject.bind(on_press=self._on_reject_quest)
         self.btn_layout.add_widget(self.btn_reject)
 
         self.btn_back = _DialogueButton(
             text='[Вернуться]',
-            color=(0.30, 0.28, 0.26, 0.9),
+            bg_color=(0.30, 0.28, 0.26, 0.9),
         )
         self.btn_back.bind(on_press=self._close)
         self.btn_layout.add_widget(self.btn_back)
