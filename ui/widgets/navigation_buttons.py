@@ -11,7 +11,7 @@ from ui.ui_styles import BUTTONS_DIR
 
 # Экраны городского контекста (меню и проходимый город/подлокации).
 _CITY_INVENTORY_ORIGINS = frozenset({"city_menu", "game_screen"})
-_CITY_LOCAL_SCENES = frozenset({"city", "tavern", "shop"})
+_CITY_LOCAL_SCENES = frozenset({"city"})
 
 
 def prepare_inventory_navigation(origin_screen: str) -> None:

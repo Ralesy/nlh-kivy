@@ -22,7 +22,7 @@ from kivy.logger import Logger
 
 from ui.ui_styles import COLORS, BUTTONS_DIR
 from data.locations import LocationManager
-from data.local_scenes import COMBAT_SCENES, enter_local_scene, resolve_global_map_background
+from data.local_scenes import enter_local_scene, resolve_global_map_background
 from ui.widgets.cover_background import cover_background_image
 from ui.widgets.danger_bar import DangerBar
 from ui.bindings.keyboard_handler import KeyboardHandler
@@ -94,11 +94,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         # positions on the map (normalized 0..1) for location hotspots
         self._map_positions = {
             'city': (0.19, 0.85),
-            'forest': (0.18, 0.45),
-            'swamp': (0.50, 0.60),
             'village': (0.73, 0.52),
-            'mines': (0.70, 0.20),
-            'mountains': (0.70, 0.90),
         }
 
         main_layout = BoxLayout(
@@ -430,6 +426,7 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self.game = app.game
         pass
         self.location_manager = self.game.location_manager if (self.game and getattr(self.game, 'location_manager', None)) else LocationManager()
+        self.roaming_manager._location_manager = self.location_manager
 
         try:
             pass
@@ -496,24 +493,11 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 continue
             x, y = pos
             size_dp = dp(120)
-            adj_x = x
-            adj_y = y
-            if loc_id == 'forest':
-                size_dp = dp(120) * 2
-                adj_y = max(0.05, y - 0.08)
-            elif loc_id == 'swamp':
-                size_dp = dp(120) * 2
-            elif loc_id == 'mines':
-                size_dp = dp(120) * 2
-                adj_x = min(0.95, x + 0.06)
-            elif loc_id == 'mountains':
-                size_dp = dp(120) * 2
-                adj_x = max(0.05, x - 0.05)
             btn = Button(
                 text='',
                 size_hint=(None, None),
                 size=(size_dp, size_dp),
-                pos_hint={'center_x': adj_x, 'center_y': adj_y},
+                pos_hint={'center_x': x, 'center_y': y},
                 background_normal='',
                 background_down='',
                 background_color=(0, 0, 0, 0)
@@ -1023,20 +1007,12 @@ class LocationSelectScreen(Screen, KeyboardHandler):
     def _get_location_text(self, location):
         """Получить текст кнопки локации."""
         lock_icon = '🔐' if location.is_locked else '🔓'
-        difficulty = {
-            'forest': '⭐ Лёгкая',
-            'swamp': '⭐⭐ Средняя',
-            'mines': '⭐⭐⭐ Сложная',
-            'mountains': '⭐⭐⭐⭐ Очень сложная',
-            'ancient': '⭐⭐⭐⭐⭐ Экстрем'
-        }.get(location.id, 'Неизвестная')
-
-        text = f"{lock_icon} {location.name}\n{difficulty}"
+        text = f"{lock_icon} {location.name}"
 
         if location.is_locked and location.unlock_condition:
             text += f"\n⚠️ {location.unlock_condition}"
         else:
-            text += f"\n✅ Враги: {len(location.enemy_types)}"
+            text += f"\n✅ Доступна"
 
         return text
 
@@ -1341,16 +1317,59 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         group = encounter_data.get("group", [])
         main_token_id = encounter_data.get("token_id", "")
 
-        if action_id == "fight":
-            # НЕ удаляем токены — они остаются в lockout у roaming_manager.
-            # Сохраняем данные группы (token_id, squad_id per enemy index)
-            # для обработки при возврате из засады.
+        if action_id == "boss_fight":
+            self._start_boss_battle(encounter_data)
+        elif action_id == "fight":
             app = App.get_running_app()
             app._pending_ambush_group = list(group)
             self._start_ambush_scene(encounter_data)
         else:
             for member in group:
                 self.roaming_manager.reset_token(member.get("token_id", main_token_id), cooldown=10.0)
+
+    def _start_boss_battle(self, encounter_data: dict):
+        """Запустить turn-based битву с боссом прямо с глобальной карты."""
+        try:
+            app = App.get_running_app()
+            if not app.game or not app.game.player:
+                return
+
+            token_id = encounter_data.get("token_id", "")
+            enemy_type = encounter_data.get("enemy_type", "")
+            boss_name = encounter_data.get("name", "Босс")
+
+            # Определяем номер босса из token_id (boss_001 → 1)
+            boss_num = None
+            if token_id.startswith("boss_"):
+                try:
+                    boss_num = int(token_id.split("_")[1])
+                except (IndexError, ValueError):
+                    pass
+
+            if not boss_num:
+                Logger.error(f"GlobalMap: Unknown boss token: {token_id}")
+                return
+
+            from systems.battle import EnemyGenerator
+            boss_creature = EnemyGenerator.generate_boss(enemy_type)
+            if not boss_creature:
+                Logger.error(f"GlobalMap: Failed to generate boss: {enemy_type}")
+                return
+
+            # Запоминаем данные босса для обработки после битвы
+            app._boss_battle_boss_num = boss_num
+            app._boss_battle_token_id = token_id
+            app._boss_battle_active = True
+
+            battlefield, _ = app.game.create_battle([boss_creature])
+            if hasattr(app, 'battle_screen'):
+                app.battle_screen.start_battle(battlefield, f"👑 {boss_name}")
+                app.root.current = 'battle'
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            Logger.error(f"GlobalMap: Boss battle start error: {e}")
+            self._encounter_active = False
 
     def _handle_ambush_return(self):
         """Обработать возврат из засады на глобальной карте.
@@ -1380,6 +1399,40 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
         app._pending_ambush_group = None
         player._ambush_defeated_set = set()
+
+    def _handle_boss_battle_return(self):
+        """Обработать возврат из битвы с боссом на глобальной карте.
+        
+        После победы: токен босса удаляется навсегда (уже отмечен как побеждённый
+        в battle.py через location_manager.mark_boss_defeated).
+        После поражения: токен босса сбрасывается, игрок телепортируется в город.
+        """
+        app = App.get_running_app()
+        boss_num = getattr(app, "_boss_battle_boss_num", None)
+        token_id = getattr(app, "_boss_battle_token_id", None)
+        if not boss_num or not token_id:
+            return
+
+        lm = self.location_manager
+        try:
+            if lm and lm.is_boss_defeated(boss_num):
+                # Победа: удаляем токен навсегда
+                self.roaming_manager.remove_boss_permanently(boss_num)
+            else:
+                # Поражение: сбрасываем токен, чтобы можно было встретить снова,
+                # и телепортируем игрока в город
+                self.roaming_manager.reset_token(token_id, cooldown=5.0)
+                player = app.game.player if app.game else None
+                if player:
+                    player.last_global_pos = (0.19, 0.85)
+                    if getattr(app, "_defeat_event", -1) < 0:
+                        app._defeat_event = -1  # defeat already handled by battle.py
+        except Exception as e:
+            Logger.error(f"GlobalMap: Boss battle return error: {e}")
+
+        app._boss_battle_boss_num = None
+        app._boss_battle_token_id = None
+        app._boss_battle_active = False
 
     def _show_defeat_narrative_if_needed(self):
         """Показать нарративное окно поражения, если игрок только что умер."""
@@ -1718,32 +1771,16 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             print(f"[DEBUG] Error checking location availability: {e}")
             pass
 
-        if loc_id in COMBAT_SCENES or loc_id == 'city':
+        if loc_id == 'city':
             screen = getattr(app, 'local_location_screen', None)
             if not screen:
                 return
-            if loc_id in COMBAT_SCENES:
-                screen._defeated_enemies = set()
-                screen._returning_from_battle = False
             if enter_local_scene(app, loc_id):
                 return
             popup = Popup(
                 title='Ошибка',
                 content=Label(text='Не удалось открыть локацию.'),
                 size_hint=(0.6, 0.3),
-            )
-            popup.open()
-            return
-
-        if loc_id == 'ancient_cave':
-            popup = Popup(
-                title='Пещера Древних',
-                content=Label(
-                    text='Боссы теперь обитают в своих локациях:\n'
-                         'лес, болота, шахты и горы.',
-                    halign='center',
-                ),
-                size_hint=(0.7, 0.35),
             )
             popup.open()
             return
@@ -1803,6 +1840,9 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         # Обработать возврат из засады: определить какие токены удалить, какие восстановить
         self._handle_ambush_return()
 
+        # Обработать возврат из битвы с боссом
+        self._handle_boss_battle_return()
+
         self.roaming_manager._lockout_ids.clear()
 
         self._prev_player_world_x = self._player_world_x
@@ -1810,12 +1850,12 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         self._init_bark_system()
         self._start_token_updates()
 
-        # Авто-вход в таверну после поражения (enter_local_scene вызываем на
+        # Авто-вход в город после поражения (enter_local_scene вызываем на
         # следующем кадре, чтобы не ломать текущий lifecycle ScreenManager'а)
         try:
             _app = App.get_running_app()
             if getattr(_app, "_defeat_event", -1) >= 0:
-                Clock.schedule_once(lambda dt: enter_local_scene(_app, "tavern"), 0.1)
+                Clock.schedule_once(lambda dt: enter_local_scene(_app, "city"), 0.1)
         except Exception:
             pass
 

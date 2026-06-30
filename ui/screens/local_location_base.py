@@ -38,8 +38,6 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.widget import Widget
 
 from data.local_scenes import (
-    COMBAT_SCENES,
-    LOCATION_BOSSES,
     build_scene_config,
     scene_background_path,
 )
@@ -175,7 +173,22 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._defeated_enemies.clear()
         self.scene_id = f"ambush_{zone_id}"
         self.location_id = zone_id
-        self.scene_config = build_scene_config(zone_id)
+        zone_titles = {
+            "forest": "🌲 Засада в лесу",
+            "swamp": "🏞️ Засада на болотах",
+            "mines": "⛏️ Засада в шахтах",
+            "mountains": "⛰️ Засада в горах",
+        }
+        self.location_name = zone_titles.get(zone_id, f"Засада в {zone_id}")
+        # Создаём минимальный конфиг для засады (боевые сцены удалены)
+        from data.local_scenes import LocalSceneConfig
+        self.scene_config = LocalSceneConfig(
+            scene_id=self.scene_id,
+            title=self.location_name,
+            scene_type="city",
+            exit_target="location_select",
+            background_candidates=[],
+        )
         self.parent_scene_id = None
         app = App.get_running_app()
         player = app.game.player if app.game else None
@@ -185,13 +198,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 player.last_enemy_positions.pop(self.scene_id, None)
             if hasattr(player, "last_enemy_creatures"):
                 player.last_enemy_creatures.pop(self.scene_id, None)
-        zone_titles = {
-            "forest": "🌲 Засада в лесу",
-            "swamp": "🏞️ Засада на болотах",
-            "mines": "⛏️ Засада в шахтах",
-            "mountains": "⛰️ Засада в горах",
-        }
-        self.location_name = zone_titles.get(zone_id, f"Засада в {zone_id}")
 
     def on_enter(self):
         """Инициализация сцены при входе."""
@@ -223,28 +229,18 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._chase_block_label = None
         self._ambush_exit_block_label = None
 
-        # Если мы в таверне после поражения — показать нарратив
-        if (self.scene_config and self.scene_config.scene_type == "tavern"
+        # Если мы в городе после поражения — показать нарратив
+        if (self.scene_config and self.scene_config.scene_type == "city"
                 and getattr(app, "_defeat_event", -1) >= 0):
             self._show_defeat_narrative(app)
-
-        is_combat = self.scene_config and self.scene_config.scene_type == "combat"
 
         player = app.game.player if app.game else None
 
         # -- Position (сохраняем restore-позицию, _init_player_entity применит её) --
         restore_x = restore_y = None
-        if self._returning_from_battle and is_combat:
-            pass
-        elif self._is_ambush:
+        if self._is_ambush:
             pos_key = self.scene_id
             if (player and pos_key in getattr(player, "last_location_pos", {})):
-                x_norm, y_norm = player.last_location_pos[pos_key]
-                restore_x, restore_y = x_norm * self.width, y_norm * self.height
-        elif is_combat:
-            pos_key = self.scene_id
-            if (player and pos_key in getattr(player, "last_location_pos", {})
-                    and getattr(player, "last_location_visited", None) == self.scene_id):
                 x_norm, y_norm = player.last_location_pos[pos_key]
                 restore_x, restore_y = x_norm * self.width, y_norm * self.height
         else:
@@ -253,37 +249,22 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 x_norm, y_norm = player.last_location_pos[pos_key]
                 restore_x, restore_y = x_norm * self.width, y_norm * self.height
         self._player_restore_pos = (restore_x, restore_y)
-        # В _init_player_entity применится restore-позиция при создании entity
 
         # -- Entities --
-        skip_init = self._returning_from_battle and is_combat
-
-        if not skip_init:
-            self._entities = []
-            if self._is_ambush:
-                self._defeated_enemies.clear()
-                if player and hasattr(player, "_ambush_defeated_set") and player._ambush_defeated_set:
-                    self._defeated_enemies = set(player._ambush_defeated_set)
-                    player._ambush_defeated_set = set()
-                self._init_ambush_entities()
-            elif (
-                self.scene_config
-                and self.scene_config.scene_type == "combat"
-                and player
-                and getattr(player, "last_location_visited", None) == self.scene_id
-            ):
-                self._defeated_enemies.clear()
-                self._init_entities(use_saved=True)
-            else:
-                self._init_entities(use_saved=False)
-                if player and self.scene_config and self.scene_config.scene_type == "combat":
-                    player.last_location_visited = self.scene_id
+        self._entities = []
+        if self._is_ambush:
+            self._defeated_enemies.clear()
+            if player and hasattr(player, "_ambush_defeated_set") and player._ambush_defeated_set:
+                self._defeated_enemies = set(player._ambush_defeated_set)
+                player._ambush_defeated_set = set()
+            self._init_ambush_entities()
+        else:
+            self._init_entities(use_saved=False)
 
         self._drawing_widget = Widget(size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
         self._world_widget.add_widget(self._drawing_widget)
 
         self._returning_from_battle = False
-        self._ensure_safe_spawn()
         self._restore_enemy_dirs()
         self._sync_camera(immediate=True)
         self._init_ui()
@@ -492,119 +473,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             ))
 
     def _init_entities(self, use_saved=False) -> None:
-        """Создать сущности сцены: враги, боссы, NPC, зоны."""
+        """Создать сущности сцены: NPC (город)."""
         if not self.scene_config:
             return
 
         stype = self.scene_config.scene_type
-        if stype == "combat":
-            self._init_combat_entities(use_saved)
-        elif stype == "city":
-            self._init_city_zones()
+        if stype == "city":
+            self._init_npc_entities()
         elif stype in ("tavern", "shop"):
             self._init_npc_entities()
-
-    def _init_combat_entities(self, use_saved=False) -> None:
-        """Враги и босс на боевой карте (через единую фабрику)."""
-        from systems.battle import EnemyGenerator
-
-        app = App.get_running_app()
-        player = app.game.player if app.game else None
-        loc_id = self.scene_config.enemy_location_id or self.scene_id
-
-        saved_positions = []
-        saved_creatures = []
-        if (
-            use_saved
-            and player
-            and hasattr(player, "last_enemy_positions")
-            and self.scene_id in player.last_enemy_positions
-        ):
-            saved_positions = player.last_enemy_positions[self.scene_id]
-            if hasattr(player, "last_enemy_creatures") and self.scene_id in player.last_enemy_creatures:
-                saved_creatures = player.last_enemy_creatures[self.scene_id]
-        else:
-            count = self.scene_config.enemy_count or 3
-            saved_positions = self._generate_random_positions(count)
-            saved_creatures = []
-            for _ in range(count):
-                generated = (
-                    EnemyGenerator.generate_for_location(loc_id, player.level, count=1)[0]
-                    if player
-                    else None
-                )
-                saved_creatures.append(generated)
-            if player:
-                player.last_enemy_positions[self.scene_id] = saved_positions
-                player.last_enemy_creatures[self.scene_id] = saved_creatures
-
-        count = self.scene_config.enemy_count or 3
-        for i in range(count):
-            is_defeated = i in self._defeated_enemies
-            if i < len(saved_positions):
-                x_norm, y_norm = saved_positions[i]
-            else:
-                x_norm, y_norm = random.uniform(0.15, 0.85), random.uniform(0.15, 0.85)
-
-            creature = None
-            if i < len(saved_creatures) and saved_creatures[i]:
-                creature = saved_creatures[i]
-            elif player:
-                try:
-                    creature = EnemyGenerator.generate_for_location(loc_id, player.level, count=1)[0]
-                except Exception as e:
-                    Logger.error(f"LocalLocation: Enemy generator failed for loc {loc_id}. Error: {e}")
-
-            if not creature:
-                creature = None
-            ent = self._create_entity(
-                etype="enemy",
-                eid=i,
-                x=self.width * x_norm,
-                y=self.height * y_norm,
-                creature=creature,
-                radius=self._enemy_radius(),
-                ai_state="patrol",
-                extra={
-                    "defeated": is_defeated,
-                    "patrol_pause_timer": random.uniform(0, 2),
-                },
-            )
-            self._entities.append(ent)
-
-        self._maybe_add_boss(player)
-
-    def _maybe_add_boss(self, player) -> None:
-        """Добавить босса на карту, если он доступен и не побеждён (через единую фабрику)."""
-        boss_cfg = LOCATION_BOSSES.get(self.scene_id)
-        if not boss_cfg or not player:
-            return
-
-        app = App.get_running_app()
-        lm = app.game.location_manager if app.game else None
-        if lm and not lm.is_boss_unlocked(boss_cfg.boss_num):
-            return
-        if lm and lm.is_boss_defeated(boss_cfg.boss_num):
-            return
-
-        from systems.battle import EnemyGenerator
-
-        boss_creature = EnemyGenerator.generate_boss(boss_cfg.enemy_id)
-        if not boss_creature:
-            return
-
-        ent = self._create_entity(
-            etype="boss",
-            eid=f"boss_{boss_cfg.boss_num}",
-            x=self.width * boss_cfg.x_norm,
-            y=self.height * boss_cfg.y_norm,
-            creature=boss_creature,
-            radius=self._boss_radius(),
-            extra={
-                "boss_num": boss_cfg.boss_num,
-            },
-        )
-        self._entities.append(ent)
 
     def _init_city_zones(self) -> None:
         """Зоны входа в таверну и магазин."""
@@ -1713,18 +1590,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         app = App.get_running_app()
         player = app.game.player if app.game else None
 
-        if player and self.scene_config and self.scene_config.scene_type == "combat":
-            # Сохраняем позиции и суще указ ТОЛЬКО обычных врагов (не боссов!)
-            positions = []
-            creatures = []
-            for e in self._entities:
-                if e.get("type") == "enemy" and not e["defeated"]:
-                    positions.append((e["x_norm"], e["y_norm"]))
-                    creatures.append(e.get("creature"))
-            if positions:
-                player.last_enemy_positions[self.scene_id] = positions
-                player.last_enemy_creatures[self.scene_id] = creatures
-
         self._stop_loop()
 
         etype = entity.get("type")
@@ -2389,37 +2254,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if mgr:
             mgr.current = "location_select"
 
-    def prepare_defeat_state(self, from_rt=False):
-        """Подготовить карту после поражения: стан врагам, бессмертие игроку."""
-        if from_rt:
-            # RT combat: станим ВСЕХ живых врагов
-            for ent in self._entities:
-                if ent.get("type") in ("enemy", "boss") and not ent["defeated"]:
-                    ent["stun_timer"] = STUN_DURATION
-            self._player_invincible_timer = INVINCIBILITY_DURATION
-            self._current_entity = None
-            self._current_battle_group = None
-
-        if self._current_battle_group:
-            for ent in self._current_battle_group:
-                if ent.get("type") == "enemy":
-                    ent["stun_timer"] = STUN_DURATION
-            self._player_invincible_timer = INVINCIBILITY_DURATION
-
-        self._current_entity = None
-        self._current_battle_group = None
-
-        app = App.get_running_app()
-        player = app.game.player if app.game else None
-        if player and self.scene_config and self.scene_config.scene_type == "combat":
-            positions = [
-                (e["x_norm"], e["y_norm"])
-                for e in self._entities
-                if e.get("type") == "enemy" and not e["defeated"]
-            ]
-            if positions:
-                player.last_enemy_positions[self.scene_id] = positions
-
     def pause_game(self):
         """Приостановить игровой цикл (пока открыт popup)."""
         self._paused = True
@@ -2429,49 +2263,28 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._paused = False
 
     def on_return_from_battle(self):
-        """Возврат после боя: при победе очищает врагов, при поражении — стан."""
+        """Возврат после боя (засада на глобальной карте)."""
         app = App.get_running_app()
-        player = app.game.player if app.game else None
         victory = (
             getattr(app, "battle_result", None) and app.battle_result.victory
         )
 
         if victory and self._current_battle_group:
-            has_boss = False
             for ent in self._current_battle_group:
-                etype = ent.get("type")
-                if etype == "boss":
-                    ent["defeated"] = True
-                    has_boss = True
-                elif etype == "enemy":
+                if ent.get("type") in ("enemy", "boss"):
                     ent["defeated"] = True
                     self._defeated_enemies.add(ent["id"])
             self._player_invincible_timer = INVINCIBILITY_DURATION
-            if has_boss and player and app.game:
-                try:
-                    app.game.autosave()
-                except Exception:
-                    pass
 
         elif self._current_battle_group:
             for ent in self._current_battle_group:
-                if ent.get("type") == "enemy" and ent.get("stun_timer", 0) < 2.0:
+                if ent.get("type") in ("enemy", "boss") and ent.get("stun_timer", 0) < 2.0:
                     ent["stun_timer"] = 2.0
             if self._player_invincible_timer < 2.0:
                 self._player_invincible_timer = 2.0
 
         self._current_entity = None
         self._current_battle_group = None
-
-        # При возврате из боя нужно удалить только побеждённого босса, остальных врагов не трогать
-        if victory and self._current_battle_group:
-            for ent in self._current_battle_group:
-                if ent.get("type") == "boss":
-                    ent["defeated"] = True
-                    self._entities = [e for e in self._entities if e.get("type") != "boss"]
-                    if hasattr(self, '_drawing_widget') and self._drawing_widget:
-                        self._draw_game()
-                    break
 
         if self._update_event:
             self._update_event.cancel()
@@ -2763,32 +2576,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     Line(points=[cx - cr, cy - cr + fy, cx + cr, cy + cr + fy], width=1.5)
                     Line(points=[cx + cr, cy - cr + fy, cx - cr, cy + cr + fy], width=1.5)
 
-    def _ensure_safe_spawn(self) -> None:
-        """Сместить врагов, чья зона аггра перекрывает точку спавна игрока."""
-        if not self.scene_config or self.scene_config.scene_type != "combat":
-            return
-        spawn_x = self.width * ENTRY_POINT_X
-        spawn_y = self.height * ENTRY_POINT_Y
-        safe_margin = HEARING_RADIUS + dp(30)
-        for ent in self._entities:
-            if ent.get("type") != "enemy" or ent["defeated"]:
-                continue
-            ex, ey = ent["x"], ent["y"]
-            dx = spawn_x - ex
-            dy = spawn_y - ey
-            dist = (dx * dx + dy * dy) ** 0.5
-            if dist < safe_margin:
-                angle = random.uniform(0, 6.2832)
-                shift = safe_margin + dp(60)
-                ent["x"] = spawn_x + math.cos(angle) * shift
-                ent["y"] = spawn_y + math.sin(angle) * shift
-                ent["x_norm"] = max(0.05, min(0.95, ent["x"] / max(1, self.width)))
-                ent["y_norm"] = max(0.05, min(0.95, ent["y"] / max(1, self.height)))
-                ent["spawn_x_norm"] = ent["x_norm"]
-                ent["spawn_y_norm"] = ent["y_norm"]
-                ent["patrol_target_x_norm"] = ent["x_norm"]
-                ent["patrol_target_y_norm"] = ent["y_norm"]
-
     def _save_player_state(self) -> None:
         app = App.get_running_app()
         player = app.game.player if app.game else None
@@ -2809,25 +2596,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def on_leave(self):
         self._save_player_state()
-        self._saved_enemy_dirs = {}
-        for ent in self._entities:
-            if ent.get("type") == "enemy" and not ent["defeated"]:
-                eid = ent.get("id")
-                if eid is not None:
-                    self._saved_enemy_dirs[eid] = (
-                        ent.get("dir_x", 0),
-                        ent.get("dir_y", -1),
-                    )
         app = App.get_running_app()
-        player = app.game.player if app.game else None
-        if player and self.scene_config and self.scene_config.scene_type == "combat":
-            positions = [
-                (e["x_norm"], e["y_norm"])
-                for e in self._entities
-                if e.get("type") == "enemy" and not e["defeated"]
-            ]
-            if positions:
-                player.last_enemy_positions[self.scene_id] = positions
 
         self.btn_zone_action.opacity = 0
         self._hover_widget.opacity = 0

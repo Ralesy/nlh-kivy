@@ -305,9 +305,9 @@ class GameScreen(Screen, KeyboardHandler):
             popup.open()
             return
 
-        # Проходимые локальные карты
-        from data.local_scenes import COMBAT_SCENES, enter_local_scene
-        if loc_id in COMBAT_SCENES or loc_id == 'city':
+        # Проходимые локальные карты (только город)
+        from data.local_scenes import enter_local_scene
+        if loc_id == 'city':
             app = App.get_running_app()
             enter_local_scene(app, loc_id)
             return

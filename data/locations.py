@@ -3,6 +3,8 @@
 
 """
 Locations: система локаций с блокировками и условиями открытия.
+Боевые локации (forest, swamp, mines, mountains) удалены — 
+боссы перемещены на глобальную карту как roaming-сущности.
 """
 
 from typing import List, Optional, Dict
@@ -32,11 +34,11 @@ class Location:
         self.id = id_
         self.name = name
         self.description = description
-        self.difficulty = difficulty  # Относительная сложность
+        self.difficulty = difficulty
         self.is_locked = is_locked
-        self.unlock_condition = unlock_condition  # Условие разблокировки
+        self.unlock_condition = unlock_condition
         self.visited = False
-        self.enemy_types = enemy_types or []  # Типы врагов в локации
+        self.enemy_types = enemy_types or []
 
     def display_status(self) -> str:
         """Отображение статуса локации."""
@@ -60,11 +62,7 @@ class LocationManager:
     def __init__(self):
         """Инициализация менеджера локаций."""
         self.locations: Dict[str, Location] = {}
-        self._quest_counters: Dict[str, int] = {
-            "forest_quests": 0,
-            "swamp_quests": 0,
-            "mines_quests": 0,
-            "mountains_quests": 0,
+        self._boss_flags: Dict[str, bool] = {
             "boss_1_defeated": False,
             "boss_2_defeated": False,
             "boss_3_defeated": False,
@@ -73,84 +71,24 @@ class LocationManager:
         self._initialize_locations()
 
     def _initialize_locations(self) -> None:
-        """Инициализация всех локаций."""
-        # 1. ЛЕС "КРИВОЛЕСЬЕ" - открыт сразу
-        self.locations["forest"] = Location(
-            "forest",
-            "🌲 Лес Криволесье",
-            "Густой лес полный дикобразов и мародёров",
-            difficulty=1,
+        """Инициализация локаций (только город и вспомогательные)."""
+        # Город — всегда доступен
+        self.locations["city"] = Location(
+            "city",
+            "🏛️ Город",
+            "Главный город региона",
+            difficulty=0,
             is_locked=False,
-            enemy_types=[
-                "enemy_forest_wolf",
-                "enemy_forest_raider",
-                "enemy_forest_bandit",
-                "enemy_forest_scout"
-            ]
         )
 
-        # 2. БОЛОТА "ГНИЮЩИЕ ТОПИ" - открыть после 3 квестов из леса
-        self.locations["swamp"] = Location(
-            "swamp",
-            "🏞️ Болота Гниющие Топи",
-            "Топкое болото полное гоблинов и гигантских жаб",
-            difficulty=2,
+        # Деревня — в разработке
+        self.locations["village"] = Location(
+            "village",
+            "🏘️ Деревня",
+            "Небольшая деревня",
+            difficulty=1,
             is_locked=True,
-            unlock_condition="Победите первого босса (Безумный мародёр)",
-            enemy_types=[
-                "enemy_swamp_goblin",
-                "enemy_swamp_toad",
-                "enemy_swamp_shamanic"
-            ]
-        )
-
-        # 3. ШАХТЫ "ПОДСКАЛЬНЫЕ ГРОТЫ" - после 4 квестов в болотах
-        self.locations["mines"] = Location(
-            "mines",
-            "⛏️ Шахты Подскальные Гроты",
-            "Тёмные подземные шахты с орками и гномами-драуграми",
-            difficulty=3,
-            is_locked=True,
-            unlock_condition="Победите босса Хозяин Болота (второй босс)",
-            enemy_types=[
-                "enemy_mines_orc",
-                "enemy_mines_draugr",
-                "enemy_mines_golem",
-                "enemy_mines_skeleton",
-                "enemy_mines_greyling"
-            ]
-        )
-
-        # 4. ГОРЫ "ХРЕБЕТ ДРАКОНОВ" - после победы над боссом шахт
-        self.locations["mountains"] = Location(
-            "mountains",
-            "⛰️ Горы Хребет Драконов",
-            "Высокие горы с драконами и ледяными приведениями",
-            difficulty=4,
-            is_locked=True,
-            unlock_condition="Победите босса Короля Шахт",
-            enemy_types=[
-                "enemy_mountains_dragon",
-                "enemy_mountains_specter",
-                "enemy_mountains_troll",
-                "enemy_mountains_giant",
-                "enemy_mountains_drake"
-            ]
-        )
-
-        # 5. ПЕЩЕРА ДРЕВНИХ — устарела: боссы перенесены в боевые локации
-        self.locations["ancient_cave"] = Location(
-            "ancient_cave",
-            "🏰 Пещера Древних",
-            "Древняя пещера (боссы теперь в своих локациях)",
-            difficulty=5,
-            is_locked=True,
-            unlock_condition="Боссы перенесены в лес, болота, шахты и горы",
-            enemy_types=[
-                "enemy_ancient_boss_lich",
-                "enemy_ancient_boss_archlich",
-                "enemy_ancient_boss_illidari"
-            ]
+            unlock_condition="В разработке",
         )
 
     def unlock_location(self, location_id: str) -> bool:
@@ -162,10 +100,8 @@ class LocationManager:
 
     def is_location_available(self, location_id: str) -> bool:
         """Доступна ли локация."""
-        from data.local_scenes import CITY_SCENES
-
-        # Город и подлокации не блокируются прогрессом региона
-        if location_id in CITY_SCENES:
+        # Город не блокируется
+        if location_id == "city":
             return True
         if location_id not in self.locations:
             return False
@@ -182,84 +118,39 @@ class LocationManager:
     def check_and_unlock_locations(self) -> List[str]:
         """
         Проверить условия разблокировки и разблокировать локации.
+        (Боевые локации удалены, но метод оставлен для совместимости.)
         Возвращает список разблокированных локаций.
         """
         unlocked = []
-
-        # Новая логика разблокировки локаций по цепочке побед над боссами:
-        # - Победа над боссом 1 открывает БОЛОТА и делает доступным босса 2
-        # - Победа над боссом 2 открывает ШАХТЫ и делает доступным босса 3
-        # - Победа над боссом 3 открывает ГОРЫ и делает доступным босса 4
-        # Эта логика заменяет предыдущие зависимости от счётчиков квестов.
-
-        # БОЛОТА: если побежден босс 1
-        if (self._quest_counters.get("boss_1_defeated")
-                and self.locations["swamp"].is_locked):
-            self.unlock_location("swamp")
-            unlocked.append("swamp")
-
-        # ШАХТЫ: если побежден босс 2
-        if (self._quest_counters.get("boss_2_defeated")
-                and self.locations["mines"].is_locked):
-            self.unlock_location("mines")
-            unlocked.append("mines")
-
-        # ГОРЫ: если побежден босс 3
-        if (self._quest_counters.get("boss_3_defeated")
-                and self.locations["mountains"].is_locked):
-            self.unlock_location("mountains")
-            unlocked.append("mountains")
-
         return unlocked
-
-    def increment_quest_counter(self, location_id: str) -> None:
-        """Увеличить счётчик квестов для локации."""
-        if location_id == "forest":
-            self._quest_counters["forest_quests"] += 1
-        elif location_id == "swamp":
-            self._quest_counters["swamp_quests"] += 1
-        elif location_id == "mines":
-            self._quest_counters["mines_quests"] += 1
-        elif location_id == "mountains":
-            self._quest_counters["mountains_quests"] += 1
 
     def mark_boss_defeated(self, boss_id: int) -> None:
         """Отметить босса как побежденного."""
         if 1 <= boss_id <= 4:
-            self._quest_counters[f"boss_{boss_id}_defeated"] = True
+            self._boss_flags[f"boss_{boss_id}_defeated"] = True
 
     def is_boss_unlocked(self, boss_id: int) -> bool:
-        """Разблокирован ли босс."""
-        # Новая логика: каждый следующий босс доступен после победы над предыдущим
+        """Разблокирован ли босс (цепочка: каждый следующий после победы над предыдущим)."""
         if boss_id == 1:
             return True
         if boss_id == 2:
-            return bool(self._quest_counters.get("boss_1_defeated"))
+            return bool(self._boss_flags.get("boss_1_defeated"))
         if boss_id == 3:
-            return bool(self._quest_counters.get("boss_2_defeated"))
+            return bool(self._boss_flags.get("boss_2_defeated"))
         if boss_id == 4:
-            return bool(self._quest_counters.get("boss_3_defeated"))
+            return bool(self._boss_flags.get("boss_3_defeated"))
         return False
 
     def is_boss_defeated(self, boss_id: int) -> bool:
         """Побежден ли босс."""
         if 1 <= boss_id <= 4:
-            return self._quest_counters[f"boss_{boss_id}_defeated"]
+            return self._boss_flags[f"boss_{boss_id}_defeated"]
         return False
-
-    def get_quest_progress(self) -> Dict[str, int]:
-        """Получить прогресс квестов."""
-        return {
-            "forest": self._quest_counters["forest_quests"],
-            "swamp": self._quest_counters["swamp_quests"],
-            "mines": self._quest_counters["mines_quests"],
-            "mountains": self._quest_counters["mountains_quests"]
-        }
 
     def to_dict(self) -> dict:
         """Для сохранения."""
         return {
-            "quest_counters": self._quest_counters,
+            "boss_flags": self._boss_flags,
             "locations": {
                 loc_id: {
                     "visited": loc.visited,
@@ -271,8 +162,15 @@ class LocationManager:
 
     def from_dict(self, data: dict) -> None:
         """Восстановление из сохранения."""
-        if "quest_counters" in data:
-            self._quest_counters = data["quest_counters"]
+        if "boss_flags" in data:
+            self._boss_flags = data["boss_flags"]
+        elif "quest_counters" in data:
+            # Совместимость со старыми сохранениями
+            old = data["quest_counters"]
+            self._boss_flags["boss_1_defeated"] = old.get("boss_1_defeated", False)
+            self._boss_flags["boss_2_defeated"] = old.get("boss_2_defeated", False)
+            self._boss_flags["boss_3_defeated"] = old.get("boss_3_defeated", False)
+            self._boss_flags["boss_4_defeated"] = old.get("boss_4_defeated", False)
         if "locations" in data:
             for loc_id, loc_data in data["locations"].items():
                 if loc_id in self.locations:

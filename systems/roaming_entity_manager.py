@@ -20,6 +20,7 @@ from core.models.roaming_token import (
     TokenBehaviour,
     TokenState,
 )
+from data.boss_config import BossRoamConfig, BOSS_ROAM_CONFIGS
 
 
 def _token_id(prefix: str, index: int) -> str:
@@ -100,6 +101,11 @@ _ENEMY_ENCOUNTER_MAP: Dict[str, Tuple[EncounterType, str, Tuple[float, float, fl
     "enemy_mountains_dragon":(EncounterType.WILD_BEAST, "Горный дракон",   (0.8, 0.3, 0.1)),
     "enemy_mountains_giant": (EncounterType.WILD_BEAST, "Горный великан",  (0.6, 0.5, 0.3)),
     "enemy_mountains_drake": (EncounterType.WILD_BEAST, "Ледяной дракон",  (0.4, 0.6, 0.8)),
+    # Boss enemies
+    "enemy_ancient_cave_berserker":  (EncounterType.BOSS, "Безумный мародёр",    (0.85, 0.2, 0.05)),
+    "enemy_ancient_cave_bog_master": (EncounterType.BOSS, "Хозяин Болота",      (0.2, 0.6, 0.1)),
+    "enemy_ancient_cave_mine_king":  (EncounterType.BOSS, "Король Шахт",        (0.7, 0.5, 0.1)),
+    "enemy_ancient_cave_dragon_lord":(EncounterType.BOSS, "Повелитель Драконов", (0.9, 0.3, 0.1)),
 }
 
 _PATROL_SPEED = 20.0
@@ -112,13 +118,17 @@ _SOCIAL_COMBAT_RADIUS = 90.0
 
 
 class RoamingEntityManager:
-    def __init__(self, map_world_width: float = 1280, map_world_height: float = 720):
+    def __init__(self, map_world_width: float = 1280, map_world_height: float = 720,
+                 location_manager=None):
         self._map_w: float = map_world_width
         self._map_h: float = map_world_height
 
         self.zones: List[RoamZone] = []
         self.tokens: List[RoamingToken] = []
         self._lockout_ids: set = set()
+        self._location_manager = location_manager
+        # Boss tokens that should never respawn (permanently removed)
+        self._boss_token_ids: set = set()
 
         # Canvas references for zone graphics
         self._zone_gfx: Dict[str, Tuple[Color, Ellipse, Color, Line]] = {}
@@ -138,6 +148,7 @@ class RoamingEntityManager:
         self._map_h = h
         if not self._tokens_spawned:
             self._spawn_all_tokens()
+            self._spawn_boss_tokens()
             self._tokens_spawned = True
 
     def _norm_to_world(self, nx: float, ny: float) -> Tuple[float, float]:
@@ -220,6 +231,58 @@ class RoamingEntityManager:
                 )
                 self.tokens.append(token)
                 token_index += 1
+
+    def _spawn_boss_tokens(self) -> None:
+        """Создать токены боссов на глобальной карте, если они ещё не побеждены."""
+        lm = self._location_manager
+        for boss_cfg in BOSS_ROAM_CONFIGS:
+            # Проверяем, не побеждён ли босс (через player.defeated_bosses или location_manager)
+            boss_num = boss_cfg.boss_num
+            if lm and lm.is_boss_defeated(boss_num):
+                continue
+            if lm and not lm.is_boss_unlocked(boss_num):
+                continue
+
+            home_wx, home_wy = self._norm_to_world(boss_cfg.center_norm_x, boss_cfg.center_norm_y)
+            home_wr = self._norm_r_to_world(boss_cfg.roam_radius_norm)
+
+            # Позиция спавна: центр зоны со случайным смещением
+            angle = random.uniform(0.0, 6.2832)
+            offset = random.uniform(0.0, boss_cfg.roam_radius_norm * 0.5)
+            px = boss_cfg.center_norm_x + math.cos(angle) * offset
+            py = boss_cfg.center_norm_y + math.sin(angle) * offset
+            px = max(0.01, min(0.99, px))
+            py = max(0.01, min(0.99, py))
+            wx, wy = self._norm_to_world(px, py)
+
+            meta = _ENEMY_ENCOUNTER_MAP.get(
+                boss_cfg.enemy_id,
+                (EncounterType.BOSS, boss_cfg.name, boss_cfg.color),
+            )
+            encounter_type, name, color = meta
+
+            # Босс — одиночный токен (без squad)
+            token = RoamingToken(
+                token_id=f"boss_{boss_cfg.boss_num:03d}",
+                enemy_type=boss_cfg.enemy_id,
+                encounter_type=EncounterType.BOSS,
+                zone_id="boss_zone",
+                x=wx, y=wy,
+                home_x=home_wx, home_y=home_wy,
+                home_radius=home_wr,
+                name=name,
+                behaviour=TokenBehaviour.RANDOM_WALK,
+                color=(*boss_cfg.color, 1.0),
+                vision_radius=_VISION_RADIUS,
+                vision_angle=_VISION_ANGLE,
+                hearing_radius=_HEARING_RADIUS,
+                patrol_speed=_PATROL_SPEED * 0.5,  # Боссы медленнее
+                chase_speed=_CHASE_SPEED,
+                squad_id=None,
+                is_squad_leader=False,
+            )
+            self._boss_token_ids.add(token.id)
+            self.tokens.append(token)
 
     # ──────────────────────────────────────────────
     #  Graphics lifecycle
@@ -435,6 +498,10 @@ class RoamingEntityManager:
 
         _add_token(token)
 
+        # Bosses are solo encounters — don't collect nearby tokens
+        if token.encounter_type == EncounterType.BOSS:
+            return list(collected)
+
         squad_ids_to_collect = set()
         if token.squad_id:
             squad_ids_to_collect.add(token.squad_id)
@@ -510,7 +577,13 @@ class RoamingEntityManager:
         self._lockout_ids.add(token.id)
         zone = self._zone_by_id(token.zone_id)
 
-        if token.encounter_type == EncounterType.WILD_BEAST:
+        if token.encounter_type == EncounterType.BOSS:
+            dialogue = f"👑 {token.name} преграждает вам путь! Вы чувствуете невероятную силу, исходящую от этого существа."
+            actions = [
+                {"id": "fight", "label": "⚔️ Сразиться с боссом!", "type": "boss_fight"},
+                {"id": "flee", "label": "🏃 Отступить", "type": "flee", "chance": 0.3},
+            ]
+        elif token.encounter_type == EncounterType.WILD_BEAST:
             dialogue = f"{token.name} преграждает вам путь. Зверь явно голоден и готов к атаке."
             actions = [
                 {"id": "fight", "label": "⚔️ Вступить в бой", "type": "fight"},
@@ -552,9 +625,18 @@ class RoamingEntityManager:
             if self._gfx_canvas is not None:
                 token.destroy_graphics(self._gfx_canvas)
             zone_id = token.zone_id
-            self._removed_per_zone[zone_id] = self._removed_per_zone.get(zone_id, 0) + 1
+            # Boss tokens don't contribute to respawn counters
+            if token_id not in self._boss_token_ids:
+                self._removed_per_zone[zone_id] = self._removed_per_zone.get(zone_id, 0) + 1
+            else:
+                self._boss_token_ids.discard(token_id)
         self.tokens = [t for t in self.tokens if t.id != token_id]
         self._lockout_ids.discard(token_id)
+
+    def remove_boss_permanently(self, boss_num: int) -> None:
+        """Удалить токен босса навсегда (после победы)."""
+        token_id = f"boss_{boss_num:03d}"
+        self.remove_token(token_id)
 
     def reset_token(self, token_id: str, cooldown: float = 10.0) -> None:
         token = next((t for t in self.tokens if t.id == token_id), None)

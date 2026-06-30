@@ -550,9 +550,6 @@ class BattleScreen(Screen):
             return
         result = app.game.apply_death_penalty()
 
-        if getattr(app, '_battle_from_local_location', False) and getattr(app, 'local_location_screen', None):
-            app.local_location_screen.prepare_defeat_state()
-
         content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
         content.add_widget(Label(
             text=result.message,
@@ -591,9 +588,6 @@ class BattleScreen(Screen):
         app = App.get_running_app()
         if app.game and not victory:
             result = app.game.apply_death_penalty()
-
-            if getattr(app, '_battle_from_local_location', False) and getattr(app, 'local_location_screen', None):
-                app.local_location_screen.prepare_defeat_state()
 
             content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
             content.add_widget(Label(
