@@ -255,6 +255,9 @@ class InventoryPopup(BoxLayout):
             title='🎁 Использование зелья',
             content=content,
             size_hint=(0.6, 0.5),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         btn_cancel.bind(on_press=target_popup.dismiss)
         target_popup.open()
@@ -272,6 +275,9 @@ class InventoryPopup(BoxLayout):
                 font_size=dp(16),
             ),
             size_hint=(0.5, 0.25),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         result_popup.open()
         self._refresh()

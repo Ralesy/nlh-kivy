@@ -189,7 +189,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='Ошибка',
                 content=Label(text='У вас нет зелий!'),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -215,7 +218,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         popup = Popup(
             title='🎁 Выбор зелья',
             content=content,
-            size_hint=(0.7, 0.6)
+            size_hint=(0.7, 0.6),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
@@ -245,7 +251,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
                 text=f"{companion.name} восстановил {healed} HP!\n"
                      f"({companion.health}/{companion.max_health} HP)"
             ),
-            size_hint=(0.6, 0.3)
+            size_hint=(0.6, 0.3),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
@@ -287,7 +296,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='Ошибка',
                 content=Label(text=f'У вас нет {item_type_name}!'),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -313,7 +325,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         popup = Popup(
             title=f'⚔️ Выбор {item_type}',
             content=content,
-            size_hint=(0.7, 0.6)
+            size_hint=(0.7, 0.6),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
@@ -355,7 +370,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         popup = Popup(
             title='✅ Экипировка',
             content=Label(text=f"{companion.name} экипирован {item.display_name()}!"),
-            size_hint=(0.6, 0.3)
+            size_hint=(0.6, 0.3),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
@@ -399,7 +417,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='✅ Снято',
                 content=Label(text=f"{item.display_name()} возвращено в инвентарь!"),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
 
@@ -426,7 +447,10 @@ class CompanionManagementScreen(Screen, KeyboardHandler):
         popup = Popup(
             title='👋 Спутник отпущен',
             content=Label(text=f"{companion.name} покинул вашу партию.\nЭкипировка возвращена в инвентарь."),
-            size_hint=(0.7, 0.4)
+            size_hint=(0.7, 0.4),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 

@@ -734,24 +734,54 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         popup.open()
 
     def _open_status(self, *args):
+        """Открыть характеристики персонажа как всплывающее окно слева."""
+        from ui.status_popup import StatusPopup
+
         app = App.get_running_app()
-        if getattr(app, "status_screen", None):
-            try:
-                app.status_screen.update_status()
-            except Exception:
-                pass
-        if getattr(app, "game", None) and getattr(app.game, "player", None):
-            self.manager.current = "status"
+        player = app.game.player if app.game else None
+        if not player:
+            return
+
+        def on_close():
+            popup.dismiss()
+
+        status_content = StatusPopup(player, on_done=on_close)
+        popup = Popup(
+            title='',
+            content=status_content,
+            size_hint=(0.35, 0.85),
+            pos_hint={'x': 0.02, 'y': 0.07},
+            auto_dismiss=True,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
+        )
+        popup.open()
 
     def _open_companions(self, *args):
+        """Открыть управление спутниками как всплывающее окно слева."""
+        from ui.companions_popup import CompanionsPopup
+
         app = App.get_running_app()
-        if getattr(app, "companion_management_screen", None):
-            try:
-                app.companion_management_screen.update_companion()
-            except Exception:
-                pass
-        if getattr(app, "game", None) and getattr(app.game, "player", None):
-            self.manager.current = "companion_management"
+        player = app.game.player if app.game else None
+        if not player:
+            return
+
+        def on_close():
+            popup.dismiss()
+
+        companions_content = CompanionsPopup(player, on_done=on_close)
+        popup = Popup(
+            title='',
+            content=companions_content,
+            size_hint=(0.35, 0.85),
+            pos_hint={'x': 0.02, 'y': 0.07},
+            auto_dismiss=True,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
+        )
+        popup.open()
 
     def _open_quests(self, *args):
         """Открыть список квестов как всплывающее окно слева (как инвентарь)."""

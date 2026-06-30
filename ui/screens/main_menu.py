@@ -114,7 +114,10 @@ class MainMenuScreen(Screen):
         btns.add_widget(btn_save)
         btns.add_widget(btn_cancel)
         layout.add_widget(btns)
-        popup = Popup(title="Сохранение игры", content=layout, size_hint=(0.5, 0.35))
+        popup = Popup(title="Сохранение игры", content=layout, size_hint=(0.5, 0.35),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0))
 
         def do_save(instance):
             save_name = name_input.text.strip()
@@ -130,6 +133,9 @@ class MainMenuScreen(Screen):
                             title="Успех",
                             content=Label(text=f'Игра сохранена как "{save_name}"'),
                             size_hint=(0.5, 0.3),
+                            background='',
+                            background_color=(0, 0, 0, 0),
+                            separator_color=(0, 0, 0, 0),
                         ).open()
                     else:
                         label.text = "Ошибка сохранения!"
@@ -150,6 +156,9 @@ class MainMenuScreen(Screen):
                 title="Ошибка",
                 content=Label(text="Нет сохранений."),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -164,6 +173,9 @@ class MainMenuScreen(Screen):
                 title="Ошибка",
                 content=Label(text="Нет сохранений."),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return

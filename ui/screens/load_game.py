@@ -78,6 +78,9 @@ class LoadGameScreen(Screen):
                 title="Ошибка",
                 content=Label(text="Ошибка загрузки."),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
 

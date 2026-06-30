@@ -217,6 +217,9 @@ class InventoryScreen(Screen, KeyboardHandler):
             title="📖 Информация о предмете",
             content=content,
             size_hint=(0.8, 0.7),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         btn_close.bind(on_press=popup.dismiss)
         popup.open()
@@ -232,6 +235,9 @@ class InventoryScreen(Screen, KeyboardHandler):
                     title="Успех",
                     content=Label(text=f"✅ Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
             else:
@@ -239,6 +245,9 @@ class InventoryScreen(Screen, KeyboardHandler):
                     title="Ошибка",
                     content=Label(text="Не удалось экипировать. Проверьте инвентарь."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
         elif isinstance(item, Armor):
@@ -247,6 +256,9 @@ class InventoryScreen(Screen, KeyboardHandler):
                     title="Успех",
                     content=Label(text=f"✅ Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
             else:
@@ -254,6 +266,9 @@ class InventoryScreen(Screen, KeyboardHandler):
                     title="Ошибка",
                     content=Label(text="Не удалось экипировать. Проверьте инвентарь."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
 
@@ -300,6 +315,9 @@ class InventoryScreen(Screen, KeyboardHandler):
             title="🎁 Использование зелья",
             content=content,
             size_hint=(0.7, 0.6),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         btn_cancel.bind(on_press=lambda x: popup.dismiss())
         popup.open()
@@ -331,6 +349,9 @@ class InventoryScreen(Screen, KeyboardHandler):
                 font_size=dp(18),
             ),
             size_hint=(0.6, 0.3),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         result_popup.open()
 
@@ -347,6 +368,9 @@ class InventoryScreen(Screen, KeyboardHandler):
                     title="Успех",
                     content=Label(text="✅ Оружие снято."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
         elif isinstance(item, Armor):
@@ -355,6 +379,9 @@ class InventoryScreen(Screen, KeyboardHandler):
                     title="Успех",
                     content=Label(text="✅ Броня снята."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
 
@@ -492,6 +519,9 @@ class BattleInventoryScreen(Screen):
                 title="Ошибка",
                 content=Label(text="Этот предмет нельзя использовать в бою."),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -504,6 +534,9 @@ class BattleInventoryScreen(Screen):
             title="Результат",
             content=Label(text=result),
             size_hint=(0.6, 0.3),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
@@ -522,6 +555,9 @@ class BattleInventoryScreen(Screen):
                     title="Успех",
                     content=Label(text=f"✅ Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
                 self.update_inventory(self.battlefield)
@@ -530,6 +566,9 @@ class BattleInventoryScreen(Screen):
                     title="Ошибка",
                     content=Label(text="Не удалось экипировать. Проверьте инвентарь."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
         elif isinstance(item, Armor):
@@ -538,6 +577,9 @@ class BattleInventoryScreen(Screen):
                     title="Успех",
                     content=Label(text=f"✅ Экипировано {item.display_name()}"),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
                 self.update_inventory(self.battlefield)
@@ -546,6 +588,9 @@ class BattleInventoryScreen(Screen):
                     title="Ошибка",
                     content=Label(text="Не удалось экипировать. Проверьте инвентарь."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
 
@@ -562,6 +607,9 @@ class BattleInventoryScreen(Screen):
                     title="Успех",
                     content=Label(text="✅ Оружие снято."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
                 self.update_inventory(self.battlefield)
@@ -571,6 +619,9 @@ class BattleInventoryScreen(Screen):
                     title="Успех",
                     content=Label(text="✅ Броня снята."),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
                 self.update_inventory(self.battlefield)

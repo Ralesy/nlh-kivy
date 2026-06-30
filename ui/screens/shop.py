@@ -299,6 +299,9 @@ class ShopScreen(Screen, KeyboardHandler):
             title="📖 Информация о предмете",
             content=content,
             size_hint=(0.8, 0.7),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         btn_close.bind(on_press=popup.dismiss)
         popup.open()
@@ -320,6 +323,9 @@ class ShopScreen(Screen, KeyboardHandler):
             title="Результат",
             content=Label(text=result),
             size_hint=(0.6, 0.3),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
         self.show_buy()
@@ -334,6 +340,9 @@ class ShopScreen(Screen, KeyboardHandler):
             title="Результат",
             content=Label(text=result),
             size_hint=(0.6, 0.3),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
         self.show_sell()

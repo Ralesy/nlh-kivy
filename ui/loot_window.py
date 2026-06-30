@@ -185,7 +185,10 @@ class LootWindow(BoxLayout):
                 popup = Popup(
                     title='Ошибка',
                     content=Label(text='Недостаточно места в инвентаре.'),
-                    size_hint=(0.6, 0.3)
+                    size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
                 # вернём предмет обратно в лут (он уже был удалён из списка)
@@ -202,7 +205,10 @@ class LootWindow(BoxLayout):
                     popup = Popup(
                         title='Ошибка',
                         content=Label(text='Недостаточно места в инвентаре.'),
-                        size_hint=(0.6, 0.3)
+                        size_hint=(0.6, 0.3),
+                        background='',
+                        background_color=(0, 0, 0, 0),
+                        separator_color=(0, 0, 0, 0),
                     )
                     popup.open()
                     # вернём предмет обратно в лут

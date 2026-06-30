@@ -195,7 +195,10 @@ class AncientCaveBossSelectScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='Ошибка',
                 content=Label(text='Не удалось создать босса!'),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -208,6 +211,9 @@ class AncientCaveBossSelectScreen(Screen, KeyboardHandler):
                 title='Ошибка',
                 content=Label(text='Не удалось начать бой с боссом!'),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -248,7 +254,10 @@ class AncientCaveBossSelectScreen(Screen, KeyboardHandler):
                 valign='middle',
                 font_size=dp(18)
             ),
-            size_hint=(0.7, 0.4)
+            size_hint=(0.7, 0.4),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
     

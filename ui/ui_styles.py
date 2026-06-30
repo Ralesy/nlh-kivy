@@ -422,7 +422,9 @@ def create_styled_popup(
         content=main_box,
         size_hint=(width_hint, height_hint),
         background='',
-        separator_height=0
+        background_color=(0, 0, 0, 0),
+        separator_color=(0, 0, 0, 0),
+        separator_height=0,
     )
 
     # Стилизованный фон Popup'а

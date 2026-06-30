@@ -226,7 +226,10 @@ class TavernScreen(Screen, KeyboardHandler):
         popup = Popup(
             title='🎲 Ставка',
             content=content,
-            size_hint=(0.7, 0.5)
+            size_hint=(0.7, 0.5),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
     
@@ -412,7 +415,10 @@ class TavernScreen(Screen, KeyboardHandler):
                 halign='center',
                 font_size=dp(18)
             ),
-            size_hint=(0.7, 0.4)
+            size_hint=(0.7, 0.4),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
         self._refresh_after_quest_claim()
@@ -439,7 +445,10 @@ class TavernScreen(Screen, KeyboardHandler):
                     halign='center',
                     font_size=dp(18)
                 ),
-                size_hint=(0.75, 0.4)
+                size_hint=(0.75, 0.4),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -448,7 +457,10 @@ class TavernScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='Ошибка',
                 content=Label(text=f'Недостаточно монет (нужно {price}).'),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -468,7 +480,10 @@ class TavernScreen(Screen, KeyboardHandler):
                 halign='center',
                 font_size=dp(18)
             ),
-            size_hint=(0.7, 0.4)
+            size_hint=(0.7, 0.4),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
         self.show_companions()

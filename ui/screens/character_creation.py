@@ -163,6 +163,9 @@ class CharacterCreationScreen(Screen):
                     text="Ошибка загрузки базы данных предметов!",
                 ),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -208,6 +211,9 @@ class CharacterCreationScreen(Screen):
                 font_size=dp(18),
             ),
             size_hint=(0.8, 0.6),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
