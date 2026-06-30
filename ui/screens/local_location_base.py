@@ -754,14 +754,29 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self.manager.current = "companion_management"
 
     def _open_quests(self, *args):
+        """Открыть список квестов как всплывающее окно слева (как инвентарь)."""
+        from ui.quests_popup import QuestsPopup
+
         app = App.get_running_app()
-        if getattr(app, "active_quests_screen", None):
-            try:
-                app.active_quests_screen.update_quests()
-            except Exception:
-                pass
-        if getattr(app, "game", None) and getattr(app.game, "player", None):
-            self.manager.current = "active_quests"
+        player = app.game.player if app.game else None
+        if not player:
+            return
+
+        def on_close():
+            popup.dismiss()
+
+        quests_content = QuestsPopup(player, on_done=on_close)
+        popup = Popup(
+            title='',
+            content=quests_content,
+            size_hint=(0.35, 0.85),
+            pos_hint={'x': 0.02, 'y': 0.07},
+            auto_dismiss=True,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
+        )
+        popup.open()
 
     def _sync_entity_positions(self) -> None:
         """Пересчитать экранные координаты сущностей по нормализованным.
@@ -1566,6 +1581,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             content=content,
             size_hint=(0.7, 0.45),
             auto_dismiss=False,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
@@ -1804,6 +1822,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             content=content,
             size_hint=(0.7, 0.75),
             auto_dismiss=False,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         btn_ok.bind(on_press=popup.dismiss)
         popup.open()

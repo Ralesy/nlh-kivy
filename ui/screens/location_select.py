@@ -906,17 +906,28 @@ class LocationSelectScreen(Screen, KeyboardHandler):
 
         # Quests button
         def _open_active_quests(*args):
+            from ui.quests_popup import QuestsPopup
+
             app = App.get_running_app()
-            if getattr(app, 'active_quests_screen', None):
-                try:
-                    app.active_quests_screen.update_quests()
-                except Exception:
-                    pass
-            if getattr(app, 'game', None) and getattr(app.game, 'player', None):
-                try:
-                    self.manager.current = 'active_quests'
-                except Exception:
-                    pass
+            player = app.game.player if app.game else None
+            if not player:
+                return
+
+            def on_close():
+                popup.dismiss()
+
+            quests_content = QuestsPopup(player, on_done=on_close)
+            popup = Popup(
+                title='',
+                content=quests_content,
+                size_hint=(0.35, 0.85),
+                pos_hint={'x': 0.02, 'y': 0.07},
+                auto_dismiss=True,
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
+            )
+            popup.open()
 
         quests_btn = Button(
             text='',
@@ -1743,7 +1754,10 @@ class LocationSelectScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='Ошибка',
                 content=Label(text='Игра не инициализирована!'),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -1763,7 +1777,10 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 popup = Popup(
                     title='Локация закрыта',
                     content=Label(text=unlock_msg),
-                    size_hint=(0.7, 0.3)
+                    size_hint=(0.7, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup.open()
                 return
@@ -1781,6 +1798,9 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 title='Ошибка',
                 content=Label(text='Не удалось открыть локацию.'),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -1790,6 +1810,9 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 title='Деревня',
                 content=Label(text='в разработке', halign='center'),
                 size_hint=(0.6, 0.28),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -1989,6 +2012,9 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                     color=(0.9, 0.3, 0.2, 1),
                 ),
                 size_hint=(0.7, 0.4),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             Clock.schedule_once(
@@ -2014,6 +2040,9 @@ class LocationSelectScreen(Screen, KeyboardHandler):
                 valign='middle',
                 font_size=dp(18)
             ),
-            size_hint=(0.7, 0.4)
+            size_hint=(0.7, 0.4),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()

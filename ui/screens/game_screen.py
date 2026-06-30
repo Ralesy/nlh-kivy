@@ -256,7 +256,10 @@ class GameScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='Ошибка',
                 content=Label(text='Вы не можете идти - вы мертвы!'),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -277,7 +280,10 @@ class GameScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title='Ошибка',
                 content=Label(text='Локация не найдена!'),
-                size_hint=(0.6, 0.3)
+                size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -287,7 +293,10 @@ class GameScreen(Screen, KeyboardHandler):
             popup = Popup(
                 title=f'🔒 {location.name}',
                 content=Label(text=f"Требования для разблокировки:\n{condition_text}", font_size=dp(18)),
-                size_hint=(0.7, 0.4)
+                size_hint=(0.7, 0.4),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -301,6 +310,9 @@ class GameScreen(Screen, KeyboardHandler):
                     font_size=dp(18),
                 ),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -327,6 +339,9 @@ class GameScreen(Screen, KeyboardHandler):
                 title='Ошибка',
                 content=Label(text='Нет врагов для этой локации.'),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -338,6 +353,9 @@ class GameScreen(Screen, KeyboardHandler):
                 title='Ошибка',
                 content=Label(text='Не удалось начать бой.'),
                 size_hint=(0.6, 0.3),
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
@@ -350,7 +368,10 @@ class GameScreen(Screen, KeyboardHandler):
                 app.battle_screen.start_battle(battlefield, location.name)
             self.manager.current = 'battle'
         except Exception:
-            popup = Popup(title='Ошибка', content=Label(text='Не удалось начать бой.'), size_hint=(0.6, 0.3))
+            popup = Popup(title='Ошибка', content=Label(text='Не удалось начать бой.'), size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),)
             popup.open()
     
     def on_city(self, instance):
@@ -449,6 +470,9 @@ class GameScreen(Screen, KeyboardHandler):
                         font_size=dp(18),
                     ),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup2.open()
             else:
@@ -460,6 +484,9 @@ class GameScreen(Screen, KeyboardHandler):
                         font_size=dp(18),
                     ),
                     size_hint=(0.6, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
                 )
                 popup2.open()
         
@@ -484,7 +511,10 @@ class GameScreen(Screen, KeyboardHandler):
         popup = Popup(
             title='💾 Сохранение игры',
             content=content,
-            size_hint=(0.7, 0.45)
+            size_hint=(0.7, 0.45),
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 

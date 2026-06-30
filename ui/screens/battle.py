@@ -483,7 +483,10 @@ class BattleScreen(Screen):
                             popup = Popup(
                                 title='🔓 Новые локации!',
                                 content=Label(text='\n'.join(names)),
-                                size_hint=(0.6, 0.3)
+                                size_hint=(0.6, 0.3),
+                                background='',
+                                background_color=(0, 0, 0, 0),
+                                separator_color=(0, 0, 0, 0),
                             )
                             popup.open()
                         # Refresh shop and UI screens so changes appear immediately
@@ -580,6 +583,9 @@ class BattleScreen(Screen):
             content=content,
             size_hint=(0.8, 0.6),
             auto_dismiss=False,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
         )
         popup.open()
 
@@ -624,6 +630,9 @@ class BattleScreen(Screen):
                 content=content,
                 size_hint=(0.8, 0.6),
                 auto_dismiss=False,
+                background='',
+                background_color=(0, 0, 0, 0),
+                separator_color=(0, 0, 0, 0),
             )
             popup.open()
             return
