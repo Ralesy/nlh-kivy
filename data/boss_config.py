@@ -18,6 +18,7 @@ class BossRoamConfig:
     boss_num: int
     name: str
     enemy_id: str
+    location_id: str  # id локации для соответствия зоне (forest, swamp, mines, mountains)
     center_norm_x: float  # центр зоны патрулирования (норм. 0..1)
     center_norm_y: float
     roam_radius_norm: float = 0.05  # радиус зоны патрулирования
@@ -32,6 +33,7 @@ BOSS_ROAM_CONFIGS: list[BossRoamConfig] = [
         boss_num=1,
         name="Безумный мародёр",
         enemy_id="enemy_ancient_cave_berserker",
+        location_id="forest",
         center_norm_x=0.18, center_norm_y=0.45,
         roam_radius_norm=0.06,
         level=3,
@@ -42,6 +44,7 @@ BOSS_ROAM_CONFIGS: list[BossRoamConfig] = [
         boss_num=2,
         name="Хозяин Болота",
         enemy_id="enemy_ancient_cave_bog_master",
+        location_id="swamp",
         center_norm_x=0.50, center_norm_y=0.60,
         roam_radius_norm=0.06,
         level=5,
@@ -52,6 +55,7 @@ BOSS_ROAM_CONFIGS: list[BossRoamConfig] = [
         boss_num=3,
         name="Король Шахт",
         enemy_id="enemy_ancient_cave_mine_king",
+        location_id="mines",
         center_norm_x=0.70, center_norm_y=0.20,
         roam_radius_norm=0.06,
         level=8,
@@ -62,6 +66,7 @@ BOSS_ROAM_CONFIGS: list[BossRoamConfig] = [
         boss_num=4,
         name="Повелитель Драконов",
         enemy_id="enemy_ancient_cave_dragon_lord",
+        location_id="mountains",
         center_norm_x=0.70, center_norm_y=0.90,
         roam_radius_norm=0.06,
         level=12,

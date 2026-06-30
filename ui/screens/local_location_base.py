@@ -1739,7 +1739,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             else:
                 names = ", ".join(e.get("name", "?") for e in battle_group)
                 title = f"{names}"
-            app.battle_screen.start_battle(battlefield, title)
+            app.battle_screen.start_battle(battlefield, title, zone_id=self.location_id)
             self.manager.current = "battle"
         except Exception:
             import traceback
@@ -2916,10 +2916,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if hasattr(app, 'battle_screen'):
                 app._battle_from_local_location = True
                 app.battle_screen.from_local_location = True
-                app.battle_screen.start_battle(battlefield, f"{boss_name}")
-                # Устанавливаем фоновое изображение зоны для битвы с боссом
-                if self._ambush_zone_id:
-                    app.battle_screen.set_zone_background(self._ambush_zone_id)
+                app.battle_screen.start_battle(battlefield, f"{boss_name}", zone_id=self._ambush_zone_id)
                 self.manager.current = 'battle'
         except Exception as e:
             import traceback

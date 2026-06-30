@@ -261,12 +261,16 @@ class RoamingEntityManager:
             )
             encounter_type, name, color = meta
 
+            # Босс использует zone_id соответствующей дикой зоны,
+            # чтобы encounter_data получал правильный zone_name для фона
+            boss_zone_id = f"{boss_cfg.location_id}_wild"
+
             # Босс — одиночный токен (без squad)
             token = RoamingToken(
                 token_id=f"boss_{boss_cfg.boss_num:03d}",
                 enemy_type=boss_cfg.enemy_id,
                 encounter_type=EncounterType.BOSS,
-                zone_id="boss_zone",
+                zone_id=boss_zone_id,
                 x=wx, y=wy,
                 home_x=home_wx, home_y=home_wy,
                 home_radius=home_wr,
@@ -462,6 +466,9 @@ class RoamingEntityManager:
             if not token.is_chasing:
                 continue
             if token.id in self._lockout_ids:
+                continue
+            # Боссы преследуют игрока независимо от зоны
+            if token.encounter_type == EncounterType.BOSS:
                 continue
             zone = self._zone_by_id(token.zone_id)
             if not zone:

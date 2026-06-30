@@ -38,9 +38,9 @@ class BattleScreen(Screen):
         
         layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
         
-        # Устанавливаем темный фон для боевого экрана
+        # Устанавливаем полупрозрачный фон для боевого экрана (чтобы zone background был виден)
         with layout.canvas.before:
-            Color(0.15, 0.15, 0.2, 1) # Темно-синий фон
+            Color(0.15, 0.15, 0.2, 0.78) # Полупрозрачный темно-синий фон
             self.bg_rect = Rectangle()
             layout.bind(
                 size=lambda i, v: setattr(self.bg_rect, 'size', i.size),
@@ -162,13 +162,18 @@ class BattleScreen(Screen):
             self._bg_image = cover_background_image(bg_path)
             self._root.add_widget(self._bg_image, index=0)
 
-    def start_battle(self, battlefield, event_message=None):
+    def start_battle(self, battlefield, event_message=None, zone_id=None):
         """Начало боя."""
         self.battlefield = battlefield
         self.service = BattleService(battlefield)
         self.event_message = event_message
         self.log_label.text = ''
         self.is_processing_turn = False
+        
+        # Устанавливаем фоновое изображение зоны, если передан zone_id
+        if zone_id:
+            self.set_zone_background(zone_id)
+        
         self.update_battle_display()
         
         if event_message:
