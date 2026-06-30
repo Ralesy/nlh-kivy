@@ -245,6 +245,18 @@ class NpcDialoguePopup(BoxLayout):
         player.coins += self.current_quest.reward_gold
         player.add_experience(self.current_quest.reward_xp)
 
+        # --- Global Danger: снизить опасность за сдачу квеста ---
+        danger_msg = ""
+        if hasattr(app.game, 'danger_manager'):
+            reduction = app.game.danger_manager.on_quest_completed()
+            if reduction > 0:
+                danger_msg = (
+                    f"\n\nОпасность снижена на "
+                    f"{reduction:.0f}% "
+                    f"(теперь "
+                    f"{app.game.danger_manager.danger_level:.0f}%)"
+                )
+
         if self.current_quest in player.accepted_quests:
             player.accepted_quests.remove(self.current_quest)
         self.npc.current_quest = None
@@ -252,14 +264,17 @@ class NpcDialoguePopup(BoxLayout):
 
         popup = Popup(
             title='Награда получена!',
-            content=Label(text='Квест выполнен! Вы получили награду.', font_size=dp(16)),
-            size_hint=(0.6, 0.25),
+            content=Label(
+                text='Квест выполнен! Вы получили награду.' + danger_msg,
+                font_size=dp(16),
+            ),
+            size_hint=(0.6, 0.3),
             background='',
             background_color=(0, 0, 0, 0),
             separator_color=(0, 0, 0, 0),
         )
         popup.open()
-        Clock.schedule_once(lambda dt: popup.dismiss(), 1.5)
+        Clock.schedule_once(lambda dt: popup.dismiss(), 2.5)
         self._close()
 
     def _close(self, *_args):

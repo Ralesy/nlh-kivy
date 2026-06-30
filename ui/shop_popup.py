@@ -21,7 +21,7 @@ from data.items import ItemDatabase, Weapon, Armor, Potion, WEAPON_MATERIALS, AR
 
 
 class _StyledShopBtn(Button):
-    """Маленькая стилизованная кнопка для магазина."""
+    """Маленькая стилизованная кнопка для магаза."""
 
     def __init__(self, text="", bg_color=None, **kwargs):
         super().__init__(**kwargs)

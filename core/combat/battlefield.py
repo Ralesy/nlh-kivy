@@ -165,6 +165,8 @@ class Battlefield:
         killed = not target.is_alive
         if killed:
             log += f" [Взрыв] {target.name} повержен!"
+            from kivy.logger import Logger
+            Logger.info(f"BATTLE: Enemy killed: '{target.name}'")
             self.player.update_quest_progress(target.name)
 
         return log, killed

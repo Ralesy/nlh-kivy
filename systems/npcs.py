@@ -67,8 +67,15 @@ class GeneratedQuest:
     def update_progress(self, enemy_name: str):
         """Обновить прогресс квеста."""
         if self.state == QuestState.ACTIVE and self.quest_type == QuestType.KILL_ENEMIES:
-            if enemy_name.lower() == self.target.lower():
+            target_lower = self.target.lower()
+            enemy_lower = enemy_name.lower()
+            # Совпадение по полному имени или вхождению target в имя врага
+            # (например "волк" содержится в "Лесной волк")
+            matched = target_lower == enemy_lower or target_lower in enemy_lower
+            if matched:
                 self.current_progress = min(self.required_count, self.current_progress + 1)
+            return matched
+        return False
 
     def is_complete(self):
         """Проверить, выполнен ли квест."""
@@ -211,7 +218,7 @@ class CaptainGuard(NPC):
 class SwampTracker(NPC):
     """NPC #2 - Старый болотный следопыт (враги болот)."""
 
-    ENEMY_TYPES = ["гоблин", "гигантская жаба", "болотник"]
+    ENEMY_TYPES = ["гоблин", "гигантская жаба", "шаман болот"]
     BACKSTORIES = [
         "Болото полно неприятных тварей!",
         "Помогите - жабы атакуют посёлки.",
@@ -253,10 +260,9 @@ class CrazeMiner(NPC):
 
     ENEMY_TYPES = [
         "орк",
-        "гном-драугр",
+        "драугр-шахтёр",
         "скелет",
-        "Крысиный Король",
-        "Старый Камнежор"
+        "каменный голем",
     ]
     BACKSTORIES = [
         "Шахты наполнены ужасными монстрами!",
@@ -360,7 +366,7 @@ class DragonSlayerChampion(NPC):
             ("Докажи, что ты достоин звания драконоборца! "
              "Убей 10 драконов и верни мне доказательство."),
             QuestType.KILL_ENEMIES,
-            "драконов",
+            "дракон",
             10,
             1000,
             500,

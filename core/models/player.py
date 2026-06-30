@@ -466,7 +466,12 @@ class Player(Creature):
     def update_quest_progress(self, enemy_name: str) -> None:
         """Обновить прогресс активных квестов на убийство."""
         for quest in self.accepted_quests:
+            old = quest.current_progress
             quest.update_progress(enemy_name)
+            if quest.current_progress > old:
+                print(f"[QUEST] Прогресс '{quest.title}': {old}→{quest.current_progress}/{quest.required_count} (враг: '{enemy_name}')")
+            else:
+                print(f"[QUEST] Убит '{enemy_name}', но квест '{quest.title}' (target='{quest.target}') не совпал")
 
     def to_dict(self) -> dict:
         """Сериализация для сохранения."""

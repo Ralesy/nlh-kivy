@@ -2261,6 +2261,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 target_ent["death_timer"] = 0.5
                 if target_ent.get("type") in ("enemy", "boss"):
                     self._defeated_enemies.add(target_ent["id"])
+                    # Обновляем прогресс квестов
+                    app = App.get_running_app()
+                    if app.game and app.game.player:
+                        app.game.player.update_quest_progress(target_creature.name)
 
         # После удара устанавливаем длительности следующих фаз
         attacker_ent["phase_duration"] = attacker_ent.get("_strike_duration", 0.15)
