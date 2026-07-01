@@ -54,13 +54,18 @@ class Player(Creature):
     STAT_COEFFICIENTS = {
         "endurance": {"health": 15},
         "strength": {"damage": 2, "inventory_capacity": 5},
-        "agility": {"critical_chance": 0.05, "dexterity": 3},
-        "luck": {"luck": 0.15},
+        "agility": {"dexterity": 3},
+        "luck": {"luck": 0.15, "critical_chance": 0.05},
         "trade": {"selling_multiplier": 0.1},
-        "speed": {"move_speed": 15},
+        "scouting": {"global_move_speed": 20},
+        "athletics": {"move_speed": 20},
+        "leadership": {},
+        "attentiveness": {},
+        "tenacity": {},
     }
 
     BASE_MOVE_SPEED = 200
+    BASE_GLOBAL_MOVE_SPEED = 147
 
     STARTING_SKILL_POINTS = 5
 
@@ -88,10 +93,15 @@ class Player(Creature):
             "agility": 0,
             "luck": 0,
             "trade": 0,
-            "speed": 0,
+            "scouting": 0,
+            "athletics": 0,
+            "leadership": 0,
+            "attentiveness": 0,
+            "tenacity": 0,
         }
 
         self._move_speed = self.BASE_MOVE_SPEED
+        self._global_move_speed = self.BASE_GLOBAL_MOVE_SPEED
 
         self._critical_chance = self.BASE_STATS["critical_chance"]
         self._luck = self.BASE_STATS["luck"]
@@ -190,8 +200,8 @@ class Player(Creature):
 
         self._critical_chance = (
             self.BASE_STATS["critical_chance"]
-            + self.skill_points_allocated["agility"]
-            * self.STAT_COEFFICIENTS["agility"]["critical_chance"]
+            + self.skill_points_allocated["luck"]
+            * self.STAT_COEFFICIENTS["luck"]["critical_chance"]
         )
         self._luck = (
             self.BASE_STATS["luck"]
@@ -206,8 +216,14 @@ class Player(Creature):
 
         self._move_speed = (
             self.BASE_MOVE_SPEED
-            + self.skill_points_allocated["speed"]
-            * self.STAT_COEFFICIENTS["speed"]["move_speed"]
+            + self.skill_points_allocated["athletics"]
+            * self.STAT_COEFFICIENTS["athletics"]["move_speed"]
+        )
+
+        self._global_move_speed = (
+            self.BASE_GLOBAL_MOVE_SPEED
+            + self.skill_points_allocated["scouting"]
+            * self.STAT_COEFFICIENTS["scouting"]["global_move_speed"]
         )
 
         # Ловкость (dexterity) для real-time combat (1..20)
@@ -231,8 +247,13 @@ class Player(Creature):
 
     @property
     def move_speed(self) -> int:
-        """Скорость передвижения персонажа по карте."""
+        """Скорость передвижения персонажа по локации."""
         return max(self.BASE_MOVE_SPEED, int(self._move_speed))
+
+    @property
+    def global_move_speed(self) -> int:
+        """Скорость передвижения на глобальной карте."""
+        return max(self.BASE_GLOBAL_MOVE_SPEED, int(self._global_move_speed))
 
     def add_listener(self, callback) -> None:
         """Подписать UI-колбэк на изменения состояния игрока."""
@@ -517,7 +538,12 @@ class Player(Creature):
         player.experience = data.get("experience", 0)
 
         if "skill_points_allocated" in data:
-            player.skill_points_allocated = data["skill_points_allocated"]
+            # Миграция старых сохранений — добавляем недостающие ключи
+            loaded = data["skill_points_allocated"]
+            for key in ("scouting", "athletics", "leadership", "attentiveness", "tenacity"):
+                if key not in loaded:
+                    loaded[key] = 0
+            player.skill_points_allocated = loaded
             player.skill_points_available = data.get("skill_points_available", 0)
             player._recalculate_derived_stats()
 

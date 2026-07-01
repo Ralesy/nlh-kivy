@@ -1862,6 +1862,8 @@ class LocationSelectScreen(Screen, KeyboardHandler):
         try:
             app = App.get_running_app()
             player = app.game.player if app.game else None
+            if player and hasattr(player, 'global_move_speed'):
+                self._move_speed = dp(player.global_move_speed)
             gp = player.last_global_pos if player else None
             if gp and hasattr(self, 'map_overlay') and hasattr(self, '_player_marker'):
                 w = max(1, self.map_overlay.width)

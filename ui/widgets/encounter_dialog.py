@@ -103,7 +103,7 @@ class EncounterDialog(Popup):
         chance = action.get("chance", 0.5)
         app = App.get_running_app()
         if app and app.game and app.game.player and hasattr(app.game.player, "skill_points_allocated"):
-            speed_level = app.game.player.skill_points_allocated.get("speed", 0)
+            speed_level = app.game.player.skill_points_allocated.get("agility", 0)
             chance += speed_level * 0.05
 
         if random.random() < chance:

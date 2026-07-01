@@ -19,10 +19,14 @@ from ui.widgets.navigation_buttons import add_back_to_map_button
 SKILL_DISPLAY = [
     ("endurance", "Выносливость", "+15 HP"),
     ("strength", "Сила", "+2 урона, +5 вместимости"),
-    ("agility", "Ловкость", "+5% крит. шанса"),
-    ("luck", "Удача", "+0.15 удачи"),
+    ("agility", "Ловкость", "+3 ловкости в бою"),
+    ("luck", "Удача", "+5% крит. шанса, +0.15 удачи"),
     ("trade", "Торговля", "+0.1 множ. продажи"),
-    ("speed", "Скорость", "+15 скорости"),
+    ("scouting", "Следопытство", "+20 скорости карты"),
+    ("athletics", "Атлетика", "+20 скорости в локациях"),
+    ("leadership", "Лидерство", "заглушка"),
+    ("attentiveness", "Внимательность", "заглушка"),
+    ("tenacity", "Стойкость", "заглушка"),
 ]
 
 PANEL_BG = (0.16, 0.14, 0.12, 0.95)
@@ -382,13 +386,15 @@ class StatusScreen(Screen, KeyboardHandler):
             f"Урон: {p.damage} ",
             f"Защита: {p.defense} ",
             f"Крит. шанс: {crit_pct}%",
-            f"Скорость: {p.move_speed} 💨",
+            f"Скорость (локации): {p.move_speed} 💨",
+            f"Скорость (карта): {p.global_move_speed} 🗺️",
         ]
         stat_colors = [
             (0.75, 0.30, 0.25, 1),
             (0.85, 0.55, 0.20, 1) if p.damage >= 15 else COLORS['gold_light'],
             (0.35, 0.50, 0.70, 1),
             COLORS['gold_light'],
+            (0.45, 0.60, 0.35, 1),
             (0.45, 0.60, 0.35, 1),
         ]
         for (_, lbl), text, color in zip(self._stat_rows, stat_texts, stat_colors):

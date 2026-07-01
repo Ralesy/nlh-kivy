@@ -22,10 +22,14 @@ from ui.ui_styles import COLORS
 SKILL_DISPLAY = [
     ("endurance", "Выносливость", "+15 HP"),
     ("strength", "Сила", "+2 урона, +5 вместимости"),
-    ("agility", "Ловкость", "+5% крит. шанса"),
-    ("luck", "Удача", "+0.15 удачи"),
+    ("agility", "Ловкость", "+3 ловкости в бою"),
+    ("luck", "Удача", "+5% крит. шанса, +0.15 удачи"),
     ("trade", "Торговля", "+0.1 множ. продажи"),
-    ("speed", "Скорость", "+15 скорости"),
+    ("scouting", "Следопытство", "+20 скорости карты"),
+    ("athletics", "Атлетика", "+20 скорости в локациях"),
+    ("leadership", "Лидерство", "заглушка"),
+    ("attentiveness", "Внимательность", "заглушка"),
+    ("tenacity", "Стойкость", "заглушка"),
 ]
 
 
@@ -117,7 +121,7 @@ class StatusPopup(BoxLayout):
         )
         stat_widgets.bind(minimum_height=stat_widgets.setter('height'))
         stat_widgets.add_widget(_TitleLabel(text='ХАРАКТЕРИСТИКИ'))
-        for _ in range(5):
+        for _ in range(6):
             lbl = _InfoLabel()
             self._stat_labels.append(lbl)
             stat_widgets.add_widget(lbl)
@@ -231,7 +235,8 @@ class StatusPopup(BoxLayout):
             (f"Урон: {p.damage} ", (0.85, 0.55, 0.20, 1) if p.damage >= 15 else COLORS['gold_light']),
             (f"Защита: {p.defense} ", (0.35, 0.50, 0.70, 1)),
             (f"Крит. шанс: {crit_pct}%", COLORS['gold_light']),
-            (f"Скорость: {p.move_speed} 💨", (0.45, 0.60, 0.35, 1)),
+            (f"Скорость (локации): {p.move_speed} 💨", (0.45, 0.60, 0.35, 1)),
+            (f"Скорость (карта): {p.global_move_speed} 🗺️", (0.45, 0.60, 0.35, 1)),
         ]
         for lbl, (text, color) in zip(self._stat_labels, stat_texts):
             lbl.text = text
