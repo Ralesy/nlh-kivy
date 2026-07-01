@@ -1920,12 +1920,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         player_name = player.name if player else "Игрок"
 
         def on_loot_done(selected=None):
-            """Закрыть окно и начислить золото/опыт (только при первом лутании)."""
+            """Закрыть окно (XP начисляется в момент убийства, а не при лутании)."""
             if not corpse_ent.get("_looted"):
                 if gold > 0:
                     player.coins += gold
-                if xp > 0:
-                    player.add_experience(xp)
                 corpse_ent["_looted"] = True
                 corpse_ent["defeated"] = True
             # Сохраняем ТО, ЧТО ОСТАЛОСЬ в окне лута (взятые предметы удалены)
@@ -2846,6 +2844,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if not target_creature.is_alive:
                 target_ent["defeated"] = True
                 target_ent["death_timer"] = 0.5
+                # Запоминаем кто убил
+                target_ent["_killed_by"] = attacker_creature
                 if target_ent.get("type") in ("enemy", "boss"):
                     self._defeated_enemies.add(target_ent["id"])
                     # Обновляем прогресс квестов
@@ -2889,6 +2889,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _end_rt_combat(self, victory=False, escaped=False):
         """Завершить real-time бой: очистка, дроп, XP."""
+        app = App.get_running_app()
         # Скрываем индикатор боя
         self._hide_combat_indicator()
 
@@ -2907,24 +2908,20 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             pe["readiness"] = 0.0
 
         if victory:
-            # Собираем XP и лут с убитых врагов
-            app = App.get_running_app()
-            player = app.game.player if app.game else None
-            if player:
-                total_xp = 0
-                total_coins = 0
-                for ent in self._entities:
-                    creature = ent.get("creature")
-                    if creature and ent.get("defeated") and ent.get("type") in ("enemy", "boss"):
-                        total_xp += creature.base_xp
-                        total_coins += creature.coins
-                        # Лут генерируется через существующую систему
-                if total_xp > 0:
-                    player.add_experience(total_xp)
-                if total_coins > 0:
-                    player.coins += total_coins
-                player.battles_fought += 1
-                player.enemies_defeated += 1
+            # Собираем XP и лут с убитых врагов — XP начисляется убийце
+            for ent in self._entities:
+                creature = ent.get("creature")
+                if creature and ent.get("defeated") and ent.get("type") in ("enemy", "boss"):
+                    killer = ent.get("_killed_by")
+                    if killer and hasattr(killer, "add_experience"):
+                        killer.add_experience(creature.base_xp)
+                        killer.battles_fought += 1
+                        killer.enemies_defeated += 1
+                    elif app.game and app.game.player:
+                        app.game.player.add_experience(creature.base_xp)
+                    # Монеты идут активному игроку
+                    if creature.coins > 0:
+                        app.game.player.coins += creature.coins
 
         if escaped:
             # При побеге НЕ восстанавливаем здоровье — враги остаются ранеными
