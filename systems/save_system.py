@@ -83,6 +83,13 @@ def load_session_into(session: "GameSession", filename: str) -> bool:
         # Восстановить состояние DangerManager
         if "danger" in data:
             session.danger_manager.from_dict(data["danger"])
+        # Восстановить членов отряда
+        session.party_members = [
+            Player.from_dict(pm) for pm in data.get("party_members", [])
+        ]
+        session.active_party_member_index = int(
+            data.get("active_party_member_index", -1)
+        )
         return True
     except Exception as e:
         print(f"Ошибка загрузки сессии: {e}")

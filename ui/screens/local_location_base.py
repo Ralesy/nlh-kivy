@@ -115,7 +115,12 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._saved_enemy_dirs = {}
         self._is_ambush = False
         self._ambush_total_enemies = 0
-        self._player_entity = None # entity-словарь игрока для real-time combat
+        self._player_entity = None  # entity-словарь активного игрока (backwards compat)
+        self._player_entities: list[dict] = []  # Все подконтрольные entity
+        self._active_player_index: int = 0
+        self._revive_target_entity = None
+        self._revive_timer = 0.0
+        self._revive_healer_entity = None
         self._ambush_zone_id = None
         self._ambush_exit_block_label = None
         self._ambush_enemies_data = None
@@ -257,14 +262,22 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         # -- Entities --
         self._entities = []
+        self._player_entities = []
+        self._active_player_index = 0
+        self._player_entity = None
+        self._revive_target_entity = None
+        self._revive_timer = 0.0
+        self._revive_healer_entity = None
         if self._is_ambush:
             self._defeated_enemies.clear()
             if player and hasattr(player, "_ambush_defeated_set") and player._ambush_defeated_set:
                 self._defeated_enemies = set(player._ambush_defeated_set)
                 player._ambush_defeated_set = set()
             self._init_ambush_entities()
+            self._init_all_player_entities()
         else:
             self._init_entities(use_saved=False)
+            self._init_all_player_entities()
 
         self._drawing_widget = Widget(size_hint=(1, 1), pos_hint={"x": 0, "y": 0})
         self._world_widget.add_widget(self._drawing_widget)
@@ -277,8 +290,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self.layout.add_widget(self._hover_widget)
 
         if app.game and app.game.player:
+            active_name = app.game.active_player.name if app.game.active_player else app.game.player.name
             self._player_label = Label(
-                text=app.game.player.name,
+                text=active_name,
                 size_hint=(None, None),
                 size=(dp(100), dp(25)),
                 font_size=dp(14),
@@ -570,7 +584,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _is_player_sneaking(self) -> bool:
         app = App.get_running_app()
-        player = app.game.player if app.game else None
+        player = app.game.active_player if app.game else None
         return bool(getattr(player, "is_sneaking", False))
 
     def _refresh_sneak_button(self) -> None:
@@ -585,16 +599,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _toggle_sneak_mode(self, *_args) -> None:
         app = App.get_running_app()
-        player = app.game.player if app.game else None
+        player = app.game.active_player if app.game else None
         if not player:
             return
         player.is_sneaking = not bool(getattr(player, "is_sneaking", False))
         self._refresh_sneak_button()
 
     def _toggle_stance(self, *_args) -> None:
-        """Переключить стойку игрока."""
+        """Переключить стойку активного персонажа."""
         app = App.get_running_app()
-        player = app.game.player if app.game else None
+        player = app.game.active_player if app.game else None
         if not player:
             return
         current = getattr(player, "stance", "aggressive")
@@ -714,6 +728,20 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         local_x, local_y = self.to_local(touch.x, touch.y)
         world_x, world_y = self._screen_to_world(local_x, local_y)
         self._target_pos = [world_x, world_y]
+
+        # Проверка клика по entity члена отряда (переключение)
+        if self._active_popup is None:  # не переключаем, если открыт popup
+            for ent in self._player_entities:
+                if ent is self._get_player_entity():
+                    continue
+                if ent.get("defeated"):
+                    continue
+                dx = world_x - ent["x"]
+                dy = world_y - ent["y"]
+                if (dx**2 + dy**2) ** 0.5 <= ent["radius"] + dp(10):
+                    self._switch_to_entity(ent)
+                    return True
+
         return True
 
     @staticmethod
@@ -729,7 +757,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         from ui.inventory_popup import InventoryPopup
 
         app = App.get_running_app()
-        player = app.game.player if app.game else None
+        player = app.game.active_player if app.game else None
         if not player:
             return
 
@@ -754,7 +782,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         from ui.status_popup import StatusPopup
 
         app = App.get_running_app()
-        player = app.game.player if app.game else None
+        player = app.game.active_player if app.game else None
         if not player:
             return
 
@@ -827,10 +855,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
     def _sync_entity_positions(self) -> None:
         """Пересчитать экранные координаты сущностей по нормализованным.
         НЕ затираем позиции тех, кто в real-time бою — ими управляет _update_rt_combat.
+        Пропускаем player-entity (ими управляет игрок, лежат в _player_entities).
         """
         w = max(1, self.width)
         h = max(1, self.height)
         for ent in self._entities:
+            if ent.get("type") == "player":
+                continue
             if ent.get("in_combat"):
                 # Combat-система сама двигает ent["x"]/ent["y"] через close_speed и анимации
                 continue
@@ -903,8 +934,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         # -- движение игрока (пишем напрямую в player_entity) --
         player_ent = self._get_player_entity()
         app = App.get_running_app()
-        player = app.game.player if app.game else None
-        base_speed = player.move_speed if player else 200
+        active_player = app.game.active_player if app.game else None
+        base_speed = active_player.move_speed if active_player else 200
         if self._is_player_sneaking():
             base_speed = int(base_speed * 0.4)
         # В бою скорость игрока снижена вдвое — напряжение и готовность к защите
@@ -941,15 +972,71 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 ((player_ent["x"] - prev_x) ** 2 + (player_ent["y"] - prev_y) ** 2) ** 0.5
                 > 0.1
             )
+            # Синхронизируем x_norm/y_norm для всех player entity
+            w = max(1, self.width)
+            h = max(1, self.height)
+            for pe in self._player_entities:
+                pe["x_norm"] = pe["x"] / w
+                pe["y_norm"] = pe["y"] / h
 
-        # Проверка смерти игрока в RT combat
-        if player_ent and player_ent.get("in_combat"):
-            creature = player_ent.get("creature")
-            if creature and not creature.is_alive:
-                # Смерть в RT combat — применяем случайное событие поражения
-                # и телепортируем игрока в таверну города
+        # Проверка смерти отряда в RT combat — только если ВСЕ мертвы
+        if any(ent.get("in_combat") for ent in self._player_entities):
+            all_dead = True
+            for ent in self._player_entities:
+                creature = ent.get("creature")
+                if creature and creature.is_alive:
+                    all_dead = False
+                    break
+                if not ent.get("defeated"):
+                    all_dead = False
+                    break
+            if all_dead and any(ent.get("in_combat") for ent in self._player_entities):
+                # Все мертвы — применяем поражение
                 self._handle_rt_defeat()
                 return
+
+        # ── Revive timer (лечение поверженного члена отряда) ──
+        if self._revive_target_entity and self._revive_timer > 0:
+            healer = self._revive_healer_entity
+            target = self._revive_target_entity
+            if healer and target and not healer.get("defeated"):
+                # Проверяем дистанцию
+                dx = target["x"] - healer["x"]
+                dy = target["y"] - healer["y"]
+                dist = (dx**2 + dy**2) ** 0.5
+                max_dist = healer["radius"] + target["radius"] + dp(80)
+                if dist <= max_dist:
+                    self._revive_timer -= dt
+                    if self._revive_timer <= 0:
+                        # Лечение завершено
+                        creature = target.get("creature")
+                        if creature:
+                            creature.health = 5
+                            creature.die = lambda: None  # prevent die on 0 HP
+                            creature.health = 5
+                        target["defeated"] = False
+                        target["_looted"] = False
+                        # Убираем corpse label
+                        corpse_lbl = target.pop("_corpse_label", None)
+                        if corpse_lbl:
+                            try:
+                                self.layout.remove_widget(corpse_lbl)
+                            except Exception:
+                                pass
+                        self._spawn_bark_with_text(target, "Воскрешён! 5 HP", duration=2.0)
+                        self._revive_target_entity = None
+                        self._revive_timer = 0
+                        self._revive_healer_entity = None
+                else:
+                    # Лечащий отошёл — прерываем
+                    self._spawn_bark_with_text(healer, "Прервано!", duration=1.5)
+                    self._revive_target_entity = None
+                    self._revive_timer = 0
+                    self._revive_healer_entity = None
+            else:
+                self._revive_target_entity = None
+                self._revive_timer = 0
+                self._revive_healer_entity = None
 
         if self._player_invincible_timer > 0:
             self._player_invincible_timer = max(0, self._player_invincible_timer - dt)
@@ -1068,9 +1155,28 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 ent["alert_source_id"] = source_id
                 ent["aggro_reason"] = "sight_source" if ent is spotter else "social"
 
+    def _get_nearest_player_entity(self, from_x: float, from_y: float) -> dict:
+        """Найти ближайшего живого члена отряда к заданной позиции."""
+        best = None
+        best_dist = float('inf')
+        for pe in self._player_entities:
+            if pe.get("defeated"):
+                continue
+            creature = pe.get("creature")
+            if creature and not creature.is_alive:
+                continue
+            dx = pe["x"] - from_x
+            dy = pe["y"] - from_y
+            dist = dx * dx + dy * dy
+            if dist < best_dist:
+                best_dist = dist
+                best = pe
+        return best
+
     def _update_enemy_ai(self, dt, player_is_noisy=False):
-        """AI врагов: патрулирование, преследование, возврат."""
-        px, py = self._get_player_entity()["x"], self._get_player_entity()["y"]
+        """AI врагов: патрулирование, преследование, возврат.
+        Каждый враг преследует ближайшего члена отряда.
+        """
         w = max(1, self.width)
         h = max(1, self.height)
         player_chasing = False
@@ -1081,26 +1187,20 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         ):
             self._clear_social_aggro(self._alert_source_id)
             active_source = None
-            
-        # Теперь мы сбрасываем общий агр только если источник потерял игрока 
-        # И при этом НИКТО другой из врагов в состоянии "chase" больше не видит игрока
-        if active_source and not self._enemy_sees_player(active_source, px, py):
-            any_other_sees = any(
-                e for e in self._entities 
-                if e.get("type") == "enemy" and not e["defeated"] and e.get("ai_state") == "chase" and self._enemy_sees_player(e, px, py)
-            )
-            if not any_other_sees:
-                self._clear_social_aggro(active_source.get("id"))
-                active_source = None
 
         for ent in self._entities:
             if ent["defeated"] or ent.get("type") not in ("enemy",):
                 continue
             if ent.get("stun_timer", 0) > 0:
                 continue
-            # В real-time бою AI не двигает врага — combat система управляет позицией
             if ent.get("in_combat"):
                 continue
+
+            # Находим ближайшего живого члена отряда
+            nearest_pe = self._get_nearest_player_entity(ent["x"], ent["y"])
+            if not nearest_pe:
+                continue
+            px, py = nearest_pe["x"], nearest_pe["y"]
 
             dx_player = px - ent["x"]
             dy_player = py - ent["y"]
@@ -1118,10 +1218,6 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 state = "chase"
 
             if sees_player and self._alert_source_id != ent.get("id"):
-                # Если погоня уже идёт от другого источника — не переключаем его,
-                # а просто присоединяем этого врага к текущей тревоге.
-                # Это предотвращает множественный сброс/создание реплик,
-                # когда несколько врагов видят игрока одновременно.
                 if self._alert_source_id is not None:
                     if state != "chase":
                         ent["ai_state"] = "chase"
@@ -1179,14 +1275,16 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     ent["y_norm"] = ent["y"] / h
 
             elif state == "chase":
-                # Близко к игроку → вступаем в бой
+                # Близко к члену отряда → вступаем в бой с ним
                 if dist_to_player <= dp(300):
                     ent["in_combat"] = True
                     ent["attack_phase"] = "idle"
-                    ent["combat_target"] = self._get_player_entity()
+                    ent["combat_target"] = nearest_pe
                     ent["rest_x"] = ent["x"]
                     ent["rest_y"] = ent["y"]
-                    continue # combat система управляет дальше
+                    # Отмечаем цель как in_combat
+                    nearest_pe["in_combat"] = True
+                    continue
 
                 # Слишком далеко → выходим из погони
                 if dist_to_player > DE_AGGRO_RADIUS:
@@ -1196,7 +1294,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                         self._reset_enemy_aggro(ent)
                     continue
 
-                # Бежим к игроку
+                # Бежим к ближайшему члену отряда
                 player_chasing = True
                 if dist_to_player > 0:
                     speed = ent.get("chase_speed", dp(170)) * dt
@@ -1217,8 +1315,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         чтобы combat-фазы (recovery/attack) не возвращали в старое место.
         """
         all_ents = []
-        if self._player_entity and not self._player_entity.get("defeated"):
-            all_ents.append(self._player_entity)
+        for pe in self._player_entities:
+            if not pe.get("defeated"):
+                all_ents.append(pe)
         for ent in self._entities:
             if not ent.get("defeated") and ent.get("type") in ("enemy", "boss"):
                 all_ents.append(ent)
@@ -1277,7 +1376,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         for ent in self._entities:
             if ent["defeated"]:
-                if ent.get("type") not in ("enemy", "boss"):
+                if ent.get("type") not in ("enemy", "boss", "player"):
+                    continue
+                if ent.get("type") == "player" and ent.get("player_controlled"):
+                    # Член отряда в нокауте — показываем кнопку помочь
+                    dx2 = px - ent["x"]
+                    dy2 = py - ent["y"]
+                    if (dx2**2 + dy2**2) ** 0.5 < player_r + ent["radius"] + dp(15):
+                        self._active_interact = ent
+                        self.btn_zone_action.text = f"Осмотреть: {ent.get('name', 'Спутник')} [Помочь]"
                     continue
             dx = px - ent["x"]
             dy = py - ent["y"]
@@ -1348,9 +1455,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         return False
 
     def _interact_npc(self, ent) -> None:
-        """Взаимодействие с NPC (диалог, магазин, меню таверны)."""
+        """Взаимодействие с NPC (диалог, магазин, меню таверны, наём спутника)."""
         action = ent.get("action", "dialogue")
         app = App.get_running_app()
+
+        if action == "hire":
+            self._hire_companion(ent)
+            return
 
         if action == "shop":
             from ui.shop_popup import ShopPopup
@@ -1417,9 +1528,75 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self._active_interact_entity = ent
             popup.open()
 
+    def _hire_companion(self, ent) -> None:
+        """Нанять тестового спутника за 100 монет."""
+        app = App.get_running_app()
+        session = app.game if app.game else None
+        if not session or not session.player:
+            return
+        player = session.player
+        if player.coins < 100:
+            self._spawn_bark_with_text(ent, "Недостаточно монет! Нужно 100.", duration=3.0)
+            return
+        # Проверяем, не нанят ли уже
+        for pm in session.party_members:
+            if pm.name == "Тестовый спутник":
+                self._spawn_bark_with_text(ent, "Уже в отряде!", duration=2.0)
+                return
+        player.spend_coins(100)
+        # Создаём нового Player для спутника (без стартового снаряжения)
+        from core.models.player import Player
+        from core.models.inventory import Inventory
+        companion = Player("Тестовый спутник", "squire")
+        # Убираем стартовое снаряжение — даём минимальное
+        companion.weapon = None
+        companion.armor = None
+        companion.coins = 0
+        companion.base_health = 80
+        companion.max_health = companion._scale_stat(companion.base_health)
+        companion.health = companion.max_health
+        companion.base_damage = 5
+        # Очищаем инвентарь от стартовых предметов
+        companion.inventory = Inventory(capacity=20)
+        session.party_members.append(companion)
+        # Создаём entity для спутника рядом с игроком
+        player_ent = self._get_player_entity()
+        if player_ent:
+            from core.models.inventory import Inventory
+            # Создаём entity спутника
+            offset_x = dp(50)
+            offset_y = dp(-30)
+            idx = len(session.party_members) - 1
+            new_ent = self._create_entity(
+                etype="player",
+                eid=f"player_companion_{idx}",
+                x=player_ent["x"] + offset_x,
+                y=player_ent["y"] + offset_y,
+                creature=companion,
+                radius=self._player_radius(),
+                stance="aggressive",
+                ai_state="idle",
+                player_controlled=True,
+                party_index=idx,
+            )
+            self._entities.append(new_ent)
+            self._player_entities.append(new_ent)
+        # Показываем сообщение
+        self._spawn_bark_with_text(ent, "Спутник присоединился к отряду!", duration=3.0)
+        # Обновляем HUD
+        hud = getattr(app, 'game_hud', None)
+        if hud:
+            hud.update()
+
     def _on_zone_action(self, *_args):
-        """Переход в подлокацию, взаимодействие с NPC или обобрать труп."""
+        """Переход в подлокацию, взаимодействие с NPC, обобрать труп или помочь спутнику."""
         if self._active_interact and self._active_interact.get("defeated"):
+            ent = self._active_interact
+            if ent.get("type") == "player" and ent.get("player_controlled"):
+                # Член отряда в нокауте — начать лечение
+                self._revive_party_member(ent)
+                self._active_interact = None
+                return
             self._loot_corpse(self._active_interact)
             self._active_interact = None
             return
@@ -1443,7 +1620,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
     def _loot_corpse(self, corpse_ent):
         """Обобрать труп: показать окно выбора лута."""
         app = App.get_running_app()
-        player = app.game.player if app.game else None
+        player = app.game.active_player if app.game else None
         if not player:
             return
 
@@ -1600,24 +1777,27 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         return ent
 
     def _init_player_entity(self) -> dict:
-        """Создать entity-словарь для игрока через единую фабрику."""
+        """Создать entity-словарь для ГЛАВНОГО игрока (session.player)."""
         app = App.get_running_app()
-        player = app.game.player if app.game else None
-        if not player:
+        session = app.game if app.game else None
+        main = session.player if session else None
+        if not main:
             return None
         x, y = self.width * ENTRY_POINT_X, self.height * ENTRY_POINT_Y
         ent = self._create_entity(
             etype="player",
             eid="player",
             x=x, y=y,
-            creature=player,
+            creature=main,
             radius=self._player_radius(),
-            stance=getattr(player, "stance", "aggressive"),
+            stance=getattr(main, "stance", "aggressive"),
             ai_state="idle",
+            player_controlled=True,
         )
         # Если позиция уже восстановлена из сохранения — применяем её
-        prev_x, prev_y = self._player_restore_pos
-        if prev_x is not None:
+        if self.scene_id and self.scene_id in getattr(main, "last_location_pos", {}):
+            x_norm, y_norm = main.last_location_pos[self.scene_id]
+            prev_x, prev_y = x_norm * self.width, y_norm * self.height
             ent["x"] = prev_x
             ent["y"] = prev_y
             w, h = max(1, self.width), max(1, self.height)
@@ -1628,16 +1808,108 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self._player_entity = ent
         return ent
 
+    def _init_all_player_entities(self) -> None:
+        """Создать entity для всех членов отряда. Вызывается после _init_entities()."""
+        app = App.get_running_app()
+        session = app.game if app.game else None
+        if not session or not session.player:
+            return
+
+        # Главный игрок
+        main_ent = self._init_player_entity()
+        if main_ent:
+            main_ent["party_index"] = -1
+            self._player_entities.append(main_ent)
+
+        # Члены отряда
+        for idx, pm in enumerate(session.party_members):
+            # Смещаем позицию члена отряда рядом с главным игроком
+            offset_x = dp(40) * (idx + 1)
+            offset_y = dp(-20) * (idx + 1)
+            x = main_ent["x"] + offset_x if main_ent else self.width * ENTRY_POINT_X
+            y = main_ent["y"] + offset_y if main_ent else self.height * ENTRY_POINT_Y
+            # Восстанавливаем сохранённую позицию
+            if self.scene_id and self.scene_id in getattr(pm, "last_location_pos", {}):
+                x_norm, y_norm = pm.last_location_pos[self.scene_id]
+                x, y = x_norm * self.width, y_norm * self.height
+            ent = self._create_entity(
+                etype="player",
+                eid=f"player_companion_{idx}",
+                x=x, y=y,
+                creature=pm,
+                radius=self._player_radius(),
+                stance=getattr(pm, "stance", "aggressive"),
+                ai_state="idle",
+                player_controlled=True,
+                party_index=idx,
+            )
+            self._entities.append(ent)
+            self._player_entities.append(ent)
+
+        # Устанавливаем активного персонажа согласно индексу в сессии
+        self._active_player_index = 0
+        if session.active_party_member_index >= 0:
+            # Ищем entity с соответствующим party_index
+            for i, ent in enumerate(self._player_entities):
+                if ent.get("party_index") == session.active_party_member_index:
+                    self._active_player_index = i
+                    break
+        self._player_entity = self._player_entities[self._active_player_index] if self._player_entities else None
+
     def _get_player_entity(self) -> dict:
-        """Вернуть entity-словарь игрока, создать если нет."""
-        if self._player_entity is None:
-            self._init_player_entity()
-        # Синхронизируем stance из объекта игрока (может меняться через UI)
+        """Вернуть entity-словарь активного персонажа, создать если нет."""
+        if not self._player_entities:
+            self._init_all_player_entities()
+        if self._active_player_index >= len(self._player_entities):
+            self._active_player_index = 0
+        if self._player_entities:
+            self._player_entity = self._player_entities[self._active_player_index]
         if self._player_entity:
             creature = self._player_entity.get("creature")
             if creature:
                 self._player_entity["stance"] = getattr(creature, "stance", "aggressive")
         return self._player_entity
+
+    def _get_all_player_entities(self) -> list[dict]:
+        """Вернуть ВСЕ подконтрольные entity (включая активную)."""
+        return list(self._player_entities)
+
+    def _switch_to_entity(self, target_ent: dict) -> None:
+        """Переключить активного персонажа на target_ent.
+        Предыдущий активный остаётся стоять на месте (пассивен).
+        Весь UI перенастраивается через PlayerViewModel.switch_to().
+        """
+        if not target_ent or target_ent.get("defeated"):
+            return
+        # Ищем индекс цели
+        for i, ent in enumerate(self._player_entities):
+            if ent is target_ent:
+                self._active_player_index = i
+                self._player_entity = ent
+                # Обновляем индекс в сессии
+                app = App.get_running_app()
+                session = app.game if app.game else None
+                if session:
+                    pidx = ent.get("party_index", -1)
+                    session.active_party_member_index = pidx
+                    # Перенастраиваем UI
+                    new_player = session.active_player
+                    hud = getattr(app, 'game_hud', None)
+                    if hud:
+                        hud.bind_to_player(new_player)
+                    vm = getattr(app, 'player_view', None)
+                    if vm:
+                        vm.switch_to(new_player)
+                # Обновляем метку имени над кружком
+                creature = ent.get("creature")
+                creature_name = creature.name if creature else "Персонаж"
+                if self._player_label:
+                    self._player_label.text = creature_name
+                # Обновляем кнопку крадущегося режима под текущего персонажа
+                self._refresh_sneak_button()
+                self._target_pos = None
+                self._move = {"up": False, "down": False, "left": False, "right": False}
+                break
 
     def _collect_nearby_enemies(self, center_entity):
         """Собрать всех непобеждённых врагов в радиусе социального агра."""
@@ -1753,8 +2025,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             return
 
         app = App.get_running_app()
-        player = app.game.player if app.game else None
-        if not player:
+        active_player = app.game.active_player if app.game else None
+        if not active_player:
             return
 
         # Собираем врагов в радиусе
@@ -1769,13 +2041,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             ent["rest_x"] = ent["x"]
             ent["rest_y"] = ent["y"]
 
-        # Отмечаем игрока
-        player_ent = self._get_player_entity()
-        if player_ent:
-            player_ent["in_combat"] = True
-            player_ent["readiness"] = random.uniform(0.0, 0.5)
-            player_ent["rest_x"] = player_ent["x"]
-            player_ent["rest_y"] = player_ent["y"]
+        # Отмечаем всех членов отряда рядом с игроком
+        for pe in self._player_entities:
+            if not pe.get("defeated"):
+                pe["in_combat"] = True
+                pe["readiness"] = random.uniform(0.0, 0.5)
+                pe["rest_x"] = pe["x"]
+                pe["rest_y"] = pe["y"]
 
         # Показываем комбат-индикатор
         self._show_combat_indicator()
@@ -1799,38 +2071,55 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         """Подтвердить/обновить цели бойцов (только когда бой активен)."""
         alive_enemies = [e for e in self._entities
                          if e.get("type") in ("enemy", "boss") and not e["defeated"]]
+        all_player_ents = [pe for pe in self._player_entities if not pe.get("defeated")]
         player_ent = self._get_player_entity()
         max_combat_range = dp(350)
 
-        # --- Игрок вступает в бой если хоть один враг бьёт его ---
-        if player_ent and not player_ent.get("in_combat"):
-            for ent in alive_enemies:
-                if ent.get("in_combat") and ent.get("combat_target") is player_ent:
-                    player_ent["in_combat"] = True
-                    player_ent["attack_phase"] = "idle"
-                    player_ent["rest_x"] = player_ent["x"]
-                    player_ent["rest_y"] = player_ent["y"]
-                    break
+        # --- Все player entities вступают в бой если хоть один враг бьёт ---
+        for pe in all_player_ents:
+            if not pe.get("in_combat"):
+                for ent in alive_enemies:
+                    if ent.get("in_combat") and ent.get("combat_target") is pe:
+                        pe["in_combat"] = True
+                        pe["attack_phase"] = "idle"
+                        pe["rest_x"] = pe["x"]
+                        pe["rest_y"] = pe["y"]
+                        break
 
-        # --- Враги: валидировать/сбросить цель ---
+        # --- Враги: валидировать/сбросить цель. Могут атаковать любого игрока ---
         for ent in alive_enemies:
             if not ent.get("in_combat"):
-                continue # только те, кто уже в бою
+                continue
             target = ent.get("combat_target")
-            # Цель defeated или слишком далеко → выходим из боя
             target_ok = (target and not target.get("defeated") and
-                         not target.get("_looted"))
+                         not target.get("_looted") and target in all_player_ents)
             if target_ok:
                 dx = target["x"] - ent["x"]
                 dy = target["y"] - ent["y"]
                 target_ok = (dx * dx + dy * dy) ** 0.5 <= max_combat_range
             if not target_ok:
+                # Ищем нового ближайшего члена отряда
+                alive_targets = [pe for pe in all_player_ents
+                                 if pe.get("creature") and pe["creature"].is_alive]
+                if alive_targets:
+                    closest = min(alive_targets, key=lambda e:
+                        ((e["x"] - ent["x"])**2 + (e["y"] - ent["y"])**2)**0.5)
+                    target = closest
+                    target_ok = True
+                else:
+                    target = None
+                    target_ok = False
+            if target_ok:
+                ent["combat_target"] = target
+                # Отмечаем цель как in_combat
+                target["in_combat"] = True
+            else:
                 ent["in_combat"] = False
                 ent["combat_target"] = None
                 ent["ai_state"] = "chase"
                 ent["aggro_reason"] = "social"
 
-        # --- Игрок: выбрать ближайшего врага или выйти из боя ---
+        # --- Игрок (активный): выбрать ближайшего врага или выйти из боя ---
         if player_ent and player_ent.get("in_combat") and not player_ent.get("defeated"):
             stance = player_ent.get("stance", "aggressive")
             current_target = player_ent.get("combat_target")
@@ -2007,11 +2296,11 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
     def _update_rt_combat(self, dt):
         """Real-time combat tick: readiness, атаки, блоки, урон."""
-        # Собираем всех combatants
+        # Собираем всех combatants (враги + все подконтрольные entity в бою)
         combatants = []
-        player_ent = self._get_player_entity()
-        if player_ent and player_ent.get("in_combat") and not player_ent.get("defeated"):
-            combatants.append(player_ent)
+        for pe in self._player_entities:
+            if pe.get("in_combat") and not pe.get("defeated"):
+                combatants.append(pe)
         for ent in self._entities:
             if ent.get("in_combat") and not ent.get("defeated") and ent.get("type") in ("enemy", "boss"):
                 combatants.append(ent)
@@ -2307,12 +2596,11 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 ent["attack_phase"] = "idle"
                 ent["readiness"] = 0.0
 
-        player_ent = self._get_player_entity()
-        if player_ent:
-            player_ent["in_combat"] = False
-            player_ent["combat_target"] = None
-            player_ent["attack_phase"] = "idle"
-            player_ent["readiness"] = 0.0
+        for pe in self._player_entities:
+            pe["in_combat"] = False
+            pe["combat_target"] = None
+            pe["attack_phase"] = "idle"
+            pe["readiness"] = 0.0
 
         if victory:
             # Собираем XP и лут с убитых врагов
@@ -2353,6 +2641,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if player:
             player.health = max(1, player.max_health // 4)
             defeat_idx = apply_random_defeat(player)
+
+            # Воскрешаем членов отряда с 25% HP
+            session = app.game
+            if session:
+                for pm in getattr(session, "party_members", []):
+                    if pm:
+                        pm.health = max(1, pm.max_health // 4)
 
             # Телепорт к городу на глобальной карте
             player.last_global_pos = (0.19, 0.85)
@@ -2427,6 +2722,18 @@ class LocalLocationScreen(Screen, KeyboardHandler):
     def _on_mouse_pos(self, window, pos):
         local_pos = self.to_local(*pos)
         world_pos = self._screen_to_world(local_pos[0], local_pos[1])
+        # Сначала проверяем entity членов отряда
+        for ent in self._player_entities:
+            if ent.get("defeated"):
+                continue
+            dx = world_pos[0] - ent["x"]
+            dy = world_pos[1] - ent["y"]
+            if (dx**2 + dy**2) ** 0.5 <= ent["radius"]:
+                tip = ent.get("name", "Персонаж")
+                self._hover_widget.text = tip
+                self._hover_widget.opacity = 1
+                self._hover_widget.pos = (local_pos[0] + dp(10), local_pos[1] + dp(10))
+                return
         for ent in self._entities:
             if ent["defeated"]:
                 continue
@@ -2459,6 +2766,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             for ent in self._entities:
                 etype = ent.get("type")
                 r = ent["radius"]
+
+                # --- Пропускаем player-entity (рисуются отдельно) ---
+                if etype == "player":
+                    continue
 
                 # --- RIP: отрисовка трупа ---
                 if ent["defeated"]:
@@ -2587,61 +2898,76 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     Ellipse(pos=(ent["x"] - r * 1.4, ent["y"] - r * 1.4), size=(r * 2.8, r * 2.8))
 
             pr = self._player_radius()
-            player_ent = self._player_entity
-            if not player_ent:
+            all_player_ents = self._player_entities or []
+            if not all_player_ents:
                 return
-            px, py = player_ent["x"], player_ent["y"]
 
-            # Игрок теперь рисуется кружком, как и враги
-            if self._is_player_sneaking():
-                Color(0.3, 0.8, 0.4, 0.85)
-            elif player_ent and player_ent.get("in_combat"):
-                Color(0.3, 0.5, 1, 0.9) # синий в бою
-            else:
-                Color(0.3, 0.6, 1, 0.8) # обычный синий
-            Ellipse(pos=(px - pr, py - pr), size=(pr * 2, pr * 2))
-            Color(0.2, 0.4, 0.8, 1)
-            Line(circle=(px, py, pr), width=2)
+            for player_ent in all_player_ents:
+                if player_ent.get("defeated"):
+                    # Рисуем как труп (серый круг с крестом)
+                    px, py = player_ent["x"], player_ent["y"]
+                    Color(0.4, 0.4, 0.4, 0.6)
+                    Ellipse(pos=(px - pr * 0.6, py - pr * 0.6), size=(pr * 1.2, pr * 1.2))
+                    Color(0.3, 0.3, 0.3, 0.8)
+                    Line(circle=(px, py, pr * 0.6), width=1.5)
+                    cr = pr * 0.5
+                    Color(0.8, 0.1, 0.1, 0.7)
+                    Line(points=[px - cr, py, px + cr, py], width=2)
+                    Line(points=[px, py - cr, px, py + cr], width=2)
+                    continue
+                px, py = player_ent["x"], player_ent["y"]
+                # Каждый персонаж имеет свой is_sneaking на объекте Creature
+                pe_creature = player_ent.get("creature")
+                pe_sneaking = bool(getattr(pe_creature, "is_sneaking", False))
+                if pe_sneaking:
+                    Color(0.3, 0.8, 0.4, 0.85)
+                elif player_ent.get("in_combat"):
+                    Color(0.3, 0.5, 1, 0.9)
+                else:
+                    Color(0.3, 0.6, 1, 0.8)
+                Ellipse(pos=(px - pr, py - pr), size=(pr * 2, pr * 2))
+                Color(0.2, 0.4, 0.8, 1)
+                Line(circle=(px, py, pr), width=2)
+                # Боевая аура
+                if player_ent.get("in_combat"):
+                    Color(0.2, 0.4, 1, 0.25 + 0.15 * math.sin(self._total_time * 4))
+                    Ellipse(pos=(px - pr * 1.4, py - pr * 1.4), size=(pr * 2.8, pr * 2.8))
 
-            # Боевая аура игрока (пульсирующая)
-            if player_ent and player_ent.get("in_combat"):
-                Color(0.2, 0.4, 1, 0.25 + 0.15 * math.sin(self._total_time * 4))
-                Ellipse(pos=(px - pr * 1.4, py - pr * 1.4), size=(pr * 2.8, pr * 2.8))
-
-            # Короткая метка имени над игроком
-            if self._player_label:
-                label_x, label_y = self._world_to_screen(player_ent["x"], player_ent["y"])
+            # Метка имени над активным игроком
+            active_player_ent = self._get_player_entity()
+            if active_player_ent and self._player_label:
+                label_x, label_y = self._world_to_screen(active_player_ent["x"], active_player_ent["y"])
                 screen_radius = pr * self._camera_zoom()
                 self._player_label.pos = (
                     label_x - self._player_label.width / 2,
                     label_y + screen_radius + dp(5),
                 )
 
-        # --- PLAYER HP BAR (in combat) ---
-        player_ent = self._player_entity
-        if player_ent and player_ent.get("in_combat"):
-            creature = player_ent.get("creature")
-            if creature:
-                pr_actual = self._player_radius()
-                hp_ratio = creature.health / max(1, creature.max_health)
-                hp_ratio = max(0, min(1, hp_ratio))
-                bar_w = pr_actual * 2.0
-                bar_h = dp(5)
-                bar_x = player_ent["x"] - pr_actual
-                bar_y = player_ent["y"] - pr_actual - bar_h - dp(3)
-                Color(0.3, 0.1, 0.1, 0.8)
-                Rectangle(pos=(bar_x, bar_y), size=(bar_w, bar_h))
-                if hp_ratio > 0.5:
-                    Color(0.2, 0.8, 0.2, 0.9)
-                elif hp_ratio > 0.25:
-                    Color(0.9, 0.7, 0.1, 0.9)
-                else:
-                    Color(0.9, 0.1, 0.1, 0.9)
-                Rectangle(pos=(bar_x, bar_y), size=(bar_w * hp_ratio, bar_h))
+        # --- PLAYER HP BAR (in combat) для всех членов отряда ---
+        for player_ent in self._player_entities:
+            if player_ent and player_ent.get("in_combat") and not player_ent.get("defeated"):
+                creature = player_ent.get("creature")
+                if creature:
+                    pr_actual = self._player_radius()
+                    hp_ratio = creature.health / max(1, creature.max_health)
+                    hp_ratio = max(0, min(1, hp_ratio))
+                    bar_w = pr_actual * 2.0
+                    bar_h = dp(5)
+                    bar_x = player_ent["x"] - pr_actual
+                    bar_y = player_ent["y"] - pr_actual - bar_h - dp(3)
+                    Color(0.3, 0.1, 0.1, 0.8)
+                    Rectangle(pos=(bar_x, bar_y), size=(bar_w, bar_h))
+                    if hp_ratio > 0.5:
+                        Color(0.2, 0.8, 0.2, 0.9)
+                    elif hp_ratio > 0.25:
+                        Color(0.9, 0.7, 0.1, 0.9)
+                    else:
+                        Color(0.9, 0.1, 0.1, 0.9)
+                    Rectangle(pos=(bar_x, bar_y), size=(bar_w * hp_ratio, bar_h))
 
         # --- ATTACK LINES (кто кого бьёт) ---
         all_combat_ents = [e for e in self._entities if not e.get("defeated")] + \
-            ([self._player_entity] if self._player_entity and not self._player_entity.get("defeated") else [])
+            [pe for pe in self._player_entities if not pe.get("defeated")]
         for ent in all_combat_ents:
             if ent.get("type") == "zone" or ent.get("type") == "npc":
                 continue
@@ -2665,7 +2991,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         # --- COMBAT VISUAL EFFECTS (над entity) ---
         combat_entities = [e for e in self._entities if not e.get("defeated")] + \
-            ([self._player_entity] if self._player_entity and not self._player_entity.get("defeated") else [])
+            [pe for pe in self._player_entities if not pe.get("defeated")]
         for ent in combat_entities:
             if ent.get("type") == "zone" or ent.get("type") == "npc":
                 continue
@@ -2709,18 +3035,33 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                     Line(points=[cx - cr, cy - cr + fy, cx + cr, cy + cr + fy], width=1.5)
                     Line(points=[cx + cr, cy - cr + fy, cx - cr, cy + cr + fy], width=1.5)
 
+    def _revive_party_member(self, target_ent: dict) -> None:
+        """Начать 5-секундное лечение поверженного члена отряда.
+        Требует, чтобы лечащий персонаж находился рядом весь период.
+        """
+        healer_ent = self._get_player_entity()
+        if not healer_ent or healer_ent.get("defeated"):
+            return
+        self._revive_target_entity = target_ent
+        self._revive_timer = 5.0
+        self._revive_healer_entity = healer_ent
+        # Показываем сообщение
+        self._spawn_bark_with_text(healer_ent, "Лечу... 5 сек", duration=5.5)
+
     def _save_player_state(self) -> None:
         app = App.get_running_app()
-        player = app.game.player if app.game else None
-        if player and self.scene_id:
-            player_ent = self._get_player_entity()
-            if player_ent:
-                player.last_location_pos[self.scene_id] = (
-                    player_ent["x"] / max(1, self.width),
-                    player_ent["y"] / max(1, self.height),
-                )
-        if player and self._is_ambush:
-            player._ambush_defeated_set = set(self._defeated_enemies)
+        session = app.game if app.game else None
+        if session and self.scene_id:
+            # Сохраняем позицию каждого члена отряда
+            for ent in self._player_entities:
+                creature = ent.get("creature")
+                if creature:
+                    creature.last_location_pos[self.scene_id] = (
+                        ent["x"] / max(1, self.width),
+                        ent["y"] / max(1, self.height),
+                    )
+        if session and self._is_ambush:
+            session.player._ambush_defeated_set = set(self._defeated_enemies)
 
     def _stop_loop(self) -> None:
         if self._update_event:
@@ -2818,6 +3159,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self.scene_id = None
             self.location_id = None
             self._entities = []
+            self._player_entities = []
+            self._active_player_index = 0
+            self._player_entity = None
             self._current_entity = None
             self._current_battle_group = None
             self._pending_boss_entity = None
@@ -2852,6 +3196,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         self.scene_id = None
         self.location_id = None
         self._entities = []
+        self._player_entities = []
+        self._active_player_index = 0
+        self._player_entity = None
         self._current_entity = None
         self._current_battle_group = None
         self._pending_boss_entity = None

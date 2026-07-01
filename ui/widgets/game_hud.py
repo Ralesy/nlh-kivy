@@ -200,9 +200,9 @@ class GameHUD(BoxLayout):
             self._refresh_all_from_vm()
             return
         app = App.get_running_app()
-        if not app or not getattr(app, 'game', None) or not getattr(app.game, 'player', None):
+        if not app or not getattr(app, 'game', None) or not getattr(app.game, 'active_player', None):
             return
-        p = app.game.player
+        p = app.game.active_player
         self._apply_stats(
             p.level, p.health, p.max_health, p.damage, p.defense,
             p.coins, p.experience, p.level * 100 if p.level else 0,

@@ -71,10 +71,49 @@ class GameSession:
         self.history: List[str] = []
         self.wins_in_row = 0
 
+        # ── Party system ──
+        self.party_members: List[Player] = []
+        # -1 = активен главный игрок (self.player)
+        # 0, 1, 2... = активен party_members[index]
+        self.active_party_member_index: int = -1
+
     @property
     def has_player(self) -> bool:
         """True, если в сессии есть активный игрок."""
         return self.player is not None
+
+    @property
+    def active_player(self) -> Optional[Player]:
+        """Вернуть активного персонажа (главный или член отряда)."""
+        if self.active_party_member_index >= 0 and self.active_party_member_index < len(self.party_members):
+            return self.party_members[self.active_party_member_index]
+        return self.player
+
+    def switch_to_next_party_member(self) -> Optional[Player]:
+        """Переключиться на следующего члена отряда или главного игрока.
+        Возвращает нового активного персонажа или None."""
+        total = len(self.party_members) + 1  # +1 за главного игрока
+        if total <= 1:
+            return self.player
+        self.active_party_member_index = (self.active_party_member_index + 1) % total - 1
+        # -1 -> 0 (главный -> первый член отряда), 0 -> -1 и т.д.
+        if self.active_party_member_index < -1:
+            self.active_party_member_index = -1
+        if (self.active_party_member_index >= 0 and
+                self.active_party_member_index >= len(self.party_members)):
+            self.active_party_member_index = -1
+        return self.active_player
+
+    def switch_to_player(self, index: int = -1) -> Optional[Player]:
+        """Переключиться на персонажа по индексу.
+        -1 = главный игрок, 0+ = party_members[index]."""
+        if index == -1:
+            self.active_party_member_index = -1
+            return self.player
+        if 0 <= index < len(self.party_members):
+            self.active_party_member_index = index
+            return self.party_members[index]
+        return self.active_player
 
     def start_new_game(self, name: str, background: str = "squire") -> Player:
         """
@@ -287,6 +326,8 @@ class GameSession:
             "player": (
                 self.player.to_dict() if self.player else None
             ),
+            "party_members": [pm.to_dict() for pm in self.party_members],
+            "active_party_member_index": self.active_party_member_index,
             "npcs": self.npc_manager.to_dict(),
             "danger": self.danger_manager.to_dict(),
         }

@@ -65,6 +65,11 @@ class PlayerViewModel(EventDispatcher):
         self.experience = player.experience
         self.xp_required = player.level * 100 if player.level else 0
 
+    def switch_to(self, player) -> None:
+        """Переключить привязку на другого игрока (для party system)."""
+        self.unbind_player()
+        self.bind_player(player)
+
     def _on_player_event(self, event, **kwargs) -> None:
         """Обработчик событий Player → обновление Properties."""
         self.sync_from_player()

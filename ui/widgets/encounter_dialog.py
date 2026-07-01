@@ -102,8 +102,8 @@ class EncounterDialog(Popup):
     def _try_flee(self, action: dict):
         chance = action.get("chance", 0.5)
         app = App.get_running_app()
-        if app and app.game and app.game.player and hasattr(app.game.player, "skill_points_allocated"):
-            speed_level = app.game.player.skill_points_allocated.get("agility", 0)
+        if app and app.game and app.game.active_player and hasattr(app.game.active_player, "skill_points_allocated"):
+            speed_level = app.game.active_player.skill_points_allocated.get("agility", 0)
             chance += speed_level * 0.05
 
         if random.random() < chance:
@@ -114,8 +114,8 @@ class EncounterDialog(Popup):
     def _try_bribe(self, action: dict):
         cost = action.get("cost", 50)
         app = App.get_running_app()
-        if app and app.game and app.game.player and app.game.player.coins >= cost:
-            app.game.player.coins -= cost
+        if app and app.game and app.game.active_player and app.game.active_player.coins >= cost:
+            app.game.active_player.coins -= cost
             self._show_result("bribe_success", f"Вы откупились {cost} монетами. Проход свободен.", COLORS['hp_green'])
         else:
             self._show_result("insufficient_coins", "Недостаточно монет! Попробуйте другой вариант.", COLORS['gold_dark'])

@@ -335,7 +335,7 @@ class StatusScreen(Screen, KeyboardHandler):
 
     def _on_allocate(self, btn) -> None:
         app = App.get_running_app()
-        player = app.game.player if app.game else None
+        player = app.game.active_player if app.game else None
         if player and player.allocate_skill_point(btn.skill_key):
             self.update_status()
             hud = getattr(app, 'game_hud', None)
@@ -349,7 +349,7 @@ class StatusScreen(Screen, KeyboardHandler):
         app = App.get_running_app()
         if not app.game:
             return
-        p = app.game.player
+        p = app.game.active_player
 
         bg_map = {
             "noble": "Обедневший дворянин",
