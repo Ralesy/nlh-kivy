@@ -1544,6 +1544,34 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                             pe["x_norm"] = pe["x"] / w
                             pe["y_norm"] = pe["y"] / h
 
+            # --- FOLLOW: если не в бою, не патруль и есть цель следования ---
+            if not pe.get("in_combat") and stance != "patrol":
+                creature = pe.get("creature")
+                follow_name = getattr(creature, "target_to_follow", None) if creature else None
+                if follow_name:
+                    # Ищем entity с таким именем
+                    follow_ent = None
+                    for other_pe in self._player_entities:
+                        if other_pe is pe or other_pe.get("defeated"):
+                            continue
+                        oc = other_pe.get("creature")
+                        if oc and oc.name == follow_name:
+                            follow_ent = other_pe
+                            break
+                    if follow_ent:
+                        dx = follow_ent["x"] - pe["x"]
+                        dy = follow_ent["y"] - pe["y"]
+                        dist = (dx*dx + dy*dy) ** 0.5
+                        follow_dist = dp(120)  # держать дистанцию
+                        if dist > follow_dist and (not is_active or (is_active and not player_is_moving)):
+                            speed = dp(160) * dt
+                            step = min(speed, dist - follow_dist)
+                            if dist > 1:
+                                pe["x"] += (dx / dist) * step
+                                pe["y"] += (dy / dist) * step
+                                pe["x_norm"] = pe["x"] / w
+                                pe["y_norm"] = pe["y"] / h
+
     def _push_entities_apart(self):
         """Раздвинуть накладывающиеся друг на друга entity.
         Все живые entity не должны перекрываться — ни в бою, ни вне боя.

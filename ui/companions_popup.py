@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-CompanionsPopup — всплывающее окно управления спутниками слева экрана.
+CompanionsPopup — всплывающее окно управления отрядом.
 
-Показывает информацию о спутнике и кнопки действий.
+Показывает список ВСЕХ персонажей отряда с их характеристиками.
+Каждая карточка кликабельна — открывает меню действий (следовать / обмен).
 """
 
 from kivy.app import App
@@ -14,43 +15,108 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
-from kivy.graphics import Color, Rectangle, Line, RoundedRectangle
+from kivy.graphics import Color, Rectangle, RoundedRectangle, Line
 
 from ui.ui_styles import COLORS
-from data.items import Potion, Weapon, Armor
+from ui.trade_popup import TradePopup
 
 
-class _SectionRow(Label):
-    """Строка информации о спутнике."""
+class _PartyCard(BoxLayout):
+    """Карточка одного члена отряда — кликабельная."""
 
-    def __init__(self, text="", color=None, **kwargs):
+    def __init__(self, player_obj, on_click, **kwargs):
         super().__init__(**kwargs)
-        self.text = text
-        self.font_size = dp(12)
+        self.player = player_obj
+        self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = dp(20)
-        self.halign = 'left'
-        self.valign = 'middle'
-        self.color = color or COLORS['text_light']
-        self.bold = False
+        self.height = dp(80)
+        self.padding = dp(6)
+        self.spacing = dp(6)
 
-
-class CompanionsPopup(BoxLayout):
-    """Полупрозрачное окно управления спутниками (левая сторона экрана)."""
-
-    def __init__(self, player, on_done=None, **kwargs):
-        super().__init__(**kwargs)
-        self.orientation = 'vertical'
-        self.spacing = dp(4)
-        self.padding = dp(8)
-        self.player = player
-        self.on_done = on_done
-
-        # Фон со скруглёнными углами
+        # Рамка карточки
         with self.canvas.before:
-            Color(0.08, 0.1, 0.15, 0.94)
+            Color(0.12, 0.14, 0.18, 0.95)
+            self.bg = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(6)])
+            Color(*COLORS.get("border_gold", (0.6, 0.5, 0.3, 0.6)))
+            self.border = Line(
+                rounded_rectangle=(self.x, self.y, self.width, self.height, dp(6)),
+                width=dp(1),
+            )
+        self.bind(
+            pos=lambda i, v: self._update_card_bg(),
+            size=lambda i, v: self._update_card_bg(),
+        )
+
+        # Левая часть: имя + уровень
+        left = BoxLayout(orientation="vertical", size_hint_x=0.35, spacing=dp(2))
+        name_lbl = Label(
+            text=player_obj.name,
+            font_size=dp(14),
+            bold=True,
+            color=COLORS.get("gold_light", (0.9, 0.8, 0.5, 1)),
+            halign="left", valign="middle",
+            size_hint_y=0.5,
+        )
+        lvl_lbl = Label(
+            text=f"LVL {player_obj.level}",
+            font_size=dp(12),
+            color=(0.7, 0.7, 0.7, 1),
+            halign="left", valign="middle",
+            size_hint_y=0.5,
+        )
+        left.add_widget(name_lbl)
+        left.add_widget(lvl_lbl)
+
+        # Правая часть: статы
+        right = BoxLayout(orientation="vertical", size_hint_x=0.65, spacing=dp(1))
+        stats = [
+            f"HP: {player_obj.health}/{player_obj.max_health}",
+            f"DMG: {player_obj.damage}  DEF: {player_obj.defense}",
+            f"XP: {player_obj.experience}  COINS: {player_obj.coins}",
+        ]
+        for text in stats:
+            lbl = Label(
+                text=text,
+                font_size=dp(11),
+                color=(0.8, 0.85, 0.9, 1),
+                halign="left", valign="middle",
+                size_hint_y=None, height=dp(18),
+            )
+            right.add_widget(lbl)
+
+        self.add_widget(left)
+        self.add_widget(right)
+
+        # Кнопка-имя для клика (прозрачная поверх всей карточки)
+        btn = Button(
+            text="",
+            size_hint=(1, 1),
+            background_color=(0, 0, 0, 0),
+            background_normal="",
+        )
+        btn.bind(on_press=lambda _: on_click(self.player))
+        self.add_widget(btn)
+
+    def _update_card_bg(self):
+        self.bg.pos = self.pos
+        self.bg.size = self.size
+        self.border.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(6))
+
+
+class PartyActionMenu(BoxLayout):
+    """Подменю действий для выбранного спутника (следовать / обмен)."""
+
+    def __init__(self, target_player, all_players, on_close, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = "vertical"
+        self.spacing = dp(6)
+        self.padding = dp(10)
+        self.target = target_player
+
+        with self.canvas.before:
+            Color(0.08, 0.1, 0.15, 0.96)
             self.bg_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(8)])
-            Color(*COLORS['border_gold'])
+            Color(*COLORS.get("border_gold", (0.6, 0.5, 0.3, 0.6)))
             self.border_line = Line(
                 rounded_rectangle=(self.x, self.y, self.width, self.height, dp(8)),
                 width=dp(1.2),
@@ -60,413 +126,360 @@ class CompanionsPopup(BoxLayout):
             size=lambda i, v: self._update_bg(),
         )
 
-        # ── Заголовок ──
+        # Заголовок
         title = Label(
-            text='СПУТНИКИ',
-            font_size=dp(20),
-            size_hint_y=None,
-            height=dp(34),
-            color=COLORS['gold_light'],
+            text=f"Действия: {target_player.name}",
+            font_size=dp(16),
+            size_hint_y=None, height=dp(34),
+            color=COLORS.get("gold_light", (0.9, 0.8, 0.5, 1)),
             bold=True,
         )
         self.add_widget(title)
 
-        # ── Информация о спутнике ──
-        self._info_labels = []
-        info_box = BoxLayout(
-            orientation='vertical', size_hint_y=None,
-            padding=(dp(4), dp(2)), spacing=dp(1),
-        )
-        info_box.bind(minimum_height=info_box.setter('height'))
-        # Заголовок секции
-        section_title = Label(
-            text='ИНФОРМАЦИЯ',
-            font_size=dp(13),
-            size_hint_y=None,
-            height=dp(20),
-            halign='left',
-            valign='middle',
-            color=COLORS['gold'],
+        # Кнопка "Следовать за..."
+        btn_follow = Button(
+            text="Следовать за...",
+            size_hint_y=None, height=dp(40),
+            font_size=dp(14),
+            background_color=(0.3, 0.45, 0.55, 0.9),
+            color=(1, 1, 1, 1),
             bold=True,
+            background_normal="",
         )
-        info_box.add_widget(section_title)
-        for _ in range(6):
-            lbl = _SectionRow()
-            self._info_labels.append(lbl)
-            info_box.add_widget(lbl)
-        self.add_widget(info_box)
+        btn_follow.bind(on_press=lambda _: self._show_follow_menu())
+        self.add_widget(btn_follow)
 
-        # ── Кнопки действий ──
-        actions_box = BoxLayout(
-            orientation='vertical', size_hint_y=None,
-            padding=(dp(4), dp(2)), spacing=dp(3),
-        )
-        actions_box.bind(minimum_height=actions_box.setter('height'))
-
-        action_title = Label(
-            text='[Действие] ДЕЙСТВИЯ',
-            font_size=dp(13),
-            size_hint_y=None,
-            height=dp(20),
-            halign='left',
-            valign='middle',
-            color=COLORS['gold'],
+        # Кнопка "Обменяться вещами"
+        btn_trade = Button(
+            text="Обменяться вещами",
+            size_hint_y=None, height=dp(40),
+            font_size=dp(14),
+            background_color=(0.3, 0.5, 0.35, 0.9),
+            color=(1, 1, 1, 1),
             bold=True,
+            background_normal="",
         )
-        actions_box.add_widget(action_title)
+        btn_trade.bind(on_press=lambda _: self._show_trade_menu())
+        self.add_widget(btn_trade)
 
-        btn_style = {
-            'size_hint_y': None,
-            'height': dp(34),
-            'font_size': dp(13),
-            'background_normal': '',
-            'bold': True,
-        }
-
-        self.btn_heal = Button(
-            text='Лечить зельем',
-            background_color=(0.35, 0.55, 0.30, 0.9),
-            color=(1, 1, 1, 1),
-            **btn_style,
-        )
-        self.btn_heal.bind(on_press=self.on_heal)
-        actions_box.add_widget(self.btn_heal)
-
-        self.btn_equip_weapon = Button(
-            text='Экипировать оружие',
-            background_color=(0.25, 0.30, 0.40, 0.9),
-            color=(1, 1, 1, 1),
-            **btn_style,
-        )
-        self.btn_equip_weapon.bind(on_press=self.on_equip_weapon)
-        actions_box.add_widget(self.btn_equip_weapon)
-
-        self.btn_equip_armor = Button(
-            text='Экипировать броню',
-            background_color=(0.25, 0.30, 0.40, 0.9),
-            color=(1, 1, 1, 1),
-            **btn_style,
-        )
-        self.btn_equip_armor.bind(on_press=self.on_equip_armor)
-        actions_box.add_widget(self.btn_equip_armor)
-
-        self.btn_unequip_weapon = Button(
-            text='Снять оружие',
-            background_color=(0.30, 0.25, 0.25, 0.9),
-            color=(1, 1, 1, 1),
-            **btn_style,
-        )
-        self.btn_unequip_weapon.bind(on_press=self.on_unequip_weapon)
-        actions_box.add_widget(self.btn_unequip_weapon)
-
-        self.btn_unequip_armor = Button(
-            text='Снять броню',
-            background_color=(0.30, 0.25, 0.25, 0.9),
-            color=(1, 1, 1, 1),
-            **btn_style,
-        )
-        self.btn_unequip_armor.bind(on_press=self.on_unequip_armor)
-        actions_box.add_widget(self.btn_unequip_armor)
-
-        self.btn_dismiss = Button(
-            text='Отпустить',
-            background_color=(0.55, 0.25, 0.20, 0.9),
-            color=(1, 1, 1, 1),
-            **btn_style,
-        )
-        self.btn_dismiss.bind(on_press=self.on_dismiss)
-        actions_box.add_widget(self.btn_dismiss)
-
-        self.add_widget(actions_box)
-
-        # ── Растягивающийся spacer ──
-        spacer = BoxLayout(size_hint_y=1)
-        self.add_widget(spacer)
-
-        # ── Кнопка закрытия ──
+        # Закрыть
         btn_close = Button(
-            text='✕ Закрыть',
-            size_hint_y=None,
-            height=dp(42),
-            font_size=dp(15),
+            text="\u2715 Назад",
+            size_hint_y=None, height=dp(40),
+            font_size=dp(13),
             background_color=(0.2, 0.22, 0.28, 0.95),
             color=(0.9, 0.9, 0.9, 1),
+            bold=True,
+            background_normal="",
         )
-        btn_close.bind(on_press=lambda _: self._close())
+        btn_close.bind(on_press=lambda _: on_close())
         self.add_widget(btn_close)
 
-        self._refresh()
+        spacer = BoxLayout(size_hint_y=1)
+        self.add_widget(spacer)
 
     def _update_bg(self):
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
         self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(8))
 
-    def _refresh(self):
-        """Обновить информацию о спутнике."""
-        if not self.player or not self.player.companions:
-            texts = [
-                "Нет спутника",
-                "Нанмите кого-нибудь",
-                "в таверне города!",
-                "", "", "",
-            ]
-            for lbl, text in zip(self._info_labels, texts):
-                lbl.text = text
-            for btn in (self.btn_heal, self.btn_equip_weapon, self.btn_equip_armor,
-                        self.btn_unequip_weapon, self.btn_unequip_armor, self.btn_dismiss):
-                btn.disabled = True
-            return
+    def _show_follow_menu(self):
+        """Показать список персонажей для выбора цели следования."""
+        content = BoxLayout(orientation="vertical", spacing=dp(8), padding=dp(15))
+        content.add_widget(Label(
+            text=f"За кем {self.target.name} будет следовать?",
+            font_size=dp(16), size_hint_y=None, height=dp(34),
+        ))
 
-        companion = self.player.companions[0]
-        weapon_name = companion.weapon.name if companion.weapon else 'Нет'
-        armor_name = companion.armor.name if companion.armor else 'Нет'
-
-        texts = [
-            f"{companion.name} ({companion.role})",
-            f"HP: {companion.health}/{companion.max_health}",
-            f"Урон: {companion.damage}",
-            f"Защита: {companion.defense}",
-            f"Оружие: {weapon_name}",
-            f"Броня: {armor_name}",
-        ]
-        for lbl, text in zip(self._info_labels, texts):
-            lbl.text = text
-
-        self.btn_heal.disabled = companion.health >= companion.max_health
-        self.btn_equip_weapon.disabled = False
-        self.btn_equip_armor.disabled = False
-        self.btn_unequip_weapon.disabled = companion.weapon is None
-        self.btn_unequip_armor.disabled = companion.armor is None
-        self.btn_dismiss.disabled = False
-
-    # ─── Обработчики действий (адаптированы из companion_management.py) ───
-
-    def on_heal(self, instance):
         app = App.get_running_app()
-        if not app.game or not self.player or not self.player.companions:
-            return
-        companion = self.player.companions[0]
+        session = app.game if app.game else None
+        candidates = []
+        if session:
+            # Все члены отряда, кроме самого target
+            for pm in session.party_members:
+                if pm is self.target:
+                    continue
+                candidates.append(pm)
+            if session.player is not self.target:
+                candidates.append(session.player)
 
-        potions = []
-        for item, qty in self.player.inventory.list_items():
-            if isinstance(item, Potion) and qty > 0:
-                potions.append((item, qty))
+        scroll = ScrollView(size_hint_y=1)
+        list_box = BoxLayout(orientation="vertical", spacing=dp(4), size_hint_y=None)
+        list_box.bind(minimum_height=list_box.setter("height"))
 
-        if not potions:
-            popup = Popup(
-                title='Ошибка',
-                content=Label(text='У вас нет зелий!'),
-                size_hint=(0.6, 0.3),
-                background='',
-                background_color=(0, 0, 0, 0),
-                separator_color=(0, 0, 0, 0),
+        has_follow = getattr(self.target, "target_to_follow", None)
+        if has_follow:
+            btn_clear = Button(
+                text=f"Отменить следование (сейчас: {has_follow})",
+                size_hint_y=None, height=dp(40),
+                font_size=dp(13),
+                background_color=(0.5, 0.2, 0.2, 0.9),
+                color=(1, 1, 1, 1),
+                bold=True,
+                background_normal="",
             )
-            popup.open()
-            return
+            btn_clear.bind(on_press=lambda _: self._set_follow(None, content))
+            list_box.add_widget(btn_clear)
 
-        content = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(15))
-        content.add_widget(Label(text=f"Выберите зелье для {companion.name}:", font_size=dp(16)))
-
-        for potion, qty in potions:
+        for candidate in candidates:
             btn = Button(
-                text=f"{potion.display_name()} x{qty} (+{potion.heal_amount} HP)",
+                text=f"{candidate.name} (LVL {candidate.level})",
                 size_hint_y=None, height=dp(44),
+                font_size=dp(14),
+                background_color=(0.25, 0.3, 0.4, 0.9),
+                color=(1, 1, 1, 1),
+                bold=True,
+                background_normal="",
             )
-            btn.bind(on_press=lambda x, p=potion: self._heal_with_potion(p))
-            content.add_widget(btn)
+            btn.bind(on_press=lambda _, c=candidate: self._set_follow(c.name, content))
+            list_box.add_widget(btn)
 
-        btn_cancel = Button(text='Отмена', size_hint_y=None, height=dp(44))
-        btn_cancel.bind(on_press=lambda x: heal_popup.dismiss())
-        content.add_widget(btn_cancel)
+        btn_cancel = Button(
+            text="Отмена",
+            size_hint_y=None, height=dp(40),
+            font_size=dp(14),
+            background_color=(0.2, 0.22, 0.28, 0.95),
+            color=(0.9, 0.9, 0.9, 1),
+            background_normal="",
+        )
+        list_box.add_widget(btn_cancel)
 
-        heal_popup = Popup(
-            title='🎁 Выбор зелья',
+        scroll.add_widget(list_box)
+        content.add_widget(scroll)
+
+        pop = Popup(
+            title="",
             content=content,
-            size_hint=(0.7, 0.5),
-            background='',
+            size_hint=(0.4, 0.6),
+            background="",
             background_color=(0, 0, 0, 0),
             separator_color=(0, 0, 0, 0),
+            auto_dismiss=True,
         )
-        heal_popup.open()
+        for child in list_box.children:
+            if isinstance(child, Button):
+                if child.text == "Отмена":
+                    child.bind(on_press=pop.dismiss)
+        pop.open()
 
-    def _heal_with_potion(self, potion):
-        app = App.get_running_app()
-        if not app.game or not self.player or not self.player.companions:
-            return
-        companion = self.player.companions[0]
-        healed = companion.heal(potion.heal_amount)
-        self.player.inventory.remove(potion.id, 1)
-
-        for widget in list(App.get_running_app()._app_window.children):
-            if hasattr(widget, 'dismiss'):
-                widget.dismiss()
+    def _set_follow(self, target_name, content_widget):
+        """Установить или сбросить target_to_follow."""
+        self.target.target_to_follow = target_name
+        for child in App.get_running_app()._app_window.children:
+            if hasattr(child, "dismiss"):
+                child.dismiss()
                 break
-
         result = Popup(
-            title='Лечение',
+            title="Следование",
             content=Label(
-                text=f"{companion.name} восстановил {healed} HP!\n({companion.health}/{companion.max_health} HP)",
+                text=f"{self.target.name} теперь следует за {target_name}" if target_name
+                else f"{self.target.name}: следование отменено",
             ),
-            size_hint=(0.6, 0.3),
-            background='',
+            size_hint=(0.5, 0.25),
+            background="",
             background_color=(0, 0, 0, 0),
             separator_color=(0, 0, 0, 0),
         )
         result.open()
-        self._refresh()
 
-    def on_equip_weapon(self, instance):
-        self._show_equip_dialog('weapon')
-
-    def on_equip_armor(self, instance):
-        self._show_equip_dialog('armor')
-
-    def _show_equip_dialog(self, item_type):
+    def _show_trade_menu(self):
+        """Открыть TradePopup для обмена с выбранным персонажем."""
         app = App.get_running_app()
-        if not app.game or not self.player or not self.player.companions:
+        session = app.game if app.game else None
+        if not session:
             return
-        companion = self.player.companions[0]
-
-        items = []
-        for item, qty in self.player.inventory.list_items():
-            if qty > 0:
-                if item_type == 'weapon' and isinstance(item, Weapon):
-                    items.append((item, qty))
-                elif item_type == 'armor' and isinstance(item, Armor):
-                    items.append((item, qty))
-
-        type_names = {'weapon': 'оружия', 'armor': 'брони'}
-        type_name = type_names.get(item_type, item_type)
-
-        if not items:
-            popup = Popup(
-                title='Ошибка',
-                content=Label(text=f'У вас нет {type_name}!'),
-                size_hint=(0.6, 0.3),
-                background='',
-                background_color=(0, 0, 0, 0),
-                separator_color=(0, 0, 0, 0),
-            )
-            popup.open()
+        active_player = session.active_player if session else session.player
+        if not active_player:
             return
+        if active_player is self.target:
+            # Сначала выберите с кем обменяться
+            TradePopup.select_exchange_partner(self.target, session, self._open_trade_with)
+        else:
+            self._open_trade_with(active_player)
 
-        content = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(15))
-        content.add_widget(Label(text=f"Выберите {type_name} для {companion.name}:", font_size=dp(16)))
+    def _open_trade_with(self, partner_player):
+        """Открыть окно обмена между target и partner."""
+        from kivy.clock import Clock
 
-        for item, qty in items:
-            btn = Button(
-                text=f"{item.display_name()} x{qty}",
-                size_hint_y=None, height=dp(44),
-            )
-            btn.bind(on_press=lambda x, i=item: self._equip_item(i, item_type))
-            content.add_widget(btn)
-
-        btn_cancel = Button(text='Отмена', size_hint_y=None, height=dp(44))
-        btn_cancel.bind(on_press=lambda x: equip_popup.dismiss())
-        content.add_widget(btn_cancel)
-
-        equip_popup = Popup(
-            title=f'Выбор {type_name}',
+        content = TradePopup(self.target, partner_player, on_done=lambda: None)
+        pop = Popup(
+            title="",
             content=content,
-            size_hint=(0.7, 0.5),
-            background='',
+            size_hint=(0.7, 0.85),
+            background="",
             background_color=(0, 0, 0, 0),
             separator_color=(0, 0, 0, 0),
+            auto_dismiss=False,
         )
-        equip_popup.open()
-
-    def _equip_item(self, item, item_type):
-        if not self.player or not self.player.companions:
-            return
-        companion = self.player.companions[0]
-
-        old_item = None
-        if item_type == 'weapon':
-            old_item = companion.weapon
-            self.player.inventory.remove(item.id, 1)
-            companion.equip_weapon(item)
-        elif item_type == 'armor':
-            old_item = companion.armor
-            self.player.inventory.remove(item.id, 1)
-            companion.equip_armor(item)
-
-        if old_item:
-            self.player.inventory.add(old_item, 1)
-
-        for widget in list(App.get_running_app()._app_window.children):
-            if hasattr(widget, 'dismiss'):
-                widget.dismiss()
+        for child in App.get_running_app()._app_window.children:
+            if hasattr(child, "dismiss"):
+                child.dismiss()
                 break
 
-        result = Popup(
-            title='Экипировка',
-            content=Label(text=f"{companion.name} экипирован {item.display_name()}!"),
-            size_hint=(0.6, 0.3),
-            background='',
+        def open_popup(dt):
+            pop.open()
+
+        Clock.schedule_once(open_popup, 0.05)
+
+
+class CompanionsPopup(BoxLayout):
+    """Главное окно управления отрядом — список всех персонажей."""
+
+    def __init__(self, player, on_done=None, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = "vertical"
+        self.spacing = dp(4)
+        self.padding = dp(8)
+        self.player_obj = player
+        self.on_done = on_done
+
+        # Фон
+        with self.canvas.before:
+            Color(0.08, 0.1, 0.15, 0.94)
+            self.bg_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(8)])
+            Color(*COLORS.get("border_gold", (0.6, 0.5, 0.3, 0.6)))
+            self.border_line = Line(
+                rounded_rectangle=(self.x, self.y, self.width, self.height, dp(8)),
+                width=dp(1.2),
+            )
+        self.bind(
+            pos=lambda i, v: self._update_bg(),
+            size=lambda i, v: self._update_bg(),
+        )
+
+        # Заголовок
+        title = Label(
+            text="\u041e\u0422\u0420\u042f\u0414",
+            font_size=dp(20),
+            size_hint_y=None, height=dp(34),
+            color=COLORS.get("gold_light", (0.9, 0.8, 0.5, 1)),
+            bold=True,
+        )
+        self.add_widget(title)
+
+        # Список членов отряда
+        self._card_container = BoxLayout(
+            orientation="vertical",
+            spacing=dp(6),
+            size_hint_y=None,
+            padding=(dp(2), dp(4)),
+        )
+        self._card_container.bind(minimum_height=self._card_container.setter("height"))
+
+        scroll = ScrollView(size_hint_y=1)
+        scroll.add_widget(self._card_container)
+        self.add_widget(scroll)
+
+        # Закрыть
+        btn_close = Button(
+            text="\u2715 \u0417\u0430\u043a\u0440\u044b\u0442\u044c",
+            size_hint_y=None, height=dp(42),
+            font_size=dp(15),
+            background_color=(0.2, 0.22, 0.28, 0.95),
+            color=(0.9, 0.9, 0.9, 1),
+            bold=True,
+            background_normal="",
+        )
+        btn_close.bind(on_press=lambda _: self._close())
+        self.add_widget(btn_close)
+
+        self._populate()
+
+    def _update_bg(self):
+        self.bg_rect.pos = self.pos
+        self.bg_rect.size = self.size
+        self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(8))
+
+    def _populate(self):
+        """Заполнить список всех членов отряда."""
+        self._card_container.clear_widgets()
+
+        app = App.get_running_app()
+        session = app.game if app.game else None
+        if not session:
+            lbl = Label(text="Нет активной игры", font_size=dp(14))
+            self._card_container.add_widget(lbl)
+            return
+
+        all_members = []
+        if session.player:
+            all_members.append(session.player)
+        for pm in session.party_members:
+            if pm is not session.player:
+                all_members.append(pm)
+
+        if not all_members:
+            lbl = Label(
+                text="В отряде только вы.\nНаймите спутников в таверне!",
+                font_size=dp(13),
+                size_hint_y=None, height=dp(50),
+                color=(0.7, 0.7, 0.7, 1),
+            )
+            self._card_container.add_widget(lbl)
+            return
+
+        for member in all_members:
+            card = _PartyCard(member, on_click=self._on_member_click)
+            self._card_container.add_widget(card)
+
+    def _on_member_click(self, player_obj):
+        """Открыть меню действий для выбранного члена отряда.
+        Заменяет содержимое попапа на PartyActionMenu.
+        """
+        app = App.get_running_app()
+        session = app.game if app.game else None
+        all_players = []
+        if session:
+            if session.player:
+                all_players.append(session.player)
+            all_players.extend(session.party_members)
+
+        # Закрываем текущий popup и открываем новый с меню действий
+        for child in list(app._app_window.children):
+            if hasattr(child, "dismiss"):
+                child.dismiss()
+
+        action_content = PartyActionMenu(
+            player_obj, all_players,
+            on_close=lambda: self._reopen_main(),
+        )
+        pop = Popup(
+            title="",
+            content=action_content,
+            size_hint=(0.35, 0.6),
+            pos_hint={"x": 0.02, "y": 0.2},
+            auto_dismiss=True,
+            background="",
             background_color=(0, 0, 0, 0),
             separator_color=(0, 0, 0, 0),
         )
-        result.open()
-        self._refresh()
+        pop.open()
 
-    def on_unequip_weapon(self, instance):
-        self._unequip_item('weapon')
+    def _reopen_main(self):
+        """Закрыть подменю и открыть главное окно заново."""
+        # Popup с подменю закроется сам, а CompanionsPopup откроем снова
+        app = App.get_running_app()
+        from ui.companions_popup import CompanionsPopup
+        from kivy.clock import Clock
 
-    def on_unequip_armor(self, instance):
-        self._unequip_item('armor')
-
-    def _unequip_item(self, item_type):
-        if not self.player or not self.player.companions:
-            return
-        companion = self.player.companions[0]
-
-        item = None
-        if item_type == 'weapon':
-            item = companion.weapon
-            if item:
-                companion.unequip_weapon()
-        elif item_type == 'armor':
-            item = companion.armor
-            if item:
-                companion.unequip_armor()
-
-        if item:
-            self.player.inventory.add(item, 1)
-            result = Popup(
-                title='Снято',
-                content=Label(text=f"{item.display_name()} возвращено в инвентарь!"),
-                size_hint=(0.6, 0.3),
-                background='',
+        def open_main(dt):
+            content = CompanionsPopup(
+                app.game.player if app.game else None,
+                on_done=lambda: None,
+            )
+            pop = Popup(
+                title="",
+                content=content,
+                size_hint=(0.35, 0.85),
+                pos_hint={"x": 0.02, "y": 0.07},
+                auto_dismiss=True,
+                background="",
                 background_color=(0, 0, 0, 0),
                 separator_color=(0, 0, 0, 0),
             )
-            result.open()
+            pop.open()
 
-        self._refresh()
-
-    def on_dismiss(self, instance):
-        if not self.player or not self.player.companions:
-            return
-        companion = self.player.companions[0]
-
-        if companion.weapon:
-            self.player.inventory.add(companion.weapon, 1)
-        if companion.armor:
-            self.player.inventory.add(companion.armor, 1)
-
-        self.player.companions.remove(companion)
-
-        result = Popup(
-            title='👋 Спутник отпущен',
-            content=Label(text=f"{companion.name} покинул вашу партию.\nЭкипировка возвращена в инвентарь."),
-            size_hint=(0.7, 0.4),
-            background='',
-            background_color=(0, 0, 0, 0),
-            separator_color=(0, 0, 0, 0),
-        )
-        result.open()
-        self._refresh()
+        Clock.schedule_once(open_main, 0.05)
 
     def _close(self):
         if self.on_done:

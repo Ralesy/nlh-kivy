@@ -140,6 +140,8 @@ class Player(Creature):
         self.last_enemy_creatures: Dict[str, List[Optional[Creature]]] = {}
         self.defeated_bosses = set()
         self.is_sneaking = False
+        # Цель для следования (имя другого Player из party_members)
+        self.target_to_follow = None
         # Стойка:
         # "neutral" — стоит на месте, помогает союзникам в бою (по умолчанию)
         # "passive" — не атакует, пока не атакуют его
@@ -521,6 +523,7 @@ class Player(Creature):
         data["defeated_bosses"] = list(self.defeated_bosses)
         data["is_sneaking"] = self.is_sneaking
         data["stance"] = self.stance
+        data["target_to_follow"] = self.target_to_follow
         return data
 
     @classmethod
@@ -596,7 +599,8 @@ class Player(Creature):
             player.last_enemy_creatures[scene_id] = restored
         player.defeated_bosses = set(data.get("defeated_bosses", []))
         player.is_sneaking = bool(data.get("is_sneaking", False))
-        player.stance = data.get("stance", "aggressive")
+        player.stance = data.get("stance", "neutral")
+        player.target_to_follow = data.get("target_to_follow", None)
 
         return player
 
