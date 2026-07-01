@@ -140,11 +140,11 @@ class Player(Creature):
         self.last_enemy_creatures: Dict[str, List[Optional[Creature]]] = {}
         self.defeated_bosses = set()
         self.is_sneaking = False
-        # Стойка в real-time combat:
-        # "aggressive" — атакует всех врагов в радиусе (по умолчанию)
+        # Стойка:
+        # "neutral" — стоит на месте, помогает союзникам в бою (по умолчанию)
         # "passive" — не атакует, пока не атакуют его
-        # "defensive" — атакует, но с повышенным шансом блока
-        self.stance = "aggressive"
+        # "patrol" — патрулирует локацию как враги
+        self.stance = "neutral"
 
     def allocate_skill_point(self, skill: str) -> bool:
         """Распределить одно очко навыка. Возвращает True при успехе."""
