@@ -1815,7 +1815,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if not session or not session.player:
             return
         player = session.player
-        if player.coins < 100:
+        if player.coins < 400:
             self._spawn_bark_with_text(ent, "Недостаточно монет! Нужно 100.", duration=3.0)
             return
         # Проверяем, не нанят ли уже
@@ -1823,7 +1823,7 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             if pm.name == "Тестовый спутник":
                 self._spawn_bark_with_text(ent, "Уже в отряде!", duration=2.0)
                 return
-        player.spend_coins(100)
+        player.spend_coins(400)
         # Создаём нового Player для спутника (без стартового снаряжения)
         from core.models.player import Player
         from core.models.inventory import Inventory
@@ -2099,6 +2099,9 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         if main_ent:
             main_ent["party_index"] = -1
             self._player_entities.append(main_ent)
+            # Добавляем в общий список _entities, чтобы был доступен для лута/лечения
+            if main_ent not in self._entities:
+                self._entities.append(main_ent)
 
         # Члены отряда
         for idx, pm in enumerate(session.party_members):
@@ -2385,14 +2388,21 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 dy = target["y"] - ent["y"]
                 target_ok = (dx * dx + dy * dy) ** 0.5 <= max_combat_range
             if not target_ok:
-                # Ищем нового ближайшего члена отряда
+                # Ищем нового ближайшего члена отряда (только в пределах досягаемости)
                 alive_targets = [pe for pe in all_player_ents
                                  if pe.get("creature") and pe["creature"].is_alive]
                 if alive_targets:
                     closest = min(alive_targets, key=lambda e:
                         ((e["x"] - ent["x"])**2 + (e["y"] - ent["y"])**2)**0.5)
-                    target = closest
-                    target_ok = True
+                    dx = closest["x"] - ent["x"]
+                    dy = closest["y"] - ent["y"]
+                    dist_to_closest = (dx*dx + dy*dy) ** 0.5
+                    if dist_to_closest <= dp(350):
+                        target = closest
+                        target_ok = True
+                    else:
+                        target = None
+                        target_ok = False
                 else:
                     target = None
                     target_ok = False
@@ -2971,12 +2981,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             player.health = max(1, player.max_health // 4)
             defeat_idx = apply_random_defeat(player)
 
-            # Воскрешаем членов отряда с 25% HP
+            # Воскрешаем членов отряда с 20 HP
             session = app.game
             if session:
                 for pm in getattr(session, "party_members", []):
                     if pm:
-                        pm.health = max(1, pm.max_health // 4)
+                        pm.health = 20
+                        pm.max_health = max(pm.max_health, 20)
 
             # Телепорт к городу на глобальной карте
             player.last_global_pos = (0.19, 0.85)
@@ -3413,6 +3424,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
     def _save_player_state(self) -> None:
         app = App.get_running_app()
         session = app.game if app.game else None
+        dead_names = []
+        main_player_dead = False
         if session and self.scene_id:
             for ent in self._player_entities:
                 creature = ent.get("creature")
@@ -3421,9 +3434,45 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                         ent["x"] / max(1, self.width),
                         ent["y"] / max(1, self.height),
                     )
-                    # Поверженные члены отряда сохраняют defeated статус
-                    if ent.get("defeated"):
-                        creature.die()  # ensure creature is dead
+                    # Мёртвый невоскрешённый член отряда — удаляем навсегда
+                    if ent.get("defeated") and not creature.is_alive:
+                        if creature is session.player:
+                            # Главный герой погиб — переносим в party_members как "потерю"
+                            main_player_dead = True
+                            dead_names.append(creature.name)
+                        elif creature in session.party_members:
+                            session.party_members.remove(creature)
+                            dead_names.append(creature.name)
+            if main_player_dead and session.party_members:
+                # Если главный герой мёртв — переключаемся на первого живого
+                new_main = session.party_members[0]
+                session.party_members.remove(new_main)
+                # Переносим данные основного игрока
+                old_name = session.player.name
+                old_inv = session.player.inventory
+                session.player = new_main
+                dead_names.append(f"{old_name} (главный герой)")
+                # Передаём инвентарь новому игроку
+                if old_inv:
+                    new_main.inventory = old_inv
+            if dead_names:
+                msg = ", ".join(dead_names)
+                # Показываем сообщение через Popup перед выходом
+                from kivy.uix.label import Label
+                from kivy.uix.popup import Popup
+                popup = Popup(
+                    title='Потери',
+                    content=Label(
+                        text=f"{msg} пал(и) в бою!",
+                        font_size=dp(16),
+                    ),
+                    size_hint=(0.5, 0.3),
+                    background='',
+                    background_color=(0, 0, 0, 0),
+                    separator_color=(0, 0, 0, 0),
+                    auto_dismiss=True,
+                )
+                popup.open()
         if session and self._is_ambush:
             session.player._ambush_defeated_set = set(self._defeated_enemies)
 
