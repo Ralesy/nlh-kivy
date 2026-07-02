@@ -140,6 +140,8 @@ class Player(Creature):
         self.last_enemy_creatures: Dict[str, List[Optional[Creature]]] = {}
         self.defeated_bosses = set()
         self.is_sneaking = False
+        # ID NPC-слота в городе, из которого был нанят спутник
+        self.npc_hire_id = None
         # Цель для следования (имя другого Player из party_members)
         self.target_to_follow = None
         # Стойка:

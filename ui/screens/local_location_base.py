@@ -72,6 +72,9 @@ from core.config import (
     BARK_DURATION,
 )
 
+HIRE_NAMES = ["Чон", "Дан", "Лос", "Крот", "Спанк", "Луи", "Люций", "Мас", "Шак", "Шон", "Сивер", "Гимл", "Тор", "Билл", "Скат"]
+HIRE_COST = 400
+
 
 class LocalLocationScreen(Screen, KeyboardHandler):
     """Проходимая локальная карта с сущностями и зонами перехода."""
@@ -546,6 +549,11 @@ class LocalLocationScreen(Screen, KeyboardHandler):
     def _init_npc_entities(self) -> None:
         """Серые круги NPC на карте таверны или магазина."""
         app = App.get_running_app()
+        session = app.game if app.game else None
+        # Счётчик для распределения имён нанимаемым NPC
+        _hire_name_pool = list(HIRE_NAMES)
+        random.shuffle(_hire_name_pool)
+        _hire_name_idx = 0
         for npc_cfg in self.scene_config.npcs:
             if npc_cfg.npc_id == "npc_dragonslayer":
                 lm = app.game.location_manager if app.game else None
@@ -556,6 +564,15 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                 if not npc:
                     continue
                 display_name = npc.name
+            elif npc_cfg.action == "hire":
+                # Нанимаемый спутник
+                if session and npc_cfg.npc_id in session.hired_npc_ids:
+                    continue  # уже нанят
+                if _hire_name_idx < len(_hire_name_pool):
+                    display_name = _hire_name_pool[_hire_name_idx]
+                    _hire_name_idx += 1
+                else:
+                    display_name = npc_cfg.name
             else:
                 display_name = npc_cfg.name
 
@@ -1706,7 +1723,13 @@ class LocalLocationScreen(Screen, KeyboardHandler):
 
         if self._active_interact:
             ent = self._active_interact
-            label = "Поговорить" if ent.get("action") == "dialogue" else "Открыть"
+            action = ent.get("action")
+            if action == "hire":
+                label = "Поговорить"
+            elif action == "dialogue":
+                label = "Поговорить"
+            else:
+                label = "Открыть"
             sx, sy = self._world_to_screen(ent["x"], ent["y"])
             screen_radius = ent["radius"] * self._camera_zoom()
             self.btn_zone_action.text = f"{label}: {ent.get('name', '')}"
@@ -1740,7 +1763,8 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         app = App.get_running_app()
 
         if action == "hire":
-            self._hire_companion(ent)
+            # Диалог найма вместо прямого вызова
+            self._show_hire_dialogue(ent)
             return
 
         if action == "shop":
@@ -1808,27 +1832,65 @@ class LocalLocationScreen(Screen, KeyboardHandler):
             self._active_interact_entity = ent
             popup.open()
 
+    def _show_hire_dialogue(self, ent) -> None:
+        """Показать диалог найма спутника."""
+        from ui.hire_dialogue_popup import HireDialoguePopup
+
+        app = App.get_running_app()
+        session = app.game if app.game else None
+        if not session or not session.player:
+            return
+        npc_name = ent.get("name", "Странник")
+        hire_cost = HIRE_COST
+
+        def on_hire():
+            self._hire_companion(ent)
+
+        def on_leave():
+            for child in list(App.get_running_app()._app_window.children):
+                if hasattr(child, "dismiss"):
+                    child.dismiss()
+
+        hire_content = HireDialoguePopup(
+            npc_name, hire_cost,
+            on_hire=on_hire,
+            on_leave=on_leave,
+        )
+        popup = Popup(
+            title='',
+            content=hire_content,
+            size_hint=(0.35, 0.5),
+            pos_hint={'x': 0.02, 'y': 0.2},
+            auto_dismiss=True,
+            background='',
+            background_color=(0, 0, 0, 0),
+            separator_color=(0, 0, 0, 0),
+        )
+        popup.open()
+
     def _hire_companion(self, ent) -> None:
-        """Нанять тестового спутника за 100 монет."""
+        """Нанять спутника: трансформировать NPC-entity в члена отряда."""
         app = App.get_running_app()
         session = app.game if app.game else None
         if not session or not session.player:
             return
         player = session.player
-        if player.coins < 400:
-            self._spawn_bark_with_text(ent, "Недостаточно монет! Нужно 100.", duration=3.0)
+        hire_cost = HIRE_COST
+
+        if player.coins < hire_cost:
+            self._spawn_bark_with_text(ent, f"Недостаточно монет! Нужно {hire_cost}.", duration=3.0)
             return
-        # Проверяем, не нанят ли уже
-        for pm in session.party_members:
-            if pm.name == "Тестовый спутник":
-                self._spawn_bark_with_text(ent, "Уже в отряде!", duration=2.0)
-                return
-        player.spend_coins(400)
-        # Создаём нового Player для спутника (без стартового снаряжения)
+
+        npc_id = ent.get("id", "")
+        npc_name = ent.get("name", "Спутник")
+
+        # Потратить монеты
+        player.spend_coins(hire_cost)
+
+        # Создаём Player для спутника
         from core.models.player import Player
         from core.models.inventory import Inventory
-        companion = Player("Тестовый спутник", "squire")
-        # Убираем стартовое снаряжение — даём минимальное
+        companion = Player(npc_name, "squire")
         companion.weapon = None
         companion.armor = None
         companion.coins = 0
@@ -1836,34 +1898,40 @@ class LocalLocationScreen(Screen, KeyboardHandler):
         companion.max_health = companion._scale_stat(companion.base_health)
         companion.health = companion.max_health
         companion.base_damage = 5
-        # Очищаем инвентарь от стартовых предметов
         companion.inventory = Inventory(capacity=20)
+
+        # Отмечаем от какого NPC-слота пришёл
+        companion.npc_hire_id = npc_id
+
         session.party_members.append(companion)
-        # Создаём entity для спутника рядом с игроком
-        player_ent = self._get_player_entity()
-        if player_ent:
-            from core.models.inventory import Inventory
-            # Создаём entity спутника
-            offset_x = dp(50)
-            offset_y = dp(-30)
-            idx = len(session.party_members) - 1
-            new_ent = self._create_entity(
-                etype="player",
-                eid=f"player_companion_{idx}",
-                x=player_ent["x"] + offset_x,
-                y=player_ent["y"] + offset_y,
-                creature=companion,
-                radius=self._player_radius(),
-                stance=getattr(companion, "stance", "neutral"),
-                ai_state="idle",
-                player_controlled=True,
-                party_index=idx,
-            )
-            self._entities.append(new_ent)
-            self._player_entities.append(new_ent)
-        # Показываем сообщение
-        self._spawn_bark_with_text(ent, "Спутник присоединился к отряду!", duration=3.0)
-        # Обновляем HUD
+        if session:
+            session.hired_npc_ids.add(npc_id)
+
+        # Трансформируем существующую entity: NPC → player
+        idx = len(session.party_members) - 1
+        ent["type"] = "player"
+        ent["eid"] = f"player_companion_{idx}"
+        ent["creature"] = companion
+        ent["party_index"] = idx
+        ent["player_controlled"] = True
+        ent["radius"] = self._player_radius()
+        ent["ai_state"] = "idle"
+        ent["party_index"] = idx
+        ent["in_combat"] = False
+        ent["combat_target"] = None
+        ent["attack_phase"] = "idle"
+        ent["readiness"] = 0.0
+
+        # Добавляем в _player_entities
+        self._player_entities.append(ent)
+
+        # Закрываем попап диалога
+        for child in list(App.get_running_app()._app_window.children):
+            if hasattr(child, "dismiss"):
+                child.dismiss()
+
+        self._spawn_bark_with_text(ent, f"{npc_name} присоединился к отряду!", duration=3.0)
+
         hud = getattr(app, 'game_hud', None)
         if hud:
             hud.update()
@@ -3441,6 +3509,10 @@ class LocalLocationScreen(Screen, KeyboardHandler):
                             main_player_dead = True
                             dead_names.append(creature.name)
                         elif creature in session.party_members:
+                            # Освобождаем NPC-слот если спутник был нанят
+                            npc_id = getattr(creature, "npc_hire_id", None)
+                            if npc_id and session:
+                                session.hired_npc_ids.discard(npc_id)
                             session.party_members.remove(creature)
                             dead_names.append(creature.name)
             if main_player_dead and session.party_members:

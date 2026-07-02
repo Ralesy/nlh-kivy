@@ -76,6 +76,8 @@ class GameSession:
         # -1 = активен главный игрок (self.player)
         # 0, 1, 2... = активен party_members[index]
         self.active_party_member_index: int = -1
+        # ID нанятых NPC-слотов в городе (чтобы не спавнить повторно)
+        self.hired_npc_ids: set = set()
 
     @property
     def has_player(self) -> bool:

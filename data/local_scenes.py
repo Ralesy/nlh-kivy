@@ -131,8 +131,10 @@ def build_scene_config(scene_id: str) -> Optional[LocalSceneConfig]:
                 NpcSpawnConfig("bartender", "Бармен", 0.22, 0.75, action="tavern_menu"),
                 # NPC из бывшего магазина
                 NpcSpawnConfig("shopkeeper", "Торговец", 0.72, 0.72, action="shop"),
-                # Спутник для теста party system
-                NpcSpawnConfig("test_companion", "Тестовый спутник", 0.50, 0.50, action="hire"),
+                # Спутники для найма (до 3 штук)
+                NpcSpawnConfig("hireable_0", "Странник", 0.50, 0.50, action="hire"),
+                NpcSpawnConfig("hireable_1", "Странник", 0.35, 0.70, action="hire"),
+                NpcSpawnConfig("hireable_2", "Странник", 0.65, 0.65, action="hire"),
             ],
             background_candidates=_bg_candidates(scene_id),
         )
